@@ -1268,37 +1268,46 @@
      once, so what the silhouette needs to say is "how far along", not "which of
      three" — the coloured pips above its head already answer that. */
   /* ---- the figure ----
-     A brick figure is boxes, and boxes are what makes it read at 20 pixels:
-     legs block, tapered torso, cylinder head, one stud on top. Everything sits
-     on a fixed vertical layout so the eyes, the mouth, the hats and the pips
-     all know where the head is without being told:
+     Redrawn to minifigure proportions after the first pass came out a toddler:
+     the old head was 40% of the figure's height, and no amount of stud on top
+     of a head that size reads as a brick person. What actually carries the
+     look is the head being NARROWER than the torso and the legs being long:
 
-        HEAD_TOP  -0.94 ┬ head (always yellow, whatever the Bro wears)
-        FACE      -0.44 │   eyes and mouth are placed off this
-        HEAD_BOT  -0.20 ┴
-        SHOULDER  -0.16 ┬ torso, tapering wider toward the hips
-        HIP        0.30 ┼ legs block
-        FOOT       0.94 ┴
+        stud      -0.895 ─ flat top face, drawn as an ellipse (seen from above)
+        head      -0.81  ┬ yellow cylinder — straight sides, hw 0.245
+                  -0.345 ┴
+        torso     -0.295 ┬ trapezoid: hw 0.335 at the flat shoulder line,
+                   0.21  ┴   widening to 0.475 at the hips
+        hip bar    0.345 ─ a separate lighter piece across the leg tops
+        legs       0.915 ┴ two straight columns, no taper, seam at the foot
 
-     The whole thing is lit from the top-left, matching the cast shadow drawn
-     underneath it, so flat plastic still looks moulded rather than printed. */
-  const HEAD_TOP = -0.94, HEAD_BOT = -0.20, HIP = 0.30, FOOT = 0.94;
+     That puts head+stud at ~30% of the height, torso ~28%, hips+legs ~40% —
+     close to the real thing, with the head a shade large so the face still
+     reads at battle size. All in units of r; everything must stay inside the
+     sprite box of x ±0.95, y ±0.94 (the stud's ellipse just grazes -0.93).
+
+     Lit from the top-left like the cast shadow: a hard vertical gloss band on
+     the left of every piece and a shade band on the right, which is what makes
+     it moulded plastic rather than a printed sticker. */
+  const STUD_HW = 0.135, STUD_TOP = -0.895, STUD_BOT = -0.80, STUD_RY = 0.032;
+  const HEAD_HW = 0.245, HEAD_TOP = -0.81, HEAD_BOT = -0.345, HEAD_CR = 0.055;
+  const NECK_HW = 0.105, NECK_TOP = -0.37, NECK_BOT = -0.27;
+  const SHO_HW = 0.335, HIP_HW = 0.475, TORSO_TOP = -0.295, TORSO_BOT = 0.21;
+  const HIPBAR_HW = 0.455, HIPBAR_BOT = 0.345;
+  const LEG_IN = 0.035, LEG_OUT = 0.445, LEG_BOT = 0.915, FOOT_Y = 0.775;
   const SKIN = '#f2c033';           // the one colour every Bro shares
+  const SKIN_INK = '#9a7412';
 
-  /* A brick-shaped panel: a rectangle whose top and bottom edges can differ in
-     width, so a torso can taper without four separate paths. */
-  function panel(ctx, yTop, yBot, halfTop, halfBot, rad) {
-    ctx.beginPath();
-    ctx.moveTo(-halfTop + rad, yTop);
-    ctx.lineTo(halfTop - rad, yTop);
-    ctx.quadraticCurveTo(halfTop, yTop, halfTop + (halfBot - halfTop) * 0.1, yTop + rad);
-    ctx.lineTo(halfBot, yBot - rad);
-    ctx.quadraticCurveTo(halfBot, yBot, halfBot - rad, yBot);
-    ctx.lineTo(-halfBot + rad, yBot);
-    ctx.quadraticCurveTo(-halfBot, yBot, -halfBot, yBot - rad);
-    ctx.lineTo(-halfTop - (halfBot - halfTop) * 0.1, yTop + rad);
-    ctx.quadraticCurveTo(-halfTop, yTop, -halfTop + rad, yTop);
-    ctx.closePath();
+  /* The plastic gloss: clip to the piece, then three straight vertical bands —
+     broad sheen left, a bright core inside it, shade right. Bands, not a
+     gradient, because moulded plastic catches light in hard streaks. */
+  function gloss(ctx, pathFn, cx, w, yTop, yBot) {
+    ctx.save(); pathFn(); ctx.clip();
+    const h = yBot - yTop;
+    ctx.fillStyle = 'rgba(255,255,255,0.20)'; ctx.fillRect(cx - w * 0.42, yTop, w * 0.24, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.38)'; ctx.fillRect(cx - w * 0.36, yTop, w * 0.09, h);
+    ctx.fillStyle = 'rgba(10,14,30,0.15)'; ctx.fillRect(cx + w * 0.26, yTop, w * 0.24, h);
+    ctx.restore();
   }
 
   /* The still half of a Bro: the gear on its back, the legs, the torso and the
@@ -1309,8 +1318,6 @@
   function paintBroBody(ctx, r, look, tierA, tierB, clsColor) {
     const torso = look.tint || '#2f6fb5';
     const legs = look.belly || '#2b3a4a';
-    const ink = shade(torso.startsWith('#') ? torso : '#2f6fb5', -70);
-    const lw = Math.max(1, r * 0.085);
 
     // back-mounted gear, drawn before the body so it sits behind it
     if (look.prop === 'jetpack') {
@@ -1321,152 +1328,167 @@
       rounded(ctx, -r * 0.74, -r * 0.38, r * 0.30, r * 0.16, r * 0.06);
       rounded(ctx, r * 0.44, -r * 0.38, r * 0.30, r * 0.16, r * 0.06);
     }
-    if (look.prop === 'periscope') {           // the rover's antenna mast
+    /* The rover's antenna mast. Inboard of the old spot: the mast used to
+       lean on a 0.40r-wide head's hat brim, and against the narrow head it
+       hung in open air — now it runs down behind the shoulder so the torso
+       overlaps its foot. */
+    if (look.prop === 'periscope') {
       ctx.fillStyle = '#7d8a96';
-      ctx.fillRect(r * 0.52, -r * 1.62, r * 0.13, r * 1.2);
+      ctx.fillRect(r * 0.31, -r * 1.62, r * 0.13, r * 1.47);
       ctx.fillStyle = '#c9d4dd';
-      ctx.beginPath(); ctx.arc(r * 0.585, -r * 1.66, r * 0.15, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(r * 0.375, -r * 1.66, r * 0.15, 0, TAU); ctx.fill();
     }
 
-    /* ---- legs ----
-       Drawn as two separate legs rather than one block with a line down it.
-       At battle size the line was invisible and the whole lower half read as a
-       dark smudge; two shapes with a real gap between them read as legs even
-       when they are twelve pixels tall. */
-    const legDark = shade(legs.startsWith('#') ? legs : '#2b3a4a', -34);
-    const legLit = shade(legs.startsWith('#') ? legs : '#2b3a4a', 28);
-    for (const side of [-1, 1]) {
-      const x0 = side < 0 ? -r * 0.46 : r * 0.06;
-      ctx.fillStyle = legs;
-      rounded(ctx, x0, HIP * r + r * 0.06, r * 0.40, (FOOT - HIP) * r - r * 0.06, r * 0.06);
-      // the lit face down the sunward side of each leg
-      ctx.fillStyle = side < 0 ? legLit : legDark;
-      ctx.fillRect(x0, HIP * r + r * 0.06, r * 0.10, (FOOT - HIP) * r - r * 0.06);
-      // the boot: a darker band with its own lip, so the figure has a footing
-      ctx.fillStyle = legDark;
-      rounded(ctx, x0 - r * 0.02, FOOT * r - r * 0.20, r * 0.44, r * 0.20, r * 0.05);
-      ctx.fillStyle = shade(legs.startsWith('#') ? legs : '#2b3a4a', -8);
-      ctx.fillRect(x0 - r * 0.02, FOOT * r - r * 0.20, r * 0.44, r * 0.06);
-      ctx.strokeStyle = ink; ctx.lineWidth = lw * 0.9;
-      ctx.beginPath(); ctx.rect(x0, HIP * r + r * 0.06, r * 0.40, (FOOT - HIP) * r - r * 0.06); ctx.stroke();
-    }
-    // hip plate — the step where the legs meet the torso, and the belt on it
-    ctx.fillStyle = shade(legs.startsWith('#') ? legs : '#2b3a4a', 22);
-    rounded(ctx, -r * 0.48, HIP * r - r * 0.06, r * 0.96, r * 0.20, r * 0.05);
-    ctx.strokeStyle = ink; ctx.lineWidth = lw * 0.9;
-    ctx.beginPath(); ctx.rect(-r * 0.48, HIP * r - r * 0.06, r * 0.96, r * 0.20); ctx.stroke();
-
-    /* ---- torso ---- */
-    ctx.fillStyle = torso;
-    panel(ctx, HEAD_BOT * r + r * 0.04, HIP * r + r * 0.02, r * 0.34, r * 0.47, r * 0.07);
-    ctx.fill();
-    ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
-    // moulded shading: light down the left face, shadow down the right
+    /* Everything below is drawn in units of r: the scale carries lineWidth
+       with it, so an outline set to 0.05 is 0.05r on screen. The floor keeps
+       outlines a device pixel wide on the tiny fort/vendor shop figures. */
     ctx.save();
-    panel(ctx, HEAD_BOT * r + r * 0.04, HIP * r + r * 0.02, r * 0.34, r * 0.47, r * 0.07);
-    ctx.clip();
-    ctx.fillStyle = 'rgba(255,255,255,0.16)';
-    ctx.fillRect(-r * 0.5, -r, r * 0.22, r * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
-    ctx.fillRect(r * 0.22, -r, r * 0.3, r * 2);
+    ctx.scale(r, r);
+    const inkT = shade(torso.startsWith('#') ? torso : '#2f6fb5', -45);
+    const inkL = shade(legs.startsWith('#') ? legs : '#2b3a4a', -45);
+    const lw = Math.max(0.05, 0.9 / r);
+
+    /* ---- legs: straight columns with a real gap, seam where the foot starts.
+       No boots — a contrasting boot band read as galoshes, not moulded legs. */
+    for (const side of [-1, 1]) {
+      const x0 = Math.min(side * LEG_IN, side * LEG_OUT);
+      const x1 = Math.max(side * LEG_IN, side * LEG_OUT);
+      const path = () => { ctx.beginPath(); ctx.rect(x0, HIPBAR_BOT, x1 - x0, LEG_BOT - HIPBAR_BOT); };
+      path(); ctx.fillStyle = legs; ctx.fill();
+      gloss(ctx, path, (x0 + x1) / 2, x1 - x0, HIPBAR_BOT, LEG_BOT);
+      ctx.beginPath(); ctx.moveTo(x0 + 0.02, FOOT_Y); ctx.lineTo(x1 - 0.02, FOOT_Y);
+      ctx.strokeStyle = inkL; ctx.lineWidth = lw * 0.6;
+      ctx.globalAlpha = 0.75; ctx.stroke(); ctx.globalAlpha = 1;
+      path(); ctx.strokeStyle = inkL; ctx.lineWidth = lw; ctx.stroke();
+    }
+
+    /* ---- hip bar: its own piece, a step lighter than the legs ---- */
+    const hipPath = () => { ctx.beginPath(); ctx.rect(-HIPBAR_HW, TORSO_BOT, HIPBAR_HW * 2, HIPBAR_BOT - TORSO_BOT); };
+    hipPath(); ctx.fillStyle = shade(legs.startsWith('#') ? legs : '#2b3a4a', 22); ctx.fill();
+    gloss(ctx, hipPath, 0, HIPBAR_HW * 2, TORSO_BOT, HIPBAR_BOT);
+    hipPath(); ctx.strokeStyle = inkL; ctx.lineWidth = lw; ctx.stroke();
+
+    // leg top faces peeking from under the hip bar — the 3D hint
+    for (const side of [-1, 1]) {
+      const x0 = Math.min(side * LEG_IN, side * LEG_OUT);
+      const x1 = Math.max(side * LEG_IN, side * LEG_OUT);
+      ctx.beginPath();
+      ctx.ellipse((x0 + x1) / 2, HIPBAR_BOT, (x1 - x0) / 2 - 0.02, 0.034, 0, 0, TAU);
+      ctx.fillStyle = shade(legs.startsWith('#') ? legs : '#2b3a4a', 32); ctx.fill();
+      ctx.strokeStyle = inkL; ctx.lineWidth = lw * 0.5; ctx.stroke();
+    }
+
+    /* ---- neck, tucked behind the torso's shoulder line ---- */
+    ctx.beginPath(); ctx.rect(-NECK_HW, NECK_TOP, NECK_HW * 2, NECK_BOT - NECK_TOP);
+    ctx.fillStyle = SKIN; ctx.fill();
+    ctx.strokeStyle = SKIN_INK; ctx.lineWidth = lw * 0.7; ctx.stroke();
+
+    /* ---- torso: the trapezoid, flat shoulders, wider at the hips ---- */
+    const torsoPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(-SHO_HW, TORSO_TOP); ctx.lineTo(SHO_HW, TORSO_TOP);
+      ctx.lineTo(HIP_HW, TORSO_BOT); ctx.lineTo(-HIP_HW, TORSO_BOT);
+      ctx.closePath();
+    };
+    torsoPath(); ctx.fillStyle = torso; ctx.fill();
+    gloss(ctx, torsoPath, 0, SHO_HW + HIP_HW, TORSO_TOP, TORSO_BOT);
 
     /* ---- the gear path, worn on the chest ----
        Tier 1 is a printed torso stripe in the class colour; tier 2 adds the
        cape (drawn in drawBro, behind everything); tier 3 gilds the stripe. */
     if (tierB >= 1) {
-      ctx.strokeStyle = clsColor; ctx.lineWidth = r * 0.17; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-r * 0.34, HEAD_BOT * r + r * 0.16); ctx.lineTo(r * 0.30, HIP * r - r * 0.04); ctx.stroke();
+      ctx.save(); torsoPath(); ctx.clip();
+      ctx.strokeStyle = clsColor; ctx.lineWidth = 0.17; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-0.335, TORSO_TOP + 0.10); ctx.lineTo(0.30, TORSO_BOT - 0.07); ctx.stroke();
       if (tierB >= 3) {
-        ctx.strokeStyle = '#ffd166'; ctx.lineWidth = r * 0.05;
-        ctx.beginPath(); ctx.moveTo(-r * 0.34, HEAD_BOT * r + r * 0.16); ctx.lineTo(r * 0.30, HIP * r - r * 0.04); ctx.stroke();
+        ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 0.05;
+        ctx.beginPath(); ctx.moveTo(-0.335, TORSO_TOP + 0.10); ctx.lineTo(0.30, TORSO_BOT - 0.07); ctx.stroke();
       }
+      ctx.restore();
     }
-    ctx.restore();
-
-    /* ---- neck stud ---- */
-    ctx.fillStyle = shade(torso.startsWith('#') ? torso : '#2f6fb5', 30);
-    rounded(ctx, -r * 0.13, HEAD_BOT * r - r * 0.02, r * 0.26, r * 0.12, r * 0.05);
+    torsoPath(); ctx.strokeStyle = inkT; ctx.lineWidth = lw; ctx.lineJoin = 'miter'; ctx.stroke();
 
     /* ---- head ----
        Always the same yellow, on every Bro in the game. It is the one thing
        that says these are all the same kind of thing, so nothing is allowed to
-       recolour it — hats go on top, they do not replace it. */
-    ctx.fillStyle = SKIN;
-    rounded(ctx, -r * 0.40, HEAD_TOP * r, r * 0.80, (HEAD_BOT - HEAD_TOP) * r, r * 0.20);
-    ctx.strokeStyle = '#9a7412'; ctx.lineWidth = lw;
-    // rounded() only fills, so re-trace the outline
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(-r * 0.40 + r * 0.20, HEAD_TOP * r);
-    ctx.arcTo(r * 0.40, HEAD_TOP * r, r * 0.40, HEAD_BOT * r, r * 0.20);
-    ctx.arcTo(r * 0.40, HEAD_BOT * r, -r * 0.40, HEAD_BOT * r, r * 0.20);
-    ctx.arcTo(-r * 0.40, HEAD_BOT * r, -r * 0.40, HEAD_TOP * r, r * 0.20);
-    ctx.arcTo(-r * 0.40, HEAD_TOP * r, r * 0.40, HEAD_TOP * r, r * 0.20);
-    ctx.closePath(); ctx.stroke();
-    ctx.clip();
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.fillRect(-r * 0.42, HEAD_TOP * r, r * 0.18, r);
-    ctx.fillStyle = 'rgba(0,0,0,0.13)';
-    ctx.fillRect(r * 0.24, HEAD_TOP * r, r * 0.2, r);
-    ctx.restore();
+       recolour it — hats go on top, they do not replace it. A cylinder:
+       straight vertical sides, corners barely eased, clearly narrower than
+       the torso. */
+    const headPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(-HEAD_HW + HEAD_CR, HEAD_TOP);
+      ctx.arcTo(HEAD_HW, HEAD_TOP, HEAD_HW, HEAD_BOT, HEAD_CR);
+      ctx.arcTo(HEAD_HW, HEAD_BOT, -HEAD_HW, HEAD_BOT, HEAD_CR);
+      ctx.arcTo(-HEAD_HW, HEAD_BOT, -HEAD_HW, HEAD_TOP, HEAD_CR);
+      ctx.arcTo(-HEAD_HW, HEAD_TOP, HEAD_HW, HEAD_TOP, HEAD_CR);
+      ctx.closePath();
+    };
+    headPath(); ctx.fillStyle = SKIN; ctx.fill();
+    gloss(ctx, headPath, 0, HEAD_HW * 2, HEAD_TOP, HEAD_BOT);
+    headPath(); ctx.strokeStyle = SKIN_INK; ctx.lineWidth = lw; ctx.stroke();
 
-    // the stud on top of the head
-    ctx.fillStyle = shade(SKIN, -18);
-    ctx.beginPath(); ctx.ellipse(0, HEAD_TOP * r, r * 0.15, r * 0.07, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = SKIN;
-    ctx.beginPath(); ctx.ellipse(0, HEAD_TOP * r - r * 0.05, r * 0.15, r * 0.07, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#9a7412'; ctx.lineWidth = Math.max(0.8, r * 0.05);
-    ctx.beginPath(); ctx.ellipse(0, HEAD_TOP * r - r * 0.05, r * 0.15, r * 0.07, 0, 0, TAU); ctx.stroke();
+    // the stud, with its flat top face drawn as an ellipse seen from above
+    ctx.beginPath(); ctx.rect(-STUD_HW, STUD_TOP, STUD_HW * 2, STUD_BOT - STUD_TOP);
+    ctx.fillStyle = SKIN; ctx.fill();
+    ctx.strokeStyle = SKIN_INK; ctx.lineWidth = lw * 0.8; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, STUD_TOP, STUD_HW, STUD_RY, 0, 0, TAU);
+    ctx.fillStyle = shade(SKIN, 35); ctx.fill();
+    ctx.strokeStyle = SKIN_INK; ctx.lineWidth = lw * 0.5; ctx.stroke();
+
+    ctx.restore();
   }
 
-  /* One arm and its C-shaped hand, swinging from the shoulder. Drawn live
+  /* One arm and its C-clamp hand, swinging from the shoulder. Drawn live
      rather than baked because it is the only part of a Bro that moves.
 
-     Redrawn once the figures were made half again as large and the arms turned
-     out to be the thing that had not survived: they were the same colour as the
-     torso and only stuck out 0.2r past it, so at battle size they read as a
-     thickening of the outline rather than as limbs. Now they clear the torso by
-     half a radius, carry a shoulder that sits proud of it, and are shaded a
-     step darker so the join is visible. */
-  function paintArm(ctx, r, side, torso, ink) {
-    const dark = shade(torso.startsWith('#') ? torso : '#2f6fb5', -22);
+     A minifigure arm, in front view: shoulder at the torso's top corner,
+     elbow bend, wrist, then the open yellow clamp. The sleeve is one stroked
+     polyline in the torso colour over a wider ink pass — two strokes, no
+     path-building, and the elbow angle is what sells it. The hand centre
+     lands at (±0.71, 0.195)r, which is where the held weapons in drawProp
+     expect to meet it. */
+  function paintArm(ctx, r, side, torso) {
+    const ink = shade(torso.startsWith('#') ? torso : '#2f6fb5', -45);
     ctx.save();
-    ctx.scale(side, 1);
-    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, r * 0.075);
+    ctx.scale(r * side, r);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const limb = () => {
+      ctx.beginPath();
+      ctx.moveTo(0.30, -0.22); ctx.lineTo(0.50, -0.02); ctx.lineTo(0.60, 0.10);
+    };
+    limb(); ctx.strokeStyle = ink; ctx.lineWidth = 0.255; ctx.stroke();
+    limb(); ctx.strokeStyle = torso; ctx.lineWidth = 0.155; ctx.stroke();
 
-    // upper arm, swept down and out from the shoulder
-    ctx.fillStyle = dark;
+    // gloss streak along the upper arm
     ctx.beginPath();
-    ctx.moveTo(r * 0.30, -r * 0.14);
-    ctx.quadraticCurveTo(r * 0.78, -r * 0.10, r * 0.86, r * 0.26);
-    ctx.lineTo(r * 0.62, r * 0.36);
-    ctx.quadraticCurveTo(r * 0.58, r * 0.06, r * 0.26, r * 0.12);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.moveTo(0.31, -0.24); ctx.lineTo(0.47, -0.09);
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 0.05; ctx.stroke();
 
-    // shoulder cap, sitting proud of the torso so the joint reads
-    ctx.fillStyle = torso;
-    ctx.beginPath(); ctx.ellipse(r * 0.34, -r * 0.04, r * 0.14, r * 0.16, -0.3, 0, TAU);
-    ctx.fill(); ctx.stroke();
-
-    // hand: an open C, the way a brick figure's grip actually looks
-    ctx.fillStyle = SKIN; ctx.strokeStyle = '#9a7412';
-    ctx.lineWidth = Math.max(1.6, r * 0.13); ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.arc(r * 0.78, r * 0.44, r * 0.15, -2.1, 1.6); ctx.stroke();
+    // hand: wrist stem, then the open clamp with its gap tilted forward
+    const hx = 0.71, hy = 0.195;
+    const gapC = (270 - side * 18) * Math.PI / 180, half = 46 * Math.PI / 180;
+    for (const [col, w] of [[SKIN_INK, 0.104], [SKIN, 0.058]]) {
+      ctx.strokeStyle = col; ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(0.60, 0.10); ctx.lineTo(hx - (hx - 0.60) * 0.45, hy - (hy - 0.10) * 0.45); ctx.stroke();
+      ctx.beginPath(); ctx.arc(hx, hy, 0.085, gapC + half, gapC - half + TAU); ctx.stroke();
+    }
     ctx.restore();
   }
 
   /* The hat, and the gold halo a maxed gear path puts around it. shadowBlur is
      the most expensive thing a 2D context can be asked for, and it was being
      asked for once per capstone Bro per frame; baked, it costs nothing. */
-  /* The headgear was laid out around a penguin's head, which sat lower and
-     rounder than a brick figure's does. Rather than re-draw nineteen hats to
-     new coordinates, the whole set is nudged up onto the top of the cylinder
-     and scaled so it overhangs the head the way a moulded hat piece does —
-     0.52r of hat brim on 0.40r of head. */
+  /* The headgear was laid out around a head twice as wide as the one the
+     figure has now. Rather than re-draw nineteen hats to new coordinates, the
+     whole set is scaled to 0.68 and dropped so its seat line lands a third of
+     the way down the new cylinder — still oversized against a 0.245r-wide
+     head, deliberately, because the hat is what says the Bro's job at a
+     glance. */
   function paintBroHat(ctx, r, look, tierB) {
     const put = () => {
       ctx.save();
-      ctx.translate(0, -r * 0.13);
+      ctx.translate(0, -r * 0.29);
+      ctx.scale(0.68, 0.68);
       drawHat(ctx, r, look, 0);
       ctx.restore();
     };
@@ -1487,7 +1509,6 @@
     const tiers = tierA + tierB;
     const r = r0 * (look.scale || 1) * (1 + tiers * 0.03);
     const body = look.tint || '#2f6fb5';
-    const ink = shade(body.startsWith('#') ? body : '#2f6fb5', -70);
     const twDef = typeId && G.TOWERS[typeId];
     const clsColor = (twDef && G.CLASSES[twDef.cls] && G.CLASSES[twDef.cls].color) || '#e05252';
     /* Keyed on everything the baked art depends on, and on nothing else. r is
@@ -1520,18 +1541,18 @@
       const sway = Math.sin(t * 2.2) * r * 0.05;
       ctx.fillStyle = shade(clsColor, -12);
       ctx.beginPath();
-      ctx.moveTo(-r * 0.30, -r * 0.20);
+      ctx.moveTo(-r * 0.32, -r * 0.26);
       ctx.quadraticCurveTo(-r * 0.98, r * 0.10 + sway, -r * 0.80, r * 0.80 + sway);
       ctx.quadraticCurveTo(-r * 0.40, r * 0.92, -r * 0.10, r * 0.72);
-      ctx.lineTo(r * 0.04, -r * 0.16);
+      ctx.lineTo(r * 0.04, -r * 0.22);
       ctx.closePath(); ctx.fill();
       ctx.strokeStyle = tierB >= 3 ? '#ffd166' : shade(clsColor, -46);
       ctx.lineWidth = r * (tierB >= 3 ? 0.08 : 0.05);
       ctx.stroke();
     }
 
-    /* The pad box has to clear everything paintBroBody draws: the head stud at
-       HEAD_TOP−0.05, the boots at FOOT, the jetpack tanks at ±0.74 and the
+    /* The pad box has to clear everything paintBroBody draws: the stud's top
+       face at −0.93, the legs at 0.94, the jetpack tanks at ±0.74 and the
        rover's antenna at −1.66. Under-measure any of these and the sprite is
        silently cropped — no error, just a Bro with no aerial. */
     if (skey) {
@@ -1544,30 +1565,27 @@
 
     // arms swing a little; the right one holds whatever the Bro is armed with
     const swing = Math.sin(t * 4) * 0.12;
-    ctx.save(); ctx.translate(0, r * swing * 0.25); paintArm(ctx, r, -1, body, ink); ctx.restore();
-    ctx.save(); ctx.translate(0, -r * swing * 0.25); paintArm(ctx, r, 1, body, ink); ctx.restore();
+    ctx.save(); ctx.translate(0, r * swing * 0.25); paintArm(ctx, r, -1, body); ctx.restore();
+    ctx.save(); ctx.translate(0, -r * swing * 0.25); paintArm(ctx, r, 1, body); ctx.restore();
 
     if (look.cheeks) {
       ctx.fillStyle = look.cheeks;
-      ctx.beginPath(); ctx.ellipse(-r * 0.30, -r * 0.33, r * 0.09, r * 0.06, 0, 0, TAU); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(r * 0.30, -r * 0.33, r * 0.09, r * 0.06, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-r * 0.16, -r * 0.50, r * 0.05, r * 0.035, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(r * 0.16, -r * 0.50, r * 0.05, r * 0.035, 0, 0, TAU); ctx.fill();
     }
 
-    /* The face is printed on, so it is flat black on yellow — no gloss, no
-       gradient. The eyes still slide a little toward the aim, which is the one
-       liberty taken with it: a whole row of Bros staring at the same vacuum is
-       worth more than being strict about it. */
-    const lx = aim != null ? Math.cos(aim) * r * 0.045 : 0;
-    const ly = aim != null ? Math.sin(aim) * r * 0.03 : 0;
+    /* The face is printed on, so it is flat dark-on-yellow — round dot eyes,
+       a thin smile, no gloss and no highlights. The eyes still slide a little
+       toward the aim, which is the one liberty taken with it: a whole row of
+       Bros staring at the same vacuum is worth more than being strict. */
+    const lx = aim != null ? Math.cos(aim) * r * 0.032 : 0;
+    const ly = aim != null ? Math.sin(aim) * r * 0.022 : 0;
     ctx.fillStyle = '#20242a';
-    ctx.beginPath(); ctx.ellipse(-r * 0.15 + lx, -r * 0.50 + ly, r * 0.075, r * 0.09, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(r * 0.15 + lx, -r * 0.50 + ly, r * 0.075, r * 0.09, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.beginPath(); ctx.arc(-r * 0.17 + lx, -r * 0.53 + ly, r * 0.025, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.arc(r * 0.13 + lx, -r * 0.53 + ly, r * 0.025, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(-r * 0.095 + lx, -r * 0.615 + ly, r * 0.047, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(r * 0.095 + lx, -r * 0.615 + ly, r * 0.047, 0, TAU); ctx.fill();
     // a printed smile
-    ctx.strokeStyle = '#20242a'; ctx.lineWidth = Math.max(1, r * 0.055); ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.arc(0, -r * 0.38, r * 0.16, 0.45, Math.PI - 0.45); ctx.stroke();
+    ctx.strokeStyle = '#20242a'; ctx.lineWidth = Math.max(0.8, r * 0.045); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, -r * 0.53, r * 0.105, 0.61, 2.53); ctx.stroke();
 
     // oversized hat & weapon: role reads at a glance. The weapon grows with
     // its path, and a maxed path glows gold.
@@ -1643,7 +1661,8 @@
       case 'sunpriest': { // radiating sun rays around the halo — more with power
         const rays = 6 + tierA * 2;
         ctx.save();
-        ctx.translate(0, -r * 1.4);
+        /* centred on the halo hat, which paintBroHat now seats at -1.09r */
+        ctx.translate(0, -r * 1.09);
         ctx.rotate(t * 0.8);
         ctx.strokeStyle = 'rgba(255,209,102,0.8)';
         ctx.lineWidth = r * 0.07;
@@ -1691,9 +1710,9 @@
       case 'shadow': // tracking ninja scarf
         ctx.fillStyle = 'rgba(192,57,43,0.85)';
         ctx.beginPath();
-        ctx.moveTo(-r * 0.4, -r * 0.5);
+        ctx.moveTo(-r * 0.24, -r * 0.56);
         ctx.quadraticCurveTo(-r * 1.1, -r * 0.4 + Math.sin(t * 5) * r * 0.12, -r * 1.5, -r * 0.62 + Math.sin(t * 5) * r * 0.2);
-        ctx.quadraticCurveTo(-r * 1.05, -r * 0.28, -r * 0.4, -r * 0.34);
+        ctx.quadraticCurveTo(-r * 1.05, -r * 0.28, -r * 0.24, -r * 0.40);
         ctx.closePath(); ctx.fill();
         break;
     }
@@ -1871,19 +1890,22 @@
   }
 
   /* r carries the upgrade growth; rb is the un-grown radius so held props
-     (staffs, flags) stay anchored in the flipper while their size scales */
+     (staffs, flags, slings) stay anchored in the hand while their size scales */
   function drawProp(ctx, r, look, aim, t, s) {
     const rb = r / (s || 1);
     const c = look.propColor || '#7d8a96';
     switch (look.prop) {
-      case 'sling':
+      case 'sling': {
+        // grip pinned to the hand via rb; the fork above it grows with tiers
+        const px = rb * 0.54;
         ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = r * 0.11; ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(r * 0.62, r * 0.1); ctx.lineTo(r * 0.62, -r * 0.34);
-        ctx.moveTo(r * 0.62, -r * 0.34); ctx.lineTo(r * 0.46, -r * 0.58);
-        ctx.moveTo(r * 0.62, -r * 0.34); ctx.lineTo(r * 0.8, -r * 0.58);
+        ctx.moveTo(px, rb * 0.15); ctx.lineTo(px, -r * 0.34);
+        ctx.moveTo(px, -r * 0.34); ctx.lineTo(px - r * 0.16, -r * 0.58);
+        ctx.moveTo(px, -r * 0.34); ctx.lineTo(px + r * 0.18, -r * 0.58);
         ctx.stroke();
         break;
+      }
       case 'boulder': {
         // a grey stone wheel the knight rolls, resting on the ground beside it
         const bx = -r * 0.70, by = r * 0.48, br = r * 0.30;
@@ -1943,7 +1965,7 @@
         ctx.restore();
         break;
       case 'staff': case 'crookstaff': {
-        const px = rb * 0.66;
+        const px = rb * 0.54;
         ctx.strokeStyle = '#6b4f35'; ctx.lineWidth = r * 0.12; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(px, rb * 0.6); ctx.lineTo(px, -r * 0.7); ctx.stroke();
         if (look.prop === 'crookstaff') {
@@ -1973,7 +1995,7 @@
       }
       case 'shuriken':
         ctx.save();
-        ctx.translate(r * 0.7, -r * 0.1); ctx.rotate(t * 3);
+        ctx.translate(r * 0.56, r * 0.02); ctx.rotate(t * 3);
         ctx.fillStyle = '#cfd8e0';
         for (let i = 0; i < 4; i++) {
           ctx.rotate(Math.PI / 2);
@@ -2011,7 +2033,7 @@
         break;
       }
       case 'pickaxe':
-        ctx.save(); ctx.translate(r * 0.7, -r * 0.05); ctx.rotate(0.6 + Math.sin(t * 3) * 0.1);
+        ctx.save(); ctx.translate(r * 0.56, r * 0.02); ctx.rotate(0.6 + Math.sin(t * 3) * 0.1);
         ctx.strokeStyle = c; ctx.lineWidth = r * 0.11; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(0, r * 0.45); ctx.lineTo(0, -r * 0.45); ctx.stroke();
         ctx.strokeStyle = '#8b98a5'; ctx.lineWidth = r * 0.13;
@@ -2019,7 +2041,7 @@
         ctx.restore();
         break;
       case 'flag': {
-        const px = rb * 0.7;
+        const px = rb * 0.56;
         ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = r * 0.1; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(px, rb * 0.5); ctx.lineTo(px, -r * 0.75); ctx.stroke();
         ctx.fillStyle = c;
