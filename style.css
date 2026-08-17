@@ -1,18 +1,23 @@
 /* Brix and Bros — styling */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* The chrome is deliberately neutral and dark: the board itself is a bright
+   green-and-primary building plate, and a UI that also shouted in primaries
+   would fight it. What changed from the old palette is the temperature — the
+   navy-and-cyan of an ice game became a neutral graphite with a saturated
+   brick blue, so nothing around the edge of the screen reads as cold. */
 :root {
-  --bg: #0a111d;
-  --glass: rgba(13, 22, 37, 0.92);
+  --bg: #14161b;
+  --glass: rgba(26, 29, 36, 0.93);
   --panel2: rgba(255, 255, 255, 0.055);
   --line: rgba(255, 255, 255, 0.13);
   --line-strong: rgba(255, 255, 255, 0.22);
-  --text: #f0f6fc;
-  --dim: #aabfd4;
-  --accent: #74dcfb;
-  --good: #57d488;
-  --bad: #e56d77;
-  --gold: #ffd97e;
+  --text: #f4f6f8;
+  --dim: #b6bcc6;
+  --accent: #4a9df0;
+  --good: #4fbb6e;
+  --bad: #d94f42;
+  --gold: #e8b93c;
   --shadow: 0 10px 32px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
 
   /* ---- the screen's own furniture ----
@@ -197,7 +202,7 @@ html.touch #place-hint { bottom: calc(58px + var(--map-inset-b, 0px)); }
 #confirm[hidden] { display: none; }
 .cf-card {
   width: min(340px, 100%);
-  background: linear-gradient(180deg, rgba(22, 33, 52, 0.99), rgba(13, 21, 34, 0.99));
+  background: linear-gradient(180deg, rgba(30, 33, 40, 0.99), rgba(13, 21, 34, 0.99));
   border: 1px solid var(--line-strong);
   border-radius: 14px;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
@@ -406,7 +411,7 @@ html.touch #btn-fs { display: none; }
   justify-content: center;
   gap: 12px;
   padding: 9px 12px;
-  background: linear-gradient(180deg, rgba(18, 28, 45, 0.97), rgba(11, 18, 30, 0.99));
+  background: linear-gradient(180deg, rgba(26, 29, 36, 0.97), rgba(11, 18, 30, 0.99));
   border-top: 1px solid var(--line-strong);
   box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.45);
   z-index: 10;
@@ -1182,7 +1187,7 @@ kbd {
   position: fixed;
   z-index: 60;
   width: 250px;
-  background: rgba(14, 22, 36, 0.97);
+  background: rgba(24, 26, 32, 0.97);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--line-strong);
@@ -1259,7 +1264,7 @@ kbd {
   /* the menus are centred in the window, so only a cutout can reach them —
      padding keeps a screen's edge out from under one */
   padding: var(--sat) var(--sar) var(--sab) var(--sal);
-  background: rgba(6, 10, 17, 0.7);
+  background: rgba(9, 10, 13, 0.7);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: none;
@@ -1269,7 +1274,7 @@ kbd {
 }
 .screen {
   display: none;
-  background: linear-gradient(180deg, rgba(23, 35, 54, 0.97), rgba(14, 22, 36, 0.97));
+  background: linear-gradient(180deg, rgba(38, 41, 49, 0.97), rgba(22, 24, 30, 0.97));
   border: 1px solid var(--line-strong);
   border-radius: 20px;
   padding: 32px 38px;
@@ -1297,7 +1302,7 @@ kbd {
   gap: 12px;
   margin: -32px -38px 18px;
   padding: 12px 16px;
-  background: linear-gradient(180deg, rgba(23, 35, 54, 0.99), rgba(19, 30, 47, 0.96));
+  background: linear-gradient(180deg, rgba(38, 41, 49, 0.99), rgba(30, 33, 40, 0.96));
   border-bottom: 1px solid var(--line);
 }
 .screen-head h2 { flex: 1; margin: 0; font-size: 22px; text-align: center; }
@@ -1966,7 +1971,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
        thing to ask than smaller tiles for everyone forever. */
     margin: 0 0 4px 8px;
     padding: 8px;
-    background: linear-gradient(180deg, rgba(18, 28, 45, 0.97), rgba(11, 18, 30, 0.99));
+    background: linear-gradient(180deg, rgba(26, 29, 36, 0.97), rgba(11, 18, 30, 0.99));
     border: 1px solid var(--line-strong);
     border-radius: 14px;
     gap: 6px;
@@ -2093,7 +2098,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
     grid-auto-rows: min-content;
     gap: 10px;
     padding: 10px;
-    background: linear-gradient(180deg, rgba(18, 28, 45, 0.97), rgba(11, 18, 30, 0.99));
+    background: linear-gradient(180deg, rgba(26, 29, 36, 0.97), rgba(11, 18, 30, 0.99));
     border: 1px solid var(--line-strong);
     border-radius: 14px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);

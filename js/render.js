@@ -176,14 +176,18 @@
      because it never changes. One path, one fill. The moveTo before each arc
      matters: without it the subpaths are joined by lines and the snow becomes
      a cat's cradle. */
+  /* Dust in the air, lit by the low sun. It was snow; it is the same drifting
+     motes at a fraction of the opacity, because a board covered in vacuum
+     cleaners should look like somewhere that needs vacuuming — and because
+     bright white specks on a green plate read as a rendering fault. */
   function drawSnowfall(ctx, t) {
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillStyle = 'rgba(255,250,235,0.22)';
     ctx.beginPath();
     for (const f of flakes) {
-      const y = (f.fy * G.H + t * f.s) % G.H;
-      const x = f.fx * G.W + Math.sin(t + f.drift) * 15;
-      ctx.moveTo(x + f.r, y);
-      ctx.arc(x, y, f.r, 0, TAU);
+      const y = (f.fy * G.H + t * f.s * 0.35) % G.H;
+      const x = f.fx * G.W + Math.sin(t * 0.6 + f.drift) * 22;
+      ctx.moveTo(x + f.r * 0.7, y);
+      ctx.arc(x, y, f.r * 0.7, 0, TAU);
     }
     ctx.fill();
   }
@@ -248,98 +252,82 @@
     const rnd = mulberry32(910 + G.LEVELS.indexOf(level) * 7717);
     const meta = { torches: [], crystals: [] };
 
-    // --- base snowfield ---
+    /* --- the baseplate ---
+       The whole board is one giant building plate, and the studs are what say
+       so. They are drawn once into this canvas and never again — the terrain
+       is baked per battlefield, not per frame — so a thousand of them cost
+       nothing at all after the first paint.
+
+       STUD_PITCH is the only number that matters here. Too fine and it reads as
+       texture noise at phone size; too coarse and the board stops looking like
+       a building plate and starts looking like polka dots. 32 puts 40 studs
+       across a tier-1 map, which is close to what a real plate of this
+       proportion would carry. */
+    const dk = !!th.dark;
     const bg = c.createLinearGradient(0, 0, 0, G.H);
     bg.addColorStop(0, th.snow);
     bg.addColorStop(1, th.ice);
     c.fillStyle = bg;
     c.fillRect(0, 0, G.W, G.H);
 
-    // low sun from the top-left: warm light there, cool blue toward bottom-right
-    // (dark caverns get pale moonlight instead of sun)
-    const dk = !!th.dark;
+    // low sun from the top-left, the same direction everything else is lit from
     const sun = c.createLinearGradient(0, 0, G.W, G.H);
-    sun.addColorStop(0, dk ? 'rgba(196,214,255,0.12)' : 'rgba(255,244,214,0.30)');
+    sun.addColorStop(0, dk ? 'rgba(196,214,255,0.10)' : 'rgba(255,250,225,0.22)');
     sun.addColorStop(0.45, 'rgba(255,244,214,0)');
-    sun.addColorStop(1, dk ? 'rgba(10,16,40,0.22)' : 'rgba(58,92,160,0.16)');
+    sun.addColorStop(1, dk ? 'rgba(10,16,40,0.26)' : 'rgba(40,60,90,0.18)');
     c.fillStyle = sun;
     c.fillRect(0, 0, G.W, G.H);
 
-    // big wind-carved ice plates: subtle tone shifts with a crisp lit edge
-    for (let i = 0; i < 7; i++) {
-      const px = rnd() * G.W, py = rnd() * G.H;
-      const pr = 130 + rnd() * 240;
-      const pts = [];
-      const n = 7 + (rnd() * 4 | 0);
-      for (let k = 0; k < n; k++) {
-        const a = (k / n) * TAU;
-        const rr = pr * (0.6 + rnd() * 0.5);
-        pts.push([px + Math.cos(a) * rr, py + Math.sin(a) * rr * 0.7]);
+    const STUD_PITCH = 32, STUD_R = 9.5;
+    /* Plate seams every eight studs. Real plates come in fixed sizes and butt
+       up against each other, and the seam is the difference between "a board
+       built out of plates" and "a green rectangle with dots on it". */
+    const SEAM = STUD_PITCH * 8;
+    c.strokeStyle = dk ? 'rgba(8,14,34,0.30)' : 'rgba(20,32,50,0.13)';
+    c.lineWidth = 1.5;
+    for (let x = SEAM; x < G.W; x += SEAM) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, G.H); c.stroke(); }
+    for (let y = SEAM; y < G.H; y += SEAM) { c.beginPath(); c.moveTo(0, y); c.lineTo(G.W, y); c.stroke(); }
+
+    for (let gy = STUD_PITCH / 2; gy < G.H; gy += STUD_PITCH) {
+      for (let gx = STUD_PITCH / 2; gx < G.W; gx += STUD_PITCH) {
+        // the shadow the stud casts down-right, then the stud, then its highlight
+        c.fillStyle = dk ? 'rgba(6,10,26,0.42)' : 'rgba(24,38,58,0.20)';
+        c.beginPath(); c.arc(gx + 1.6, gy + 2.0, STUD_R, 0, TAU); c.fill();
+        c.fillStyle = dk ? 'rgba(190,205,240,0.10)' : 'rgba(255,255,255,0.20)';
+        c.beginPath(); c.arc(gx, gy, STUD_R, 0, TAU); c.fill();
+        c.strokeStyle = dk ? 'rgba(210,225,255,0.16)' : 'rgba(255,255,255,0.42)';
+        c.lineWidth = 1.4;
+        c.beginPath(); c.arc(gx - 0.4, gy - 0.6, STUD_R - 0.8, Math.PI * 0.85, Math.PI * 1.85); c.stroke();
       }
-      const plate = () => {
-        c.beginPath();
-        c.moveTo((pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2);
-        for (let k = 1; k <= n; k++) {
-          const [ax, ay] = pts[k % n], [bx, by] = pts[(k + 1) % n];
-          c.quadraticCurveTo(ax, ay, (ax + bx) / 2, (ay + by) / 2);
-        }
-        c.closePath();
-      };
+    }
+
+    /* A few plates in a slightly different shade, snapped to the seam grid.
+       Nobody builds a big board out of one colour of plate, and the variation
+       is what stops the whole thing reading as printed wallpaper. */
+    for (let i = 0; i < 6; i++) {
+      const px = Math.floor(rnd() * (G.W / SEAM)) * SEAM;
+      const py = Math.floor(rnd() * (G.H / SEAM)) * SEAM;
+      const wide = SEAM * (1 + (rnd() * 2 | 0));
       c.fillStyle = rnd() > 0.5
-        ? (dk ? 'rgba(215,225,255,0.08)' : 'rgba(255,255,255,0.22)')
-        : (dk ? 'rgba(10,18,48,0.14)' : 'rgba(96,132,186,0.10)');
-      plate(); c.fill();
-      c.save();
-      c.translate(0, -2);
-      c.strokeStyle = dk ? 'rgba(215,225,255,0.14)' : 'rgba(255,255,255,0.35)'; c.lineWidth = 1.4;
-      plate(); c.stroke();
-      c.restore();
+        ? (dk ? 'rgba(200,215,250,0.05)' : 'rgba(255,255,255,0.10)')
+        : (dk ? 'rgba(6,12,34,0.10)' : 'rgba(30,48,74,0.07)');
+      c.fillRect(px, py, wide, SEAM);
     }
 
-    // rolling drifts: soft light/shadow lobes sculpt the surface
-    for (let i = 0; i < 30; i++) {
+    // scattered loose bricks, dropped on the plate and never tidied away
+    const looseCols = ['#c8443c', '#3f7fd4', '#e8b93c', '#3fae6a', '#f2f4f6'];
+    for (let i = 0; i < 26; i++) {
       const x = rnd() * G.W, y = rnd() * G.H;
-      const rx = 90 + rnd() * 200, ry = 26 + rnd() * 60;
-      const ang = (rnd() - 0.5) * 0.8;
-      const light = rnd() > 0.45;
-      const gr = c.createRadialGradient(0, 0, 4, 0, 0, rx);
-      gr.addColorStop(0, light
-        ? (dk ? 'rgba(210,222,255,0.16)' : 'rgba(255,255,255,0.42)')
-        : (dk ? 'rgba(8,14,40,0.24)' : 'rgba(76,112,168,0.22)'));
-      gr.addColorStop(1, 'rgba(255,255,255,0)');
       c.save();
-      c.translate(x, y); c.rotate(ang); c.scale(1, ry / rx);
-      c.fillStyle = gr;
-      c.beginPath(); c.arc(0, 0, rx, 0, TAU); c.fill();
+      c.translate(x, y); c.rotate(rnd() * 3);
+      c.globalAlpha = 0.55 + rnd() * 0.3;
+      c.fillStyle = 'rgba(20,32,50,0.25)';
+      c.fillRect(-5, -3, 12, 7);
+      c.fillStyle = looseCols[(rnd() * looseCols.length) | 0];
+      c.fillRect(-6, -4, 12, 7);
+      c.fillStyle = 'rgba(255,255,255,0.35)';
+      c.fillRect(-6, -4, 12, 2.2);
       c.restore();
-    }
-
-    // ice cracks
-    c.strokeStyle = th.props === 'crystals' ? 'rgba(140,190,240,0.16)' : 'rgba(70,110,160,0.10)';
-    c.lineWidth = 1.3;
-    for (let i = 0; i < 9; i++) {
-      let x = rnd() * G.W, y = rnd() * G.H;
-      c.beginPath(); c.moveTo(x, y);
-      const segs = 3 + (rnd() * 4 | 0);
-      let ang = rnd() * TAU;
-      for (let sgi = 0; sgi < segs; sgi++) {
-        ang += (rnd() - 0.5) * 1.2;
-        const len = 26 + rnd() * 60;
-        x += Math.cos(ang) * len; y += Math.sin(ang) * len;
-        c.lineTo(x, y);
-        if (rnd() > 0.65) { // branch
-          const bx = x + Math.cos(ang + 0.9) * 22, by = y + Math.sin(ang + 0.9) * 22;
-          c.moveTo(x, y); c.lineTo(bx, by); c.moveTo(x, y);
-        }
-      }
-      c.stroke();
-    }
-
-    // sparse ground bricks
-    for (let i = 0; i < 46; i++) {
-      const x = rnd() * G.W, y = rnd() * G.H;
-      c.fillStyle = `rgba(110,125,140,${0.10 + rnd() * 0.12})`;
-      c.beginPath(); c.ellipse(x, y, 1.5 + rnd() * 2.6, 1 + rnd() * 1.8, rnd() * 3, 0, TAU); c.fill();
     }
 
     // --- water ---
@@ -518,22 +506,27 @@
     }
   }
 
+  /* A raft of loose plates floating in a pool. Was an ice floe; the shape is
+     the useful part — an irregular flat thing breaking up an expanse of blue —
+     so it keeps the outline and becomes a clump of plates instead. */
   function drawFloe(c, x, y, r, rnd) {
     c.save();
     c.translate(x, y);
     c.rotate(rnd() * TAU);
-    c.fillStyle = 'rgba(235,245,252,0.92)';
-    c.beginPath();
-    const n = 6;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * TAU;
-      const rr = r * (0.75 + rnd() * 0.4);
-      const px = Math.cos(a) * rr, py = Math.sin(a) * rr * 0.75;
-      if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+    const cols = ['#f2f4f6', '#c8d2dc', '#e8b93c'];
+    for (let i = 0; i < 3; i++) {
+      const w = r * (0.9 - i * 0.16), h = r * 0.42;
+      const ox = (rnd() - 0.5) * r * 0.5, oy = (rnd() - 0.5) * r * 0.4;
+      const col = cols[(rnd() * cols.length) | 0];
+      c.fillStyle = 'rgba(14,40,66,0.28)';
+      c.fillRect(ox - w / 2 + 2, oy - h / 2 + 3, w, h);
+      c.fillStyle = col;
+      c.fillRect(ox - w / 2, oy - h / 2, w, h);
+      c.fillStyle = 'rgba(255,255,255,0.4)';
+      c.fillRect(ox - w / 2, oy - h / 2, w, h * 0.3);
+      c.strokeStyle = 'rgba(20,40,64,0.5)'; c.lineWidth = 1;
+      c.strokeRect(ox - w / 2, oy - h / 2, w, h);
     }
-    c.closePath(); c.fill();
-    c.fillStyle = 'rgba(160,195,225,0.5)';
-    c.beginPath(); c.ellipse(0, r * 0.28, r * 0.7, r * 0.2, 0, 0, TAU); c.fill();
     c.restore();
   }
 
@@ -632,53 +625,54 @@
 
     const total = pathLength(pts);
 
-    // transverse ruts
-    c.strokeStyle = 'rgba(80,60,30,0.10)';
-    c.lineWidth = 2;
-    for (let d = 18; d < total; d += 23) {
+    /* The track is built out of road plates, so it gets what road plates have:
+       a butt joint every plate length, and a dashed centre line. The joints are
+       the detail that makes it read as laid rather than painted on. */
+    const PLATE = 64;
+    c.strokeStyle = 'rgba(20,26,34,0.35)';
+    c.lineWidth = 1.6;
+    for (let d = PLATE; d < total; d += PLATE) {
       const p = pathPoint(pts, d);
       const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
-      const wob = (rnd() - 0.5) * 6;
       c.beginPath();
-      c.moveTo(p.x + nx * (-G.PATH_HALF + 7 + wob), p.y + ny * (-G.PATH_HALF + 7 + wob));
-      c.lineTo(p.x + nx * (G.PATH_HALF - 7 + wob), p.y + ny * (G.PATH_HALF - 7 + wob));
+      c.moveTo(p.x + nx * -(G.PATH_HALF - 2), p.y + ny * -(G.PATH_HALF - 2));
+      c.lineTo(p.x + nx * (G.PATH_HALF - 2), p.y + ny * (G.PATH_HALF - 2));
       c.stroke();
     }
 
-    // piled snow banks scalloping the edges — irregular clumps, not beads
-    for (let d = 12; d < total; d += 22 + rnd() * 26) {
+    // dashed centre line, the way a road plate is printed
+    c.strokeStyle = 'rgba(255,255,255,0.55)';
+    c.lineWidth = 3;
+    c.lineCap = 'butt';
+    for (let d = 8; d < total; d += 34) {
+      const a = pathPoint(pts, d), b = pathPoint(pts, Math.min(total, d + 17));
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+    }
+    c.lineCap = 'round';
+
+    /* Kerb studs down both shoulders. The plate the track is laid on still has
+       its studs, and showing them at the edge is what stops the track looking
+       like a hole cut in the board. */
+    for (let d = 10; d < total; d += 26) {
       const p = pathPoint(pts, d);
       for (const side of [-1, 1]) {
-        if (rnd() > 0.66) continue;
         const nx = Math.cos(p.ang + Math.PI / 2) * side, ny = Math.sin(p.ang + Math.PI / 2) * side;
-        const off = G.PATH_HALF + 2 + rnd() * 5;
+        const off = G.PATH_HALF + 4;
         const bx = p.x + nx * off, by = p.y + ny * off;
-        const brx = 3 + rnd() * 6, bry = 2 + rnd() * 3;
-        c.fillStyle = th.dark ? 'rgba(8,14,40,0.30)' : 'rgba(120,150,195,0.28)';
-        c.beginPath(); c.ellipse(bx + 1.5, by + 2, brx, bry, p.ang + (rnd() - 0.5) * 0.6, 0, TAU); c.fill();
-        c.fillStyle = th.dark
-          ? `rgba(196,208,244,${0.2 + rnd() * 0.14})`
-          : `rgba(255,255,255,${0.6 + rnd() * 0.35})`;
-        c.beginPath(); c.ellipse(bx, by, brx, bry, p.ang + (rnd() - 0.5) * 0.6, 0, TAU); c.fill();
+        c.fillStyle = 'rgba(20,32,50,0.22)';
+        c.beginPath(); c.arc(bx + 1.2, by + 1.6, 4.4, 0, TAU); c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.28)';
+        c.beginPath(); c.arc(bx, by, 4.4, 0, TAU); c.fill();
       }
     }
 
-    // bricks + paw prints on the track
-    for (let d = 10; d < total; d += 16) {
-      const p = pathPoint(pts, d);
-      if (rnd() > 0.6) {
-        const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
-        const off = (rnd() - 0.5) * (G.PATH_HALF * 1.3);
-        c.fillStyle = `rgba(100,88,64,${0.12 + rnd() * 0.14})`;
-        c.beginPath(); c.arc(p.x + nx * off, p.y + ny * off, 1.2 + rnd() * 1.6, 0, TAU); c.fill();
-      }
-    }
-    c.fillStyle = 'rgba(110,95,70,0.20)';
-    for (let d = 26; d < total; d += 58) {
+    // wheel scuffs where a great many vacuums have already been through
+    c.fillStyle = 'rgba(18,24,32,0.16)';
+    for (let d = 14; d < total; d += 19) {
       const p = pathPoint(pts, d);
       const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
-      c.beginPath(); c.arc(p.x + nx * 8, p.y + ny * 8, 2.6, 0, TAU); c.fill();
-      c.beginPath(); c.arc(p.x - nx * 8, p.y - ny * 8, 2.6, 0, TAU); c.fill();
+      const off = (rnd() - 0.5) * (G.PATH_HALF * 1.2);
+      c.beginPath(); c.ellipse(p.x + nx * off, p.y + ny * off, 3 + rnd() * 3, 1.2, p.ang, 0, TAU); c.fill();
     }
   }
 
@@ -786,78 +780,111 @@
     c.fillStyle = 'rgba(25,42,62,0.16)';
     c.beginPath(); c.ellipse(x + rx * 0.22, y + 1, rx, rx * 0.34, 0, 0, TAU); c.fill();
   }
-  function drawPine(c, x, y, s, rnd) {
-    propShadow(c, x, y + s * 0.9, s * 0.8);
-    c.fillStyle = '#7a5535';
-    c.fillRect(x - s * 0.11, y + s * 0.5, s * 0.22, s * 0.45);
-    c.strokeStyle = '#4e3520'; c.lineWidth = 1.2;
-    c.strokeRect(x - s * 0.11, y + s * 0.5, s * 0.22, s * 0.45);
-    const green = ['#2f7c56', '#399165', '#2b6d4c'][(rnd() * 3) | 0];
-    const dark = shade(green, -38);
-    for (let i = 0; i < 3; i++) {
-      const w = s * (1.08 - i * 0.26), yy = y + s * 0.55 - i * s * 0.52;
-      c.fillStyle = green;
-      c.beginPath(); c.moveTo(x - w * 0.66, yy); c.lineTo(x, yy - s * 0.8); c.lineTo(x + w * 0.66, yy); c.closePath(); c.fill();
-      c.strokeStyle = dark; c.lineWidth = 1.5; c.stroke();
-      c.fillStyle = '#f6fbff';
-      c.beginPath(); c.moveTo(x - w * 0.36, yy - s * 0.3); c.lineTo(x, yy - s * 0.8); c.lineTo(x + w * 0.36, yy - s * 0.3);
-      c.quadraticCurveTo(x, yy - s * 0.14, x - w * 0.36, yy - s * 0.3); c.closePath(); c.fill();
-    }
-  }
-  function drawTuft(c, x, y, s, rnd) {
-    c.strokeStyle = 'rgba(130,150,120,0.75)';
-    c.lineWidth = 1.4;
-    for (let i = -2; i <= 2; i++) {
-      c.beginPath();
-      c.moveTo(x, y);
-      c.quadraticCurveTo(x + i * s * 0.32, y - s * 0.8, x + i * s * 0.55, y - s * (1 + rnd() * 0.4));
-      c.stroke();
-    }
-  }
-  function drawStone(c, x, y, s, rnd) {
-    propShadow(c, x, y + s * 0.4, s);
-    c.fillStyle = ['#98a2ab', '#8b959f', '#a3adb5'][(rnd() * 3) | 0];
-    c.beginPath();
-    c.moveTo(x - s, y + s * 0.4);
-    c.lineTo(x - s * 0.5, y - s * 0.5); c.lineTo(x + s * 0.2, y - s * 0.7); c.lineTo(x + s * 0.9, y - s * 0.1);
-    c.lineTo(x + s, y + s * 0.4);
-    c.closePath(); c.fill();
-    c.strokeStyle = '#5b6771'; c.lineWidth = 1.4; c.stroke();
-    c.fillStyle = 'rgba(255,255,255,0.75)';
-    c.beginPath(); c.moveTo(x - s * 0.5, y - s * 0.5); c.lineTo(x + s * 0.2, y - s * 0.7); c.lineTo(x + s * 0.35, y - s * 0.4); c.lineTo(x - s * 0.25, y - s * 0.22); c.closePath(); c.fill();
-  }
-  function drawReeds(c, x, y, s, rnd) {
-    c.strokeStyle = '#5f7d4f';
-    c.lineWidth = 1.6;
-    for (let i = -2; i <= 2; i++) {
-      const tip = y - s * (1.2 + rnd() * 0.5);
-      c.beginPath();
-      c.moveTo(x + i * 2.4, y);
-      c.quadraticCurveTo(x + i * 3.5, y - s, x + i * 4.5, tip);
-      c.stroke();
-      if (Math.abs(i) === 1) {
-        c.fillStyle = '#7a5a38';
-        c.beginPath(); c.ellipse(x + i * 4.5, tip, 2, 5, 0, 0, TAU); c.fill();
+  /* A brick laid flat, seen from the same low angle everything else is: the
+     top face, a lit front edge and two studs. Every prop below is built out of
+     these, which is the point — the scenery has to look assembled, not grown. */
+  function brickBlock(c, x, y, w, h, col, studs) {
+    const top = shade(col, 26), side = shade(col, -34), edge = shade(col, -62);
+    c.fillStyle = side;
+    c.fillRect(x - w / 2, y - h, w, h);
+    c.fillStyle = col;
+    c.fillRect(x - w / 2, y - h, w, h * 0.62);
+    c.fillStyle = top;
+    c.fillRect(x - w / 2, y - h, w, h * 0.22);
+    c.strokeStyle = edge; c.lineWidth = 1.1;
+    c.strokeRect(x - w / 2, y - h, w, h);
+    if (studs !== 0) {
+      const n = studs || 2;
+      for (let i = 0; i < n; i++) {
+        const sx = x - w / 2 + w * ((i + 0.5) / n);
+        c.fillStyle = top;
+        c.beginPath(); c.ellipse(sx, y - h - h * 0.16, w / (n * 2.7), h * 0.16, 0, 0, TAU); c.fill();
+        c.strokeStyle = edge; c.lineWidth = 0.9;
+        c.beginPath(); c.ellipse(sx, y - h - h * 0.16, w / (n * 2.7), h * 0.16, 0, 0, TAU); c.stroke();
       }
     }
   }
+
+  // a brick tree: a stacked trunk under three plates of foliage
+  function drawPine(c, x, y, s, rnd) {
+    propShadow(c, x, y + s * 0.9, s * 0.8);
+    const green = ['#2f7c56', '#399165', '#2b6d4c'][(rnd() * 3) | 0];
+    brickBlock(c, x, y + s * 0.95, s * 0.34, s * 0.5, '#7a5535', 1);
+    for (let i = 0; i < 3; i++) {
+      const w = s * (1.28 - i * 0.34), yy = y + s * 0.5 - i * s * 0.44;
+      brickBlock(c, x, yy, w, s * 0.34, green, 0);
+    }
+    // the topper: one stud standing proud, like a real plate tree
+    c.fillStyle = shade(green, 34);
+    c.beginPath(); c.ellipse(x, y - s * 0.60, s * 0.13, s * 0.07, 0, 0, TAU); c.fill();
+  }
+
+  // brick flowers: a stem plate with a coloured stud on top
+  function drawTuft(c, x, y, s, rnd) {
+    const petals = ['#c8443c', '#e8b93c', '#f2f4f6', '#d96fa8'];
+    for (let i = -1; i <= 1; i++) {
+      const h = s * (1.1 + rnd() * 0.5);
+      const px = x + i * s * 0.62;
+      c.strokeStyle = '#3fae6a'; c.lineWidth = Math.max(1.4, s * 0.16); c.lineCap = 'round';
+      c.beginPath(); c.moveTo(px, y); c.lineTo(px, y - h); c.stroke();
+      const col = petals[(rnd() * petals.length) | 0];
+      c.fillStyle = col;
+      c.beginPath(); c.arc(px, y - h, s * 0.34, 0, TAU); c.fill();
+      c.strokeStyle = shade(col, -50); c.lineWidth = 1; c.stroke();
+      c.fillStyle = shade(col, 40);
+      c.beginPath(); c.arc(px, y - h - s * 0.06, s * 0.14, 0, TAU); c.fill();
+    }
+  }
+
+  // a pile of loose bricks nobody put away
+  function drawStone(c, x, y, s, rnd) {
+    propShadow(c, x, y + s * 0.4, s);
+    const cols = ['#98a2ab', '#c8443c', '#3f7fd4', '#e8b93c'];
+    for (let i = 0; i < 3; i++) {
+      brickBlock(c,
+        x + (rnd() - 0.5) * s * 0.9,
+        y + s * 0.4 - i * s * 0.42,
+        s * (1.0 + rnd() * 0.5), s * 0.4,
+        cols[(rnd() * cols.length) | 0], 2);
+    }
+  }
+
+  // brick plants: stems with leaf plates, for the water margins
+  function drawReeds(c, x, y, s, rnd) {
+    for (let i = -1; i <= 1; i++) {
+      const px = x + i * s * 0.42, h = s * (1.2 + rnd() * 0.5);
+      c.strokeStyle = '#3d7a4e'; c.lineWidth = Math.max(1.4, s * 0.13); c.lineCap = 'round';
+      c.beginPath(); c.moveTo(px, y); c.lineTo(px + i * s * 0.2, y - h); c.stroke();
+      c.fillStyle = '#4f9b5f';
+      for (let k = 0; k < 2; k++) {
+        const ly = y - h * (0.45 + k * 0.35);
+        c.beginPath();
+        c.ellipse(px + i * s * 0.12 + (k % 2 ? s * 0.3 : -s * 0.3), ly, s * 0.3, s * 0.11, k % 2 ? -0.4 : 0.4, 0, TAU);
+        c.fill();
+      }
+    }
+  }
+
+  // a little brick figure on a plinth — the statue in the square
   function drawSnowman(c, x, y, s, rnd) {
     propShadow(c, x, y + s * 0.8, s * 0.9);
-    c.fillStyle = '#f7fafc';
-    c.beginPath(); c.arc(x, y + s * 0.35, s * 0.62, 0, TAU); c.fill();
-    c.beginPath(); c.arc(x, y - s * 0.45, s * 0.42, 0, TAU); c.fill();
-    c.strokeStyle = 'rgba(120,150,180,0.4)'; c.lineWidth = 1;
-    c.beginPath(); c.arc(x, y + s * 0.35, s * 0.62, 0, TAU); c.stroke();
-    c.fillStyle = '#1a1d21';
-    c.beginPath(); c.arc(x - s * 0.13, y - s * 0.52, s * 0.05, 0, TAU); c.fill();
-    c.beginPath(); c.arc(x + s * 0.13, y - s * 0.52, s * 0.05, 0, TAU); c.fill();
-    c.fillStyle = '#f0862c';
-    c.beginPath(); c.moveTo(x, y - s * 0.44); c.lineTo(x + s * 0.42, y - s * 0.38); c.lineTo(x, y - s * 0.34); c.closePath(); c.fill();
-    c.strokeStyle = '#6b4f35'; c.lineWidth = 1.6;
-    c.beginPath(); c.moveTo(x - s * 0.55, y + s * 0.1); c.lineTo(x - s * 1.0, y - s * 0.3); c.stroke();
-    c.beginPath(); c.moveTo(x + s * 0.55, y + s * 0.1); c.lineTo(x + s * 1.0, y - s * 0.3); c.stroke();
-    c.strokeStyle = '#d9534f'; c.lineWidth = s * 0.14;
-    c.beginPath(); c.moveTo(x - s * 0.34, y - s * 0.12); c.lineTo(x + s * 0.34, y - s * 0.08); c.stroke();
+    brickBlock(c, x, y + s * 0.85, s * 1.5, s * 0.3, '#9aa4ae', 3);
+    brickBlock(c, x, y + s * 0.55, s * 1.1, s * 0.26, '#b4bec8', 0);
+    // legs, torso, head — the same figure the player fields, cast in one colour
+    const cast = ['#c8443c', '#3f7fd4', '#e8b93c'][(rnd() * 3) | 0];
+    c.fillStyle = shade(cast, -30);
+    c.fillRect(x - s * 0.3, y - s * 0.1, s * 0.6, s * 0.66);
+    c.fillStyle = cast;
+    c.fillRect(x - s * 0.26, y - s * 0.62, s * 0.52, s * 0.54);
+    c.fillStyle = shade(cast, -46);
+    c.fillRect(x - s * 0.52, y - s * 0.5, s * 0.2, s * 0.4);
+    c.fillRect(x + s * 0.32, y - s * 0.5, s * 0.2, s * 0.4);
+    c.fillStyle = '#f2c033';
+    c.fillRect(x - s * 0.24, y - s * 1.1, s * 0.48, s * 0.5);
+    c.fillStyle = shade('#f2c033', -20);
+    c.beginPath(); c.ellipse(x, y - s * 1.14, s * 0.1, s * 0.05, 0, 0, TAU); c.fill();
+    c.strokeStyle = 'rgba(20,30,44,0.5)'; c.lineWidth = 1;
+    c.strokeRect(x - s * 0.24, y - s * 1.1, s * 0.48, s * 0.5);
   }
   function drawCrystalShard(c, x, y, s, rnd) {
     propShadow(c, x, y + s * 0.35, s * 0.8);
@@ -1042,23 +1069,62 @@
   }
 
   /* ---------- fort & blockers ---------- */
+  /* The Home Build — the thing the whole game is about protecting, and the
+     small brick houses that stand around the map as no-build blockers. Same
+     drawing, two sizes: a stepped brick tower with a door and a flag. */
   function drawFort(ctx, x, y, r, home) {
     ctx.save();
     ctx.translate(x, y);
-    ctx.fillStyle = 'rgba(25,42,62,0.16)';
-    ctx.beginPath(); ctx.ellipse(r * 0.25, 4, r * 1.15, r * 0.36, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = home ? '#f4f9fd' : '#e8f0f7';
-    ctx.beginPath(); ctx.arc(0, 0, r, Math.PI, 0); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#b9cbdc'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0, 0, r, Math.PI, 0); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.stroke();
-    ctx.beginPath(); ctx.arc(0, 0, r * 0.6, Math.PI, 0); ctx.stroke();
-    ctx.fillStyle = '#4a5a6a';
-    ctx.beginPath(); ctx.arc(0, 0, r * 0.32, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(25,42,62,0.18)';
+    ctx.beginPath(); ctx.ellipse(r * 0.25, 6, r * 1.15, r * 0.36, 0, 0, TAU); ctx.fill();
+
+    const wall = home ? '#d94f42' : '#c8443c';
+    const stone = home ? '#e8eaec' : '#d6d9dc';
+
+    // three courses, each stepped in — a tower built rather than an igloo
+    const courses = [
+      { w: r * 2.0, h: r * 0.46, col: stone },
+      { w: r * 1.66, h: r * 0.42, col: wall },
+      { w: r * 1.28, h: r * 0.38, col: stone },
+    ];
+    let by = r * 0.2;
+    for (const cs of courses) {
+      ctx.fillStyle = shade(cs.col, -34);
+      ctx.fillRect(-cs.w / 2, by - cs.h, cs.w, cs.h);
+      ctx.fillStyle = cs.col;
+      ctx.fillRect(-cs.w / 2, by - cs.h, cs.w, cs.h * 0.66);
+      ctx.fillStyle = shade(cs.col, 26);
+      ctx.fillRect(-cs.w / 2, by - cs.h, cs.w, cs.h * 0.2);
+      ctx.strokeStyle = shade(cs.col, -60); ctx.lineWidth = 1.4;
+      ctx.strokeRect(-cs.w / 2, by - cs.h, cs.w, cs.h);
+      // studs along the top of the course
+      const n = Math.max(2, Math.round(cs.w / (r * 0.42)));
+      for (let i = 0; i < n; i++) {
+        const sx = -cs.w / 2 + cs.w * ((i + 0.5) / n);
+        ctx.fillStyle = shade(cs.col, 30);
+        ctx.beginPath(); ctx.ellipse(sx, by - cs.h - cs.h * 0.13, r * 0.13, r * 0.06, 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = shade(cs.col, -60); ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.ellipse(sx, by - cs.h - cs.h * 0.13, r * 0.13, r * 0.06, 0, 0, TAU); ctx.stroke();
+      }
+      by -= cs.h;
+    }
+
+    // the doorway the pack is heading for
+    ctx.fillStyle = '#2f3b47';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.30, r * 0.2);
+    ctx.lineTo(-r * 0.30, -r * 0.10);
+    ctx.quadraticCurveTo(0, -r * 0.34, r * 0.30, -r * 0.10);
+    ctx.lineTo(r * 0.30, r * 0.2);
+    ctx.closePath(); ctx.fill();
+
     if (home) {
-      ctx.fillStyle = '#e05252';
-      ctx.fillRect(-3, -r - 14, 3, 14);
-      ctx.beginPath(); ctx.moveTo(0, -r - 14); ctx.lineTo(16, -r - 10); ctx.lineTo(0, -r - 6); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#8b98a5';
+      ctx.fillRect(-2, -r * 1.35, 3, r * 0.62);
+      ctx.fillStyle = '#e8b93c';
+      ctx.beginPath();
+      ctx.moveTo(1, -r * 1.35); ctx.lineTo(r * 0.62, -r * 1.2); ctx.lineTo(1, -r * 1.05);
+      ctx.closePath(); ctx.fill();
     }
     ctx.restore();
   }
@@ -1129,69 +1195,61 @@
       c.lineTo(x + Math.cos(a - 0.2) * r * 1.25, y + Math.sin(a - 0.2) * r * 1.0);
       c.stroke();
     }
-    // tilted plates around the rim
+    // plates prised up around the rim, where the board has come apart
     for (let i = 0; i < 4; i++) {
       const a = rnd() * TAU, rr = r * (0.72 + rnd() * 0.3);
       const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr * 0.82;
       const s = r * (0.26 + rnd() * 0.2);
-      c.fillStyle = 'rgba(232,244,255,0.92)';
-      c.strokeStyle = 'rgba(96,140,180,0.8)'; c.lineWidth = 1.2;
+      c.fillStyle = ['#9aa4ae', '#c8443c', '#3f7fd4'][(rnd() * 3) | 0];
+      c.strokeStyle = 'rgba(40,54,70,0.8)'; c.lineWidth = 1.2;
       c.beginPath();
       c.moveTo(px - s, py); c.lineTo(px - s * 0.3, py - s * 0.75);
       c.lineTo(px + s * 0.9, py - s * 0.35); c.lineTo(px + s * 0.4, py + s * 0.4);
       c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = 'rgba(255,255,255,0.35)';
+      c.beginPath();
+      c.moveTo(px - s, py); c.lineTo(px - s * 0.3, py - s * 0.75);
+      c.lineTo(px + s * 0.2, py - s * 0.52); c.lineTo(px - s * 0.5, py - s * 0.16);
+      c.closePath(); c.fill();
     }
     c.restore();
   }
 
-  /* Glacier wall: a slab of blue ice shoved up out of the snow. Drawn tall so
-     a chain of them reads as one ridge running across the field. */
+  /* A built brick wall. Was a glacier slab, and it does the same job: drawn
+     tall and squared off so a chain of them reads as one wall running across
+     the board, with the courses offset like real brickwork. */
   function drawGlacierWall(c, x, y, r, rnd) {
     c.save();
     propShadow(c, x + r * 0.15, y + r * 0.5, r * 0.95);
-    const top = y - r * (0.95 + rnd() * 0.35);
-    // main slab
-    const g = c.createLinearGradient(x - r, top, x + r, y + r * 0.5);
-    g.addColorStop(0, '#dff0fb');
-    g.addColorStop(0.45, '#a8cfe8');
-    g.addColorStop(1, '#6f9dc2');
-    c.fillStyle = g;
-    c.strokeStyle = '#4d7799';
-    c.lineWidth = 1.8;
-    c.lineJoin = 'round';
-    c.beginPath();
-    c.moveTo(x - r, y + r * 0.42);
-    c.lineTo(x - r * 0.78, top + r * 0.3);
-    c.lineTo(x - r * 0.16, top);
-    c.lineTo(x + r * 0.5, top + r * 0.42);
-    c.lineTo(x + r, y + r * 0.28);
-    c.lineTo(x + r * 0.82, y + r * 0.5);
-    c.lineTo(x - r * 0.8, y + r * 0.52);
-    c.closePath(); c.fill(); c.stroke();
-    // lit facet down the sunward face
-    c.fillStyle = 'rgba(255,255,255,0.55)';
-    c.beginPath();
-    c.moveTo(x - r * 0.78, top + r * 0.3);
-    c.lineTo(x - r * 0.16, top);
-    c.lineTo(x - r * 0.05, y + r * 0.1);
-    c.lineTo(x - r * 0.72, y + r * 0.3);
-    c.closePath(); c.fill();
-    // shadowed cleft
-    c.fillStyle = 'rgba(40,86,128,0.35)';
-    c.beginPath();
-    c.moveTo(x + r * 0.5, top + r * 0.42);
-    c.lineTo(x + r, y + r * 0.28);
-    c.lineTo(x + r * 0.82, y + r * 0.5);
-    c.lineTo(x + r * 0.36, y + r * 0.2);
-    c.closePath(); c.fill();
-    // rime along the crest
-    c.strokeStyle = 'rgba(255,255,255,0.85)';
-    c.lineWidth = 2.2;
-    c.beginPath();
-    c.moveTo(x - r * 0.78, top + r * 0.3);
-    c.lineTo(x - r * 0.16, top);
-    c.lineTo(x + r * 0.5, top + r * 0.42);
-    c.stroke();
+    const cols = ['#9aa4ae', '#8b959f', '#a6b0ba'];
+    const courses = 4;
+    const ch = r * 0.42;
+    for (let i = 0; i < courses; i++) {
+      const cy = y + r * 0.5 - i * ch;
+      const off = (i % 2) * r * 0.34;               // running bond
+      for (let k = -1; k <= 1; k++) {
+        const bx = x + k * r * 0.68 + off - r * 0.17;
+        const bw = r * 0.66;
+        const col = cols[(rnd() * cols.length) | 0];
+        c.fillStyle = shade(col, -34);
+        c.fillRect(bx - bw / 2, cy - ch, bw, ch);
+        c.fillStyle = col;
+        c.fillRect(bx - bw / 2, cy - ch, bw, ch * 0.66);
+        c.fillStyle = shade(col, 24);
+        c.fillRect(bx - bw / 2, cy - ch, bw, ch * 0.2);
+        c.strokeStyle = shade(col, -60); c.lineWidth = 1.2;
+        c.strokeRect(bx - bw / 2, cy - ch, bw, ch);
+      }
+    }
+    // studs along the crest, so it is plainly a wall you could build on
+    const topY = y + r * 0.5 - courses * ch;
+    for (let k = -2; k <= 2; k++) {
+      const sx = x + k * r * 0.34;
+      c.fillStyle = 'rgba(200,210,220,0.95)';
+      c.beginPath(); c.ellipse(sx, topY - r * 0.06, r * 0.14, r * 0.07, 0, 0, TAU); c.fill();
+      c.strokeStyle = 'rgba(70,80,92,0.8)'; c.lineWidth = 1;
+      c.beginPath(); c.ellipse(sx, topY - r * 0.06, r * 0.14, r * 0.07, 0, 0, TAU); c.stroke();
+    }
     c.restore();
   }
 

@@ -1639,43 +1639,55 @@
   ];
 
   /* Richer per-map art direction, merged into each level's theme.
-     path/pathEdge/pathCore: the packed-track colors · deep/shore: water colors
-     props: which scenery set the terrain painter scatters around the map. */
+
+     `snow` / `ice` are the top and bottom of the BASEPLATE gradient — the key
+     names are the originals and stay that way, because they are written into
+     thirty level entries and the renderer, and a reader gets more from this
+     comment than from a rename that could go wrong in thirty places.
+
+     pathColor/pathEdge/pathCore: the road plate the track is built from.
+     deep/shore: the transparent-blue plates that make up a pool.
+     props: which scenery set the terrain painter scatters around the plate.
+
+     Tier 1 builds on classic green plate, tier 2 on grey, tier 3 on tan and
+     dark stone — so the three campaigns look like three different boxes of
+     bricks rather than three shades of the same one. */
   const THEME_EXTRAS = {
-    shores:  { snow: '#f4fafe', ice: '#c6e3f5', pathColor: '#e8d19c', pathEdge: '#b3966a', pathCore: '#f6ead0', deep: '#2f8fd6', shore: '#a9e2f2', props: 'pines' },
-    pass:    { snow: '#f0f6fc', ice: '#bdd9f0', pathColor: '#d8c9a2', pathEdge: '#a5906c', pathCore: '#e8ddc2', deep: '#2f79c2', shore: '#a6d6ec', props: 'pines' },
-    river:   { snow: '#f0f9f7', ice: '#c4e6e4', pathColor: '#e5d09e', pathEdge: '#b49a6d', pathCore: '#f2e4bf', deep: '#1391b8', shore: '#8fdde4', props: 'reeds' },
-    alley:   { snow: '#ecf5fc', ice: '#b9daf2', pathColor: '#d7c9a4', pathEdge: '#a28d68', pathCore: '#e7dcc0', deep: '#1f78c4', shore: '#9ed2f0', props: 'floes' },
-    village: { snow: '#f6f9fd', ice: '#cfe5f5', pathColor: '#ecd6a8', pathEdge: '#bb9f72', pathCore: '#f8e9ca', deep: '#2f8fd6', shore: '#a9e2f2', props: 'village' },
-    caves:   { snow: '#a0abd0', ice: '#6b7ab2', pathColor: '#5e6b9d', pathEdge: '#3d4877', pathCore: '#7381ad', deep: '#23407c', shore: '#5e7cb2', props: 'crystals', glow: '#7fd8f5' },
-    ridge:   { snow: '#eceffb', ice: '#c2cff4', pathColor: '#d9c690', pathEdge: '#a8935f', pathCore: '#e9dab4', deep: '#2b6cc0', shore: '#a4d0f2', props: 'pines' },
-    bay:     { snow: '#ecf6f3', ice: '#c2e5de', pathColor: '#e2cb96', pathEdge: '#b0985f', pathCore: '#efdfb6', deep: '#0f83a6', shore: '#90dcd8', props: 'bay' },
-    peak:    { snow: '#f1f4f9', ice: '#ccd8ea', pathColor: '#cfc39c', pathEdge: '#9c8f6c', pathCore: '#dfd5b6', deep: '#2f79c2', shore: '#a6d6ec', props: 'dead' },
-    workshop:  { snow: '#eaf0fb', ice: '#c2d4f2', pathColor: '#e0ca9c', pathEdge: '#ad9668', pathCore: '#eedcba', deep: '#2361b4', shore: '#9cc8f0', props: 'workshop' },
+    /* ---- tier 1, Brick City: green plate, grey road ---- */
+    shores:  { snow: '#57a05a', ice: '#3f7d45', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2f8fd6', shore: '#79c8ee', props: 'pines' },
+    pass:    { snow: '#549a57', ice: '#3c7742', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2f79c2', shore: '#74c0ea', props: 'pines' },
+    river:   { snow: '#52a05e', ice: '#3a7c49', pathColor: '#6e737a', pathEdge: '#4c5158', pathCore: '#80858c', deep: '#1391b8', shore: '#6fcfe0', props: 'reeds' },
+    alley:   { snow: '#4f9a58', ice: '#387644', pathColor: '#686d73', pathEdge: '#474c52', pathCore: '#797e85', deep: '#1f78c4', shore: '#72c4ee', props: 'floes' },
+    village: { snow: '#5cab60', ice: '#428549', pathColor: '#72777e', pathEdge: '#50555c', pathCore: '#848990', deep: '#2f8fd6', shore: '#79c8ee', props: 'village' },
+    caves:   { snow: '#3e4657', ice: '#262d3c', pathColor: '#4a505a', pathEdge: '#2e343c', pathCore: '#5a606a', deep: '#23407c', shore: '#456a9e', props: 'crystals', glow: '#7fd8f5', dark: true },
+    ridge:   { snow: '#56a05c', ice: '#3d7c45', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2b6cc0', shore: '#74bcea', props: 'pines' },
+    bay:     { snow: '#4e9c66', ice: '#377a4c', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#0f83a6', shore: '#6ccbd2', props: 'bay' },
+    peak:    { snow: '#5aa05e', ice: '#3f7d46', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2f79c2', shore: '#74c0ea', props: 'dead' },
+    workshop: { snow: '#4c9455', ice: '#357140', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2361b4', shore: '#6eb6ea', props: 'workshop' },
 
-    /* ---- tier 2: colder light, harder blues ---- */
-    flats:     { snow: '#eaf1fb', ice: '#bed9f4', pathColor: '#d6c9a6', pathEdge: '#a08c66', pathCore: '#e5dac0', deep: '#2270c0', shore: '#9cd0ee', props: 'pines' },
-    fjord:     { snow: '#e6f2f8', ice: '#b2d9ee', pathColor: '#dcc898', pathEdge: '#ab9464', pathCore: '#eadbb4', deep: '#0e7ba2', shore: '#86d2dc', props: 'bay' },
-    cataracts: { snow: '#eaf7f5', ice: '#bce4e4', pathColor: '#e0cb98', pathEdge: '#af9765', pathCore: '#ecdcb4', deep: '#128aa8', shore: '#8cd8dc', props: 'reeds' },
-    shelf:     { snow: '#eaf1fc', ice: '#bcd8f4', pathColor: '#d2c6a6', pathEdge: '#9d8a66', pathCore: '#e2d8c0', deep: '#1c6cba', shore: '#98cbee', props: 'floes' },
-    rookery:   { snow: '#f4f8fd', ice: '#cde2f4', pathColor: '#e8d4a4', pathEdge: '#b59c6e', pathCore: '#f4e5c4', deep: '#2381c8', shore: '#a4dcf0', props: 'village' },
-    basin:     { snow: '#94a1c8', ice: '#6874ac', pathColor: '#59648f', pathEdge: '#3c4670', pathCore: '#6a759e', deep: '#263e6e', shore: '#5a74a4', props: 'crystals', glow: '#7fb8f5' },
-    sable:     { snow: '#e4ebf5', ice: '#b9cce6', pathColor: '#c8c0a0', pathEdge: '#948a68', pathCore: '#d8d0b2', deep: '#2470b2', shore: '#a0cce8', props: 'dead' },
-    floes:     { snow: '#e9f4fd', ice: '#b6d9f4', pathColor: '#d0c8a8', pathEdge: '#9a8e6a', pathCore: '#e0d8c2', deep: '#156cba', shore: '#92c8ee', props: 'floes' },
-    stormwall: { snow: '#ecf1f8', ice: '#c4d3e8', pathColor: '#c6bc9a', pathEdge: '#928866', pathCore: '#d6ccae', deep: '#2470b2', shore: '#a4cce6', props: 'dead' },
-    longdark:  { snow: '#8591bb', ice: '#5e6b9a', pathColor: '#4f597f', pathEdge: '#353e60', pathCore: '#5d668c', deep: '#21335c', shore: '#4d6494', props: 'crystals', glow: '#6fa8ea' },
+    /* ---- tier 2, Star Port: grey plate, blue-white deck markings ---- */
+    flats:     { snow: '#9aa4ae', ice: '#6e7883', pathColor: '#5a6068', pathEdge: '#3c4148', pathCore: '#6c727a', deep: '#2270c0', shore: '#7cc0ea', props: 'pines' },
+    fjord:     { snow: '#93a2ae', ice: '#697681', pathColor: '#585e66', pathEdge: '#3a3f46', pathCore: '#6a7078', deep: '#0e7ba2', shore: '#6cc4d2', props: 'bay' },
+    cataracts: { snow: '#96a6ac', ice: '#6b7a80', pathColor: '#5a6068', pathEdge: '#3c4148', pathCore: '#6c727a', deep: '#128aa8', shore: '#70cbd4', props: 'reeds' },
+    shelf:     { snow: '#9099a6', ice: '#666e7b', pathColor: '#565c64', pathEdge: '#383d44', pathCore: '#686e76', deep: '#1c6cba', shore: '#78bcea', props: 'floes' },
+    rookery:   { snow: '#a2acb6', ice: '#76808b', pathColor: '#5e646c', pathEdge: '#40454c', pathCore: '#70767e', deep: '#2381c8', shore: '#80c8ee', props: 'village' },
+    basin:     { snow: '#3a4152', ice: '#232937', pathColor: '#454b55', pathEdge: '#2a3038', pathCore: '#555b65', deep: '#263e6e', shore: '#42638e', props: 'crystals', glow: '#7fb8f5', dark: true },
+    sable:     { snow: '#8e97a2', ice: '#646d78', pathColor: '#545a62', pathEdge: '#363b42', pathCore: '#666c74', deep: '#2470b2', shore: '#7ab8e8', props: 'dead' },
+    floes:     { snow: '#95a0ad', ice: '#6a7582', pathColor: '#585e66', pathEdge: '#3a3f46', pathCore: '#6a7078', deep: '#156cba', shore: '#74b8ea', props: 'floes' },
+    stormwall: { snow: '#8b95a2', ice: '#616b78', pathColor: '#525860', pathEdge: '#343940', pathCore: '#646a72', deep: '#2470b2', shore: '#7ab8e8', props: 'dead' },
+    longdark:  { snow: '#333a49', ice: '#1e2430', pathColor: '#3e444e', pathEdge: '#242a32', pathCore: '#4e545e', deep: '#21335c', shore: '#3a5684', props: 'crystals', glow: '#6fa8ea', dark: true },
 
-    /* ---- tier 3: the far ice — deepest colour, most dramatic ---- */
-    approach:  { snow: '#e2e9f6', ice: '#b0c6ea', pathColor: '#c4bd9e', pathEdge: '#8f8666', pathCore: '#d4cbb0', deep: '#1c5c9e', shore: '#98c0e8', props: 'pines' },
-    causeway:  { snow: '#dfeef7', ice: '#a6d2ec', pathColor: '#d2c090', pathEdge: '#a08e5e', pathCore: '#e0d0a4', deep: '#0c6c96', shore: '#82cade', props: 'bay' },
-    trench:    { snow: '#daecf3', ice: '#9ecde2', pathColor: '#c2b995', pathEdge: '#8d8462', pathCore: '#d2c9a8', deep: '#085a80', shore: '#78bcd4', props: 'bay' },
-    obsidian:  { snow: '#8390b8', ice: '#59689a', pathColor: '#475478', pathEdge: '#2e3757', pathCore: '#525d84', deep: '#1b2f56', shore: '#45608e', props: 'crystals', glow: '#6f9ce8' },
-    cathedral: { snow: '#e2e7fb', ice: '#b8c6f4', pathColor: '#d0c298', pathEdge: '#9c8f64', pathCore: '#e0d2ac', deep: '#24509c', shore: '#a2c2ec', props: 'crystals', glow: '#9ce8d4' },
-    maelstrom: { snow: '#dae4f5', ice: '#b0c6ec', pathColor: '#c8bd9a', pathEdge: '#948a66', pathCore: '#d8cfae', deep: '#1c58a0', shore: '#9cc6ec', props: 'floes' },
-    icefall:   { snow: '#e3ecf6', ice: '#b4cde8', pathColor: '#bcb894', pathEdge: '#898262', pathCore: '#ccc6a6', deep: '#2064a2', shore: '#a0c9e8', props: 'dead' },
-    blackice:  { snow: '#7481ac', ice: '#4c5a88', pathColor: '#3c476e', pathEdge: '#262e4c', pathCore: '#46527a', deep: '#152647', shore: '#3a507c', props: 'crystals', glow: '#5f92e2' },
-    throne:    { snow: '#dfe4f8', ice: '#b2c0f0', pathColor: '#cabb92', pathEdge: '#978c60', pathCore: '#d9cba6', deep: '#1e4a94', shore: '#9cbcec', props: 'workshop' },
-    worldsend: { snow: '#d6def4', ice: '#a8bae8', pathColor: '#beb28e', pathEdge: '#8b8160', pathCore: '#cec2a0', deep: '#184288', shore: '#92b4e8', props: 'workshop' },
+    /* ---- tier 3, Castle Realm: tan and dark stone ---- */
+    approach:  { snow: '#c4ab84', ice: '#9c8560', pathColor: '#6b6156', pathEdge: '#48413a', pathCore: '#7d7266', deep: '#1c5c9e', shore: '#72aede', props: 'pines' },
+    causeway:  { snow: '#bfa780', ice: '#97815c', pathColor: '#6b6156', pathEdge: '#48413a', pathCore: '#7d7266', deep: '#0c6c96', shore: '#68b8ce', props: 'bay' },
+    trench:    { snow: '#b8a37e', ice: '#907c5a', pathColor: '#675e53', pathEdge: '#453e37', pathCore: '#796e63', deep: '#085a80', shore: '#5fa8c4', props: 'bay' },
+    obsidian:  { snow: '#3a3540', ice: '#221f29', pathColor: '#453f4c', pathEdge: '#292430', pathCore: '#554e5c', deep: '#1b2f56', shore: '#3e5a86', props: 'crystals', glow: '#6f9ce8', dark: true },
+    cathedral: { snow: '#c9b28c', ice: '#a08a66', pathColor: '#6f6559', pathEdge: '#4b443c', pathCore: '#817669', deep: '#24509c', shore: '#7ab0e4', props: 'crystals', glow: '#9ce8d4' },
+    maelstrom: { snow: '#bca886', ice: '#948163', pathColor: '#6b6156', pathEdge: '#48413a', pathCore: '#7d7266', deep: '#1c58a0', shore: '#74aee4', props: 'floes' },
+    icefall:   { snow: '#c0a982', ice: '#98835f', pathColor: '#6b6156', pathEdge: '#48413a', pathCore: '#7d7266', deep: '#2064a2', shore: '#78b2e4', props: 'dead' },
+    blackice:  { snow: '#2f3340', ice: '#1b1e28', pathColor: '#3c414c', pathEdge: '#22262f', pathCore: '#4c515c', deep: '#152647', shore: '#33507c', props: 'crystals', glow: '#5f92e2', dark: true },
+    throne:    { snow: '#b6a084', ice: '#8e7a62', pathColor: '#655c52', pathEdge: '#433c36', pathCore: '#776c62', deep: '#1e4a94', shore: '#72a8e0', props: 'workshop' },
+    worldsend: { snow: '#a89478', ice: '#806f58', pathColor: '#5e564d', pathEdge: '#3d3832', pathCore: '#706660', deep: '#184288', shore: '#6ca0dc', props: 'workshop' },
   };
   for (const L of G.LEVELS) Object.assign(L.theme, THEME_EXTRAS[L.id] || {});
 
