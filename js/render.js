@@ -111,7 +111,12 @@
      rules allow — 288 towers on the roomiest map, every species alive — works
      out at about 5.5 million, so there is real headroom rather than a number
      that happened to fit the board it was tested on. */
-  const SPRITE_PIXELS = 8e6;
+  /* Raised from 8e6 when the Bros were drawn half again as large. A sheet's
+     cost is r², so the figures went from ~4k device pixels each to ~10k, and
+     the old ceiling left a heavy board close enough to the cliff described
+     above to fall off it. Twenty-two million is about 88MB and still well under
+     what the drawing it replaces would cost. */
+  const SPRITE_PIXELS = 2.2e7;
 
   /* `pad` is [left, right, top, bottom] around the origin, in the units the
      paint callback draws in. The callback gets a context already centred on
@@ -397,114 +402,104 @@
     return L;
   }
 
+  /* ---- pools, built rather than poured ----
+     Water in a brick build is transparent blue plates set into the board, and
+     the thing that sells it is that the studs LINE UP with the ground around
+     them. So this draws on the same STUD_PITCH grid the baseplate uses, offset
+     by nothing — a pool is part of the same plate, in a different colour.
+
+     What it deliberately does not have: gradients, foam, current lines and sun
+     glitter. Those were painting a liquid. Everything here is a flat plate with
+     a highlight on the stud, exactly like the green around it. */
+  function studGrid(c, x0, y0, x1, y1, clip, col, alpha) {
+    const P = 32, R = 9.5;
+    const gx0 = Math.floor((x0 - P) / P) * P + P / 2;
+    const gy0 = Math.floor((y0 - P) / P) * P + P / 2;
+    for (let gy = gy0; gy < y1 + P; gy += P) {
+      for (let gx = gx0; gx < x1 + P; gx += P) {
+        if (clip && !clip(gx, gy)) continue;
+        c.globalAlpha = alpha * 0.55;
+        c.fillStyle = 'rgba(6,26,50,0.9)';
+        c.beginPath(); c.arc(gx + 1.6, gy + 2.0, R, 0, TAU); c.fill();
+        c.globalAlpha = alpha;
+        c.fillStyle = col;
+        c.beginPath(); c.arc(gx, gy, R, 0, TAU); c.fill();
+        c.globalAlpha = alpha * 0.9;
+        c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 1.4;
+        c.beginPath(); c.arc(gx - 0.4, gy - 0.6, R - 0.8, Math.PI * 0.85, Math.PI * 1.85); c.stroke();
+      }
+    }
+    c.globalAlpha = 1;
+  }
+
   function drawWaterBody(c, wt, th, rnd) {
     const deep = th.deep || '#2e6da4';
     const shore = th.shore || '#bfe0ea';
+
     if (wt.rect) {
       const { x, y, w, h } = wt.rect;
-      const ph1 = rnd() * TAU, ph2 = rnd() * TAU;
-      const topY = (xx) => y + Math.sin(xx * 0.045 + ph1) * 5;
-      const botY = (xx) => y + h + Math.sin(xx * 0.05 + ph2) * 5;
-      // one closed river shape with gently waving banks; pad also widens the
-      // ends so mid-map pools keep their shore band on all four sides
-      const river = (pad) => {
-        c.beginPath();
-        c.moveTo(x - pad, topY(x) - pad);
-        for (let xx = x + 20; xx <= x + w; xx += 20) c.lineTo(xx, topY(xx) - pad);
-        c.lineTo(x + w + pad, topY(x + w) - pad);
-        c.lineTo(x + w + pad, botY(x + w) + pad);
-        for (let xx = x + w - 20; xx >= x; xx -= 20) c.lineTo(xx, botY(xx) + pad);
-        c.lineTo(x - pad, botY(x) + pad);
-        c.closePath();
-      };
-      // shore halo with a crisp dark contour
+      /* A channel is built out of whole plates, so its banks step on the grid
+         rather than waving. Straight edges are what make it read as assembled;
+         a wobbly bank is a river, and there are no rivers on a building
+         plate. */
+      const P = 32;
+      const top = Math.round(y / P) * P, bot = Math.round((y + h) / P) * P;
+
+      // the shallow band along each bank, one plate wide
       c.fillStyle = shore;
-      river(9); c.fill();
-      c.strokeStyle = 'rgba(20,42,72,0.35)'; c.lineWidth = 2.5;
-      c.stroke();
-      const gr = c.createLinearGradient(0, y, 0, y + h);
-      gr.addColorStop(0, shade(deep, 55));
-      gr.addColorStop(0.5, deep);
-      gr.addColorStop(1, shade(deep, 25));
-      c.fillStyle = gr;
-      river(0); c.fill();
-      // static current lines
-      c.strokeStyle = 'rgba(255,255,255,0.18)';
-      c.lineWidth = 1.5;
-      for (let i = 0; i < 6; i++) {
-        const yy = y + 14 + (h - 28) * (i / 5);
-        c.beginPath();
-        for (let xx = x; xx <= x + w; xx += 46) {
-          const dy = Math.sin(xx * 0.05 + i * 2.2) * 3;
-          if (xx === x) c.moveTo(xx, yy + dy); else c.lineTo(xx, yy + dy);
-        }
-        c.stroke();
+      c.fillRect(x, top - P, w, P);
+      c.fillRect(x, bot, w, P);
+      // the deep channel
+      c.fillStyle = deep;
+      c.fillRect(x, top, w, bot - top);
+
+      c.save();
+      c.beginPath(); c.rect(x, top - P, w, (bot - top) + P * 2); c.clip();
+      studGrid(c, x, top - P, x + w, bot + P, null, 'rgba(150,215,255,0.30)', 1);
+      c.restore();
+
+      // the raised lip where the plate steps down into the channel
+      c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(x, top + 1); c.lineTo(x + w, top + 1); c.stroke();
+      c.strokeStyle = 'rgba(8,28,54,0.45)'; c.lineWidth = 2.5;
+      c.beginPath(); c.moveTo(x, top - P + 1); c.lineTo(x + w, top - P + 1); c.stroke();
+      c.beginPath(); c.moveTo(x, bot + P - 1); c.lineTo(x + w, bot + P - 1); c.stroke();
+
+      for (let i = 0; i < Math.max(2, w / 400 | 0); i++) {
+        drawFloe(c, x + 40 + rnd() * (w - 80), top + 18 + rnd() * ((bot - top) - 36), 10 + rnd() * 14, rnd);
       }
-      // recessed bank: dark inner shadow along the top, light lip along the bottom
-      c.strokeStyle = 'rgba(15,35,60,0.35)';
-      c.lineWidth = 5;
-      c.beginPath();
-      for (let xx = x; xx <= x + w; xx += 20) { const yy = topY(xx) + 4; xx === x ? c.moveTo(xx, yy) : c.lineTo(xx, yy); }
-      c.stroke();
-      c.strokeStyle = 'rgba(255,255,255,0.4)';
-      c.lineWidth = 2.5;
-      c.beginPath();
-      for (let xx = x; xx <= x + w; xx += 20) { const yy = botY(xx) + 10; xx === x ? c.moveTo(xx, yy) : c.lineTo(xx, yy); }
-      c.stroke();
-      // foam hugging both banks
-      c.strokeStyle = 'rgba(255,255,255,0.6)';
-      c.lineWidth = 2;
-      c.setLineDash([8, 10]);
-      c.beginPath();
-      for (let xx = x; xx <= x + w; xx += 20) { const yy = topY(xx) + 2; xx === x ? c.moveTo(xx, yy) : c.lineTo(xx, yy); }
-      c.stroke();
-      c.beginPath();
-      for (let xx = x; xx <= x + w; xx += 20) { const yy = botY(xx) - 2; xx === x ? c.moveTo(xx, yy) : c.lineTo(xx, yy); }
-      c.stroke();
-      c.setLineDash([]);
-      // floes
-      for (let i = 0; i < Math.max(2, w / 400 | 0); i++) drawFloe(c, x + 40 + rnd() * (w - 80), y + 18 + rnd() * (h - 36), 10 + rnd() * 14, rnd);
     } else {
-      // shore ring with a crisp dark contour
+      /* A round pool is built the way a builder actually builds one: a ring of
+         shallow plate around a deeper middle, both stepped to the grid. */
+      const R = wt.r;
       c.fillStyle = shore;
-      c.beginPath(); c.arc(wt.x, wt.y, wt.r + 8, 0, TAU); c.fill();
-      c.strokeStyle = 'rgba(20,42,72,0.35)'; c.lineWidth = 2.5;
-      c.stroke();
-      // shallow bright rim, deep vivid centre
-      const gr = c.createRadialGradient(wt.x, wt.y, wt.r * 0.1, wt.x, wt.y, wt.r);
-      gr.addColorStop(0, shade(deep, -18));
-      gr.addColorStop(0.55, deep);
-      gr.addColorStop(0.9, shade(deep, 48));
-      gr.addColorStop(1, shade(deep, 72));
-      c.fillStyle = gr;
-      c.beginPath(); c.arc(wt.x, wt.y, wt.r, 0, TAU); c.fill();
-      // recessed basin: dark crescent up top, light lip at the bottom
-      c.strokeStyle = 'rgba(15,35,60,0.35)';
-      c.lineWidth = 6;
-      c.beginPath(); c.arc(wt.x, wt.y + 2, wt.r - 3, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
-      c.strokeStyle = 'rgba(255,255,255,0.45)';
-      c.lineWidth = 2.5;
-      c.beginPath(); c.arc(wt.x, wt.y, wt.r + 8, Math.PI * 0.15, Math.PI * 0.85); c.stroke();
-      // foam ring
-      c.strokeStyle = 'rgba(255,255,255,0.6)';
-      c.lineWidth = 2;
-      c.setLineDash([7, 9]);
-      c.beginPath(); c.arc(wt.x, wt.y, wt.r - 3, 0, TAU); c.stroke();
-      c.setLineDash([]);
-      // sun glitter across the middle
-      c.fillStyle = 'rgba(255,255,255,0.35)';
-      for (let i = 0; i < 9; i++) {
-        const a = rnd() * TAU, rr = rnd() * wt.r * 0.55;
-        c.beginPath();
-        c.ellipse(wt.x + Math.cos(a) * rr, wt.y + Math.sin(a) * rr * 0.8, 2.4 + rnd() * 2.6, 1 + rnd(), 0, 0, TAU);
-        c.fill();
-      }
-      if (wt.r > 78) {
-        drawFloe(c, wt.x - wt.r * 0.35, wt.y + wt.r * 0.3, wt.r * 0.16, rnd);
-        drawFloe(c, wt.x + wt.r * 0.42, wt.y - wt.r * 0.28, wt.r * 0.13, rnd);
+      c.beginPath(); c.arc(wt.x, wt.y, R + 10, 0, TAU); c.fill();
+      c.fillStyle = deep;
+      c.beginPath(); c.arc(wt.x, wt.y, R, 0, TAU); c.fill();
+      c.fillStyle = shade(deep, -22);
+      c.beginPath(); c.arc(wt.x, wt.y, R * 0.55, 0, TAU); c.fill();
+
+      c.save();
+      c.beginPath(); c.arc(wt.x, wt.y, R + 10, 0, TAU); c.clip();
+      studGrid(c, wt.x - R - 12, wt.y - R - 12, wt.x + R + 12, wt.y + R + 12, null,
+        'rgba(150,215,255,0.30)', 1);
+      c.restore();
+
+      // stepped rim: a bright lip on the near side, a dark one on the far
+      c.strokeStyle = 'rgba(8,28,54,0.45)'; c.lineWidth = 2.5;
+      c.beginPath(); c.arc(wt.x, wt.y, R + 10, 0, TAU); c.stroke();
+      c.strokeStyle = 'rgba(255,255,255,0.40)'; c.lineWidth = 2;
+      c.beginPath(); c.arc(wt.x, wt.y, R, Math.PI * 0.12, Math.PI * 0.88); c.stroke();
+      c.strokeStyle = 'rgba(8,28,54,0.30)'; c.lineWidth = 2;
+      c.beginPath(); c.arc(wt.x, wt.y, R, Math.PI * 1.12, Math.PI * 1.88); c.stroke();
+
+      if (R > 78) {
+        drawFloe(c, wt.x - R * 0.35, wt.y + R * 0.3, R * 0.16, rnd);
+        drawFloe(c, wt.x + R * 0.42, wt.y - R * 0.28, R * 0.13, rnd);
       }
     }
   }
+
 
   /* A raft of loose plates floating in a pool. Was an ice floe; the shape is
      the useful part — an irregular flat thing breaking up an expanse of blue —
@@ -625,54 +620,65 @@
 
     const total = pathLength(pts);
 
-    /* The track is built out of road plates, so it gets what road plates have:
-       a butt joint every plate length, and a dashed centre line. The joints are
-       the detail that makes it read as laid rather than painted on. */
-    const PLATE = 64;
-    c.strokeStyle = 'rgba(20,26,34,0.35)';
-    c.lineWidth = 1.6;
-    for (let d = PLATE; d < total; d += PLATE) {
+    /* The track is SMOOTH TILE, and that is the whole idea.
+
+       It read as a street before — centre line, kerbs, tarmac — which is a
+       thing you drive on rather than a thing you built. The contrast a brick
+       builder actually uses for a path is texture, not colour: flat tile with
+       no studs, laid across a plate that has them. Studs everywhere, none on
+       the path, and the path reads as laid without a single road marking.
+
+       So this draws the tiles themselves — a butt joint every tile length, and
+       one running down the middle where two rows of tile meet. */
+    const TILE = 26;
+    c.strokeStyle = 'rgba(20,26,34,0.22)';
+    c.lineWidth = 1.2;
+    for (let d = TILE; d < total; d += TILE) {
       const p = pathPoint(pts, d);
       const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
       c.beginPath();
-      c.moveTo(p.x + nx * -(G.PATH_HALF - 2), p.y + ny * -(G.PATH_HALF - 2));
-      c.lineTo(p.x + nx * (G.PATH_HALF - 2), p.y + ny * (G.PATH_HALF - 2));
+      c.moveTo(p.x + nx * -(G.PATH_HALF - 3), p.y + ny * -(G.PATH_HALF - 3));
+      c.lineTo(p.x + nx * (G.PATH_HALF - 3), p.y + ny * (G.PATH_HALF - 3));
       c.stroke();
+      // each tile catches the light along its leading edge
+      c.strokeStyle = 'rgba(255,255,255,0.14)';
+      c.beginPath();
+      c.moveTo(p.x + nx * -(G.PATH_HALF - 3) + 1, p.y + ny * -(G.PATH_HALF - 3) + 1);
+      c.lineTo(p.x + nx * (G.PATH_HALF - 3) + 1, p.y + ny * (G.PATH_HALF - 3) + 1);
+      c.stroke();
+      c.strokeStyle = 'rgba(20,26,34,0.22)';
     }
 
-    // dashed centre line, the way a road plate is printed
-    c.strokeStyle = 'rgba(255,255,255,0.55)';
-    c.lineWidth = 3;
-    c.lineCap = 'butt';
-    for (let d = 8; d < total; d += 34) {
-      const a = pathPoint(pts, d), b = pathPoint(pts, Math.min(total, d + 17));
-      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
-    }
-    c.lineCap = 'round';
+    // the seam down the middle, where the two rows of tile butt together
+    c.strokeStyle = 'rgba(20,26,34,0.16)';
+    c.lineWidth = 1.2;
+    trace(); c.stroke();
 
-    /* Kerb studs down both shoulders. The plate the track is laid on still has
-       its studs, and showing them at the edge is what stops the track looking
-       like a hole cut in the board. */
-    for (let d = 10; d < total; d += 26) {
-      const p = pathPoint(pts, d);
-      for (const side of [-1, 1]) {
-        const nx = Math.cos(p.ang + Math.PI / 2) * side, ny = Math.sin(p.ang + Math.PI / 2) * side;
-        const off = G.PATH_HALF + 4;
-        const bx = p.x + nx * off, by = p.y + ny * off;
-        c.fillStyle = 'rgba(20,32,50,0.22)';
-        c.beginPath(); c.arc(bx + 1.2, by + 1.6, 4.4, 0, TAU); c.fill();
-        c.fillStyle = 'rgba(255,255,255,0.28)';
-        c.beginPath(); c.arc(bx, by, 4.4, 0, TAU); c.fill();
+    /* The tiles sit slightly proud of the plate, so the edge gets a lit lip on
+       the sunward side and a shadow on the other. This is what makes the path
+       read as laid ON the board rather than cut INTO it — the job the kerb
+       studs were doing, done the way a real edge does it. */
+    c.save();
+    c.translate(-1.2, -1.6);
+    trace(); c.strokeStyle = 'rgba(255,255,255,0.20)'; c.lineWidth = G.PATH_HALF * 2 + 3; c.stroke();
+    c.restore();
+    c.save();
+    c.translate(1.2, 1.6);
+    trace(); c.strokeStyle = 'rgba(14,22,34,0.20)'; c.lineWidth = G.PATH_HALF * 2 + 3; c.stroke();
+    c.restore();
+    trace(); c.strokeStyle = th.pathColor; c.lineWidth = G.PATH_HALF * 2 - 2; c.stroke();
+
+    // faint wear down the two lines the wheels actually follow
+    c.strokeStyle = 'rgba(18,24,32,0.07)';
+    c.lineWidth = 7;
+    for (const side of [-1, 1]) {
+      c.beginPath();
+      for (let d = 0; d <= total; d += 12) {
+        const p = pathPoint(pts, d);
+        const nx = Math.cos(p.ang + Math.PI / 2) * side * 9, ny = Math.sin(p.ang + Math.PI / 2) * side * 9;
+        d ? c.lineTo(p.x + nx, p.y + ny) : c.moveTo(p.x + nx, p.y + ny);
       }
-    }
-
-    // wheel scuffs where a great many vacuums have already been through
-    c.fillStyle = 'rgba(18,24,32,0.16)';
-    for (let d = 14; d < total; d += 19) {
-      const p = pathPoint(pts, d);
-      const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
-      const off = (rnd() - 0.5) * (G.PATH_HALF * 1.2);
-      c.beginPath(); c.ellipse(p.x + nx * off, p.y + ny * off, 3 + rnd() * 3, 1.2, p.ang, 0, TAU); c.fill();
+      c.stroke();
     }
   }
 
@@ -1323,20 +1329,33 @@
       ctx.beginPath(); ctx.arc(r * 0.585, -r * 1.66, r * 0.15, 0, TAU); ctx.fill();
     }
 
-    /* ---- legs ---- */
-    ctx.fillStyle = legs;
-    panel(ctx, HIP * r, FOOT * r, r * 0.44, r * 0.50, r * 0.07);
-    ctx.fill();
-    ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
-    // the gap between the two legs, and the darker boot band along the bottom
-    ctx.fillStyle = shade(legs.startsWith('#') ? legs : '#2b3a4a', -40);
-    ctx.fillRect(-r * 0.05, HIP * r + r * 0.22, r * 0.10, r * 0.72);
-    ctx.globalAlpha = 0.5;
-    ctx.fillRect(-r * 0.50, FOOT * r - r * 0.16, r * 1.0, r * 0.16);
-    ctx.globalAlpha = 1;
-    // hip plate — the little step where the legs meet the torso
+    /* ---- legs ----
+       Drawn as two separate legs rather than one block with a line down it.
+       At battle size the line was invisible and the whole lower half read as a
+       dark smudge; two shapes with a real gap between them read as legs even
+       when they are twelve pixels tall. */
+    const legDark = shade(legs.startsWith('#') ? legs : '#2b3a4a', -34);
+    const legLit = shade(legs.startsWith('#') ? legs : '#2b3a4a', 28);
+    for (const side of [-1, 1]) {
+      const x0 = side < 0 ? -r * 0.46 : r * 0.06;
+      ctx.fillStyle = legs;
+      rounded(ctx, x0, HIP * r + r * 0.06, r * 0.40, (FOOT - HIP) * r - r * 0.06, r * 0.06);
+      // the lit face down the sunward side of each leg
+      ctx.fillStyle = side < 0 ? legLit : legDark;
+      ctx.fillRect(x0, HIP * r + r * 0.06, r * 0.10, (FOOT - HIP) * r - r * 0.06);
+      // the boot: a darker band with its own lip, so the figure has a footing
+      ctx.fillStyle = legDark;
+      rounded(ctx, x0 - r * 0.02, FOOT * r - r * 0.20, r * 0.44, r * 0.20, r * 0.05);
+      ctx.fillStyle = shade(legs.startsWith('#') ? legs : '#2b3a4a', -8);
+      ctx.fillRect(x0 - r * 0.02, FOOT * r - r * 0.20, r * 0.44, r * 0.06);
+      ctx.strokeStyle = ink; ctx.lineWidth = lw * 0.9;
+      ctx.beginPath(); ctx.rect(x0, HIP * r + r * 0.06, r * 0.40, (FOOT - HIP) * r - r * 0.06); ctx.stroke();
+    }
+    // hip plate — the step where the legs meet the torso, and the belt on it
     ctx.fillStyle = shade(legs.startsWith('#') ? legs : '#2b3a4a', 22);
-    rounded(ctx, -r * 0.46, HIP * r - r * 0.02, r * 0.92, r * 0.16, r * 0.05);
+    rounded(ctx, -r * 0.48, HIP * r - r * 0.06, r * 0.96, r * 0.20, r * 0.05);
+    ctx.strokeStyle = ink; ctx.lineWidth = lw * 0.9;
+    ctx.beginPath(); ctx.rect(-r * 0.48, HIP * r - r * 0.06, r * 0.96, r * 0.20); ctx.stroke();
 
     /* ---- torso ---- */
     ctx.fillStyle = torso;
@@ -1402,22 +1421,38 @@
   }
 
   /* One arm and its C-shaped hand, swinging from the shoulder. Drawn live
-     rather than baked because it is the only part of a Bro that moves. */
+     rather than baked because it is the only part of a Bro that moves.
+
+     Redrawn once the figures were made half again as large and the arms turned
+     out to be the thing that had not survived: they were the same colour as the
+     torso and only stuck out 0.2r past it, so at battle size they read as a
+     thickening of the outline rather than as limbs. Now they clear the torso by
+     half a radius, carry a shoulder that sits proud of it, and are shaded a
+     step darker so the join is visible. */
   function paintArm(ctx, r, side, torso, ink) {
+    const dark = shade(torso.startsWith('#') ? torso : '#2f6fb5', -22);
     ctx.save();
     ctx.scale(side, 1);
-    ctx.fillStyle = torso;
-    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, r * 0.08);
+    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, r * 0.075);
+
+    // upper arm, swept down and out from the shoulder
+    ctx.fillStyle = dark;
     ctx.beginPath();
-    ctx.moveTo(r * 0.30, -r * 0.12);
-    ctx.quadraticCurveTo(r * 0.70, -r * 0.06, r * 0.68, r * 0.30);
-    ctx.lineTo(r * 0.48, r * 0.32);
-    ctx.quadraticCurveTo(r * 0.50, r * 0.06, r * 0.26, r * 0.10);
+    ctx.moveTo(r * 0.30, -r * 0.14);
+    ctx.quadraticCurveTo(r * 0.78, -r * 0.10, r * 0.86, r * 0.26);
+    ctx.lineTo(r * 0.62, r * 0.36);
+    ctx.quadraticCurveTo(r * 0.58, r * 0.06, r * 0.26, r * 0.12);
     ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    // shoulder cap, sitting proud of the torso so the joint reads
+    ctx.fillStyle = torso;
+    ctx.beginPath(); ctx.ellipse(r * 0.34, -r * 0.04, r * 0.14, r * 0.16, -0.3, 0, TAU);
+    ctx.fill(); ctx.stroke();
+
     // hand: an open C, the way a brick figure's grip actually looks
     ctx.fillStyle = SKIN; ctx.strokeStyle = '#9a7412';
-    ctx.lineWidth = Math.max(1.4, r * 0.11); ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.arc(r * 0.60, r * 0.40, r * 0.13, -2.2, 1.5); ctx.stroke();
+    ctx.lineWidth = Math.max(1.6, r * 0.13); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(r * 0.78, r * 0.44, r * 0.15, -2.1, 1.6); ctx.stroke();
     ctx.restore();
   }
 
@@ -1478,18 +1513,21 @@
       ctx.restore();
     }
 
-    // gear-path cape billows out behind (tier 2+), gold-trimmed at tier 3
+    /* The gear-path cape (tier 2+), gold-trimmed at tier 3. Pulled in and back
+       from where it was: at the old drawing size it read as a flourish, and at
+       the new one it was swallowing the figure it was supposed to decorate. It
+       now hangs behind the shoulders instead of wrapping round them. */
     if (tierB >= 2) {
-      const sway = Math.sin(t * 2.2) * r * 0.07;
+      const sway = Math.sin(t * 2.2) * r * 0.05;
       ctx.fillStyle = shade(clsColor, -12);
       ctx.beginPath();
-      ctx.moveTo(-r * 0.34, -r * 0.62);
-      ctx.quadraticCurveTo(-r * 1.3, -r * 0.1 + sway, -r * 1.12, r * 0.72 + sway);
-      ctx.quadraticCurveTo(-r * 0.55, r * 0.95, -r * 0.12, r * 0.7);
-      ctx.lineTo(r * 0.05, -r * 0.5);
+      ctx.moveTo(-r * 0.30, -r * 0.20);
+      ctx.quadraticCurveTo(-r * 0.98, r * 0.10 + sway, -r * 0.80, r * 0.80 + sway);
+      ctx.quadraticCurveTo(-r * 0.40, r * 0.92, -r * 0.10, r * 0.72);
+      ctx.lineTo(r * 0.04, -r * 0.16);
       ctx.closePath(); ctx.fill();
       ctx.strokeStyle = tierB >= 3 ? '#ffd166' : shade(clsColor, -46);
-      ctx.lineWidth = r * (tierB >= 3 ? 0.1 : 0.06);
+      ctx.lineWidth = r * (tierB >= 3 ? 0.08 : 0.05);
       ctx.stroke();
     }
 
@@ -1542,14 +1580,27 @@
     }
     const propS = 1 + tierA * 0.13;
     const propR = r * 1.32 * propS;
+    /* A maxed weapon path glows gold. This used to be a live shadowBlur, which
+       is the single most expensive thing a 2D context can be asked for and
+       costs in proportion to the AREA it blurs — so when the figures were drawn
+       half again as large it went from affordable to 29fps on a board of a
+       hundred capstone Bros.
+
+       The prop rotates with the aim and animates with the clock, so it cannot
+       be baked. The glow behind it can: it is a soft gold disc, which is
+       exactly what glowSprite already caches for the boss menace halo. One
+       blit instead of a blur, and the picture is the same. Measured back at a
+       flat 60. */
     if (tierA >= 3) {
+      const gr = Math.round(propR * 0.95);
+      const gs = glowSprite(gr, Math.round(gr * 0.25), '255,209,102');
       ctx.save();
-      ctx.shadowColor = 'rgba(255,209,102,0.85)'; ctx.shadowBlur = r * 0.55;
-      drawProp(ctx, propR, look, aim, t, propS);
+      ctx.globalAlpha = 0.55;
+      ctx.drawImage(gs, Math.cos(aim != null ? aim : -0.5) * propR * 0.5 - gr,
+        Math.sin(aim != null ? aim : -0.5) * propR * 0.5 - gr);
       ctx.restore();
-    } else {
-      drawProp(ctx, propR, look, aim, t, propS);
     }
+    drawProp(ctx, propR, look, aim, t, propS);
     drawRoleExtras(ctx, r, typeId, t, tierA, tierB);
 
     ctx.restore();
@@ -2034,8 +2085,14 @@
       ctx.restore();
     }
 
+    /* How big a Bro is DRAWN, which is deliberately not how much room it takes
+       up. Placement is governed by G.TOWER_R (20) in the engine and nothing
+       here touches it — so raising this makes the figures bigger and easier to
+       read without moving a single build spot or changing what fits where.
+       They overlap a little when packed tight, which is the price of being
+       able to see what you built. */
     const small = tw.type === 'fort' || tw.type === 'vendor';
-    const pr = small ? 11 : 15;
+    const pr = small ? 23 : 32;
     let px = small ? pos.x + 20 : pos.x;
     let py = small ? pos.y + 8 : pos.y;
     // recoil kick: jump back from the shot, spring back over ~0.16s
@@ -2539,11 +2596,27 @@
     ctx.restore();
   }
 
+  /* How big a vacuum is DRAWN. `e.size` is the hitbox — the engine tests a
+     projectile against `(e.size + 6)²` and a heavy's maw against `size * 0.9` —
+     so it must not move, or the game gets easier and every tuned number goes
+     with it. Only the picture scales.
+
+     The Bros were drawn half again as large and then larger still, and left
+     alone the pack would have looked like toys beside them. 1.45 on the small
+     machines is chosen so the drawing lands almost exactly on `size + 6`: an
+     Upright draws at 18.9 and is hit at 19, which means a projectile that looks
+     like it grazed the shell did. The multiplier eases off toward the big ones,
+     because a MEGAVAC at full scale would eat a fifth of the board. */
+  function vacDrawR(size) {
+    const k = 1.45 - 0.25 * Math.max(0, Math.min(1, (size - 20) / 54));
+    return size * k;
+  }
+
   function drawVac(ctx, game, e, t) {
     const def = G.ENEMIES[e.type];
     const p = G.samplePath(game.paths[e.pathIdx], e.dist);
     const wob = Math.sin(t * 8 + e.wob) * 0.07;
-    const r = e.size;
+    const r = vacDrawR(e.size);
     const hidden = e.stealth && e.revealUntil <= game.time;
     const col = def.color;
     const ghost = hidden ? 0.45 : 1;
@@ -3254,7 +3327,7 @@
           if (!G.arcsOverTerrain(def.stats)) drawSightShadow(ctx, game, x, y, range);
         }
         ctx.globalAlpha = 0.75;
-        drawBro(ctx, x, y, 15, game.placingType, null, 0);
+        drawBro(ctx, x, y, 32, game.placingType, null, 0);
         ctx.globalAlpha = 1;
         if (!ok) {
           ctx.strokeStyle = '#d04545'; ctx.lineWidth = 3;
