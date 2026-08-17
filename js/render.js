@@ -2056,297 +2056,318 @@
     ctx.closePath(); ctx.fill(); ctx.stroke();
   }
 
-  /* ================= VACUUMS ================= */
-  function vacBody(ctx, r) {
+  /* ================= VACUUMS =================
+     Drawn in profile, nose-right, wheels on the ground at y = +0.75r. Every
+     machine is the same four parts in different proportions — housing, floor
+     head, handle, wheels — because at twenty pixels a silhouette is all the
+     player gets, and four recognisable parts survive being small where a
+     bespoke drawing per species does not.
+
+     `form` picks the proportions; the flags below it add the one detail that
+     tells this species apart from the one before it in the ladder. */
+  const VAC_FORM = {
+    pup:         { form: 'hand' },
+    juvenile:    { form: 'stick' },
+    adult:       { form: 'upright' },
+    speedster:   { form: 'robo' },
+    bull:        { form: 'upright', bulk: 1.14, vents: true },
+    stealth:     { form: 'upright', quiet: true },
+    armored:     { form: 'can',     plated: true },
+    regen:       { form: 'can',     cyclone: true },
+    brute:       { form: 'drum' },
+    beachmaster: { form: 'drum',    tank: true },
+    colossus:    { form: 'drum',    pad: true },
+    emperor:     { form: 'can',     stack: true },
+    leviathan:   { form: 'drum',    pipes: true },
+  };
+  const GROUND = 0.75;
+
+  /* The housing outline — the one shape the fill, the shading clip and the
+     cartoon outline all share, so they can never drift apart. */
+  function vacBody(ctx, r, spec) {
+    const f = (spec && spec.form) || 'upright';
+    const b = (spec && spec.bulk) || 1;
+    if (f === 'robo') {                       // a low disc, no housing to speak of
+      ctx.beginPath();
+      ctx.ellipse(0, r * 0.34, r * 1.02, r * 0.40, 0, 0, TAU);
+      return;
+    }
+    const left = f === 'hand' ? -0.62 : f === 'stick' ? -0.72 : -0.95 * b;
+    const right = f === 'hand' ? 0.52 : 0.58;
+    const top = f === 'hand' ? -0.30 : f === 'stick' ? -0.34 : -0.58 * b;
+    const bot = GROUND - 0.12;
+    const rad = r * (f === 'drum' ? 0.30 : 0.16);
     ctx.beginPath();
-    ctx.moveTo(r * 0.6, -r * 0.55);
-    ctx.quadraticCurveTo(r * 1.15, 0, r * 0.6, r * 0.55);
-    ctx.quadraticCurveTo(0, r * 0.75, -r * 1.05, r * 0.3);
-    ctx.lineTo(-r * 1.05, -r * 0.3);
-    ctx.quadraticCurveTo(0, -r * 0.75, r * 0.6, -r * 0.55);
+    ctx.moveTo(r * left + rad, r * top);
+    ctx.arcTo(r * right, r * top, r * right, r * bot, rad);
+    ctx.arcTo(r * right, r * bot, r * left, r * bot, rad);
+    ctx.arcTo(r * left, r * bot, r * left, r * top, rad);
+    ctx.arcTo(r * left, r * top, r * right, r * top, rad);
     ctx.closePath();
   }
 
-  /* Everything below is drawn nose-right and belly-down, and the caller turns
-     it down the track. Which way the animal is FACING is therefore a mirror,
+  /* Everything below is drawn nose-right and wheels-down, and the caller turns
+     it down the track. Which way the machine is FACING is therefore a mirror,
      never a rotation past vertical: rotating a right-facing drawing by 180°
-     puts its belly on the ceiling, and that is what had the whole pack
-     swimming on its back down every leg of the track that runs right to left.
+     puts its wheels in the air, and that is what had the whole pack driving
+     upside down on every leg of the track that runs right to left.
 
-     Mirrored across its own spine instead — nose still leads, belly still
+     Mirrored across its own axis instead — nose still leads, wheels still
      down. Keyed on the segment's angle rather than the wobbled one: the wobble
      is ±0.07 either side, so on a vertical leg an angle-with-wobble crosses
-     zero eight times a second and the vacuum would strobe. */
+     zero eight times a second and the machine would strobe. */
   function facesLeft(ang) { return Math.cos(ang) < 0; }
 
-  /* The still half of a vacuum: body, markings, head, and whatever its
-     species wears. Painted once per (type, stealth, freckles) into a sprite and
-     blitted after that — see the sprite cache at the top of this file. The
-     parts that actually move (tail, flipper, snort, pulses) are not in here;
-     drawVac still draws those by hand every frame. */
+  /* The still half of a vacuum — which is nearly all of it, and deliberately:
+     these are machines rolling down a track, not animals, so there is no gait
+     to animate. Only the brush roll turns (drawVacLive). Painted once per
+     (type, stealth, wear pattern) into a sprite and blitted after that. */
   function paintVac(ctx, type, r, hidden, variant) {
     const def = G.ENEMIES[type];
     const col = def.color;
     const boss = !!def.boss;
+    const spec = VAC_FORM[type] || { form: 'upright' };
+    const f = spec.form;
+    const ink = shade(col, -58);
+    const lw = Math.max(1.4, r * 0.11);
     ctx.globalAlpha = hidden ? 0.45 : 1;
 
-    // speedster: motion-blur ghost track
-    if (type === 'speedster') {
+    // Robo-Vac: a blurred pair of afterimages, because it is twice as fast as
+    // anything else on the board and that has to be legible before it arrives
+    if (f === 'robo') {
       for (let gi = 2; gi >= 1; gi--) {
         ctx.save();
-        ctx.translate(-r * 0.6 * gi, 0);
-        ctx.globalAlpha = (hidden ? 0.45 : 1) * (gi === 1 ? 0.16 : 0.08);
+        ctx.translate(-r * 0.55 * gi, 0);
+        ctx.globalAlpha = (hidden ? 0.45 : 1) * (gi === 1 ? 0.18 : 0.08);
         ctx.fillStyle = col;
-        vacBody(ctx, r);
-        ctx.fill();
+        vacBody(ctx, r, spec); ctx.fill();
         ctx.restore();
       }
     }
 
-    // body base
-    ctx.fillStyle = col;
-    vacBody(ctx, r);
-    ctx.fill();
+    /* ---- handle ---- */
+    if (f === 'upright' || f === 'stick') {
+      const hx = f === 'stick' ? -0.60 : -0.72;
+      const topY = f === 'stick' ? -1.55 : -1.25;
+      ctx.strokeStyle = shade(col, -34);
+      ctx.lineWidth = Math.max(1.6, r * (f === 'stick' ? 0.11 : 0.15));
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(r * hx, r * -0.30);
+      ctx.lineTo(r * (hx - 0.30), r * topY);
+      ctx.stroke();
+      // grip
+      ctx.strokeStyle = '#2b3138'; ctx.lineWidth = Math.max(2, r * 0.16);
+      ctx.beginPath();
+      ctx.moveTo(r * (hx - 0.30), r * topY);
+      ctx.lineTo(r * (hx - 0.02), r * (topY + 0.16));
+      ctx.stroke();
+    }
+    if (f === 'hand') {                      // a handheld's finger loop
+      ctx.strokeStyle = '#2b3138'; ctx.lineWidth = Math.max(1.6, r * 0.13);
+      ctx.beginPath(); ctx.arc(-r * 0.30, -r * 0.42, r * 0.26, Math.PI * 0.9, Math.PI * 2.1); ctx.stroke();
+    }
 
-    // shading inside the body: dark back, light belly, spots
+    /* ---- floor head, out in front ---- */
+    if (f !== 'robo') {
+      const nose = f === 'hand' ? 1.02 : f === 'drum' ? 1.34 : 1.26;
+      ctx.fillStyle = shade(col, -26);
+      ctx.beginPath();
+      ctx.moveTo(r * 0.42, r * (GROUND - 0.42));
+      ctx.lineTo(r * nose, r * (GROUND - 0.26));
+      ctx.lineTo(r * nose, r * GROUND);
+      ctx.lineTo(r * 0.42, r * GROUND);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = ink; ctx.lineWidth = lw * 0.8; ctx.stroke();
+      // suction slot along the underside
+      ctx.fillStyle = '#15181d';
+      ctx.fillRect(r * 0.5, r * (GROUND - 0.09), r * (nose - 0.58), r * 0.08);
+    }
+
+    /* ---- housing ---- */
+    ctx.fillStyle = col;
+    vacBody(ctx, r, spec); ctx.fill();
+
     ctx.save();
-    vacBody(ctx, r);
-    ctx.clip();
-    ctx.fillStyle = shade(col, -22);
-    ctx.globalAlpha = 0.55;
-    ctx.beginPath(); ctx.ellipse(-r * 0.05, -r * 0.42, r * 0.95, r * 0.34, 0, 0, TAU); ctx.fill();
+    vacBody(ctx, r, spec); ctx.clip();
+    // moulded plastic: light off the top-left face, shadow down the bottom-right
     ctx.globalAlpha = 0.85;
-    ctx.fillStyle = shade(col, 34);
-    ctx.beginPath(); ctx.ellipse(0, r * 0.4, r * 0.9, r * 0.34, 0, 0, TAU); ctx.fill();
-    // glossy spine highlight — sells the rounded body
-    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = shade(col, 40);
+    ctx.beginPath(); ctx.ellipse(-r * 0.25, -r * 0.40, r * 0.85, r * 0.26, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = shade(col, -28);
+    ctx.beginPath(); ctx.ellipse(r * 0.15, r * 0.62, r * 0.95, r * 0.30, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 0.30;
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.ellipse(-r * 0.02, -r * 0.2, r * 0.8, r * 0.17, 0, 0, TAU); ctx.fill();
-    ctx.globalAlpha = 0.45;
-    ctx.beginPath(); ctx.ellipse(r * 0.7, -r * 0.22, r * 0.2, r * 0.1, 0.3, 0, TAU); ctx.fill();
-    /* Mottled spots. Seeded off the sprite's freckle variant rather than off
-       the individual animal: a pack of three patterns reads exactly as varied
-       as a pack of ninety did, and it is the difference between three sheets
-       per species and one per vacuum on the field. */
-    if (!boss && type !== 'stealth') {
+    ctx.beginPath(); ctx.ellipse(-r * 0.30, -r * 0.30, r * 0.42, r * 0.09, -0.12, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    /* Scuffs. Seeded off the sprite's wear pattern rather than off the
+       individual machine: a pack of three patterns reads exactly as varied as
+       a pack of ninety did, and it is the difference between three sheets per
+       species and one per vacuum on the field. */
+    if (!boss) {
       const rnd = mulberry32(variant * 31013 + def.rank * 977);
-      ctx.globalAlpha = 0.4;
-      ctx.fillStyle = shade(col, -30);
-      const n = 4 + (rnd() * 4 | 0);
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = shade(col, -45);
+      const n = 3 + (rnd() * 3 | 0);
       for (let i = 0; i < n; i++) {
-        const sx = (rnd() * 2 - 1) * r * 0.72;
-        const sy = (rnd() * 2 - 1) * r * 0.4;
         ctx.beginPath();
-        ctx.ellipse(sx, sy, r * (0.07 + rnd() * 0.09), r * (0.05 + rnd() * 0.06), rnd() * 3, 0, TAU);
+        ctx.ellipse((rnd() * 2 - 1) * r * 0.6, (rnd() * 2 - 1) * r * 0.35,
+          r * (0.05 + rnd() * 0.07), r * (0.03 + rnd() * 0.04), rnd() * 3, 0, TAU);
         ctx.fill();
       }
+      ctx.globalAlpha = 1;
     }
-    // barnacles for the big ones
-    if (type === 'colossus' || type === 'leviathan') {
-      const rnd = mulberry32(def.rank * 31337);
-      ctx.globalAlpha = 0.9;
-      for (let i = 0; i < 7; i++) {
-        const sx = (rnd() * 2 - 1) * r * 0.7, sy = -r * 0.15 - rnd() * r * 0.4;
-        ctx.fillStyle = '#b8b4a4';
-        ctx.beginPath(); ctx.arc(sx, sy, r * 0.05 + rnd() * r * 0.04, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#7d7a6d';
-        ctx.beginPath(); ctx.arc(sx, sy, r * 0.022, 0, TAU); ctx.fill();
+
+    /* ---- the dust window: every vacuum has one, and it is where the bricks
+           it has already eaten are visible. On the big ones it is full. ---- */
+    if (f !== 'robo') {
+      const wx = f === 'hand' ? -0.34 : -0.52, ww = f === 'hand' ? 0.62 : 0.90;
+      ctx.fillStyle = 'rgba(228,240,248,0.55)';
+      rounded(ctx, r * wx, r * -0.16, r * ww, r * 0.52, r * 0.09);
+      ctx.fillStyle = 'rgba(20,30,44,0.22)';
+      rounded(ctx, r * wx, r * -0.16, r * ww, r * 0.12, r * 0.05);
+      // swallowed bricks rattling around inside
+      const rnd2 = mulberry32(def.rank * 7717 + variant * 131);
+      const bits = 2 + (def.rank > 8 ? 2 : 0);
+      const cols = ['#c8443c', '#3f7fd4', '#e8b93c', '#3fae6a'];
+      for (let i = 0; i < bits; i++) {
+        ctx.fillStyle = cols[(rnd2() * 4) | 0];
+        ctx.globalAlpha = 0.75;
+        ctx.save();
+        ctx.translate(r * (wx + 0.12 + rnd2() * (ww - 0.24)), r * (0.02 + rnd2() * 0.26));
+        ctx.rotate(rnd2() * 3);
+        ctx.fillRect(-r * 0.07, -r * 0.045, r * 0.14, r * 0.09);
+        ctx.restore();
       }
+      ctx.globalAlpha = 1;
     }
     ctx.restore();
 
-    // bold cartoon outline
-    ctx.strokeStyle = shade(col, -58);
+    // bold cartoon outline, the same as the Bros wear
+    ctx.strokeStyle = ink;
     ctx.globalAlpha = hidden ? 0.4 : 0.9;
     ctx.lineWidth = Math.max(1.6, r * 0.13);
-    vacBody(ctx, r);
-    ctx.stroke();
+    vacBody(ctx, r, spec); ctx.stroke();
     ctx.globalAlpha = hidden ? 0.45 : 1;
 
-    // head (ghosted like the body when the vacuum is unrevealed stealth)
-    const ghost = hidden ? 0.45 : 1;
-    ctx.fillStyle = col;
-    ctx.beginPath(); ctx.arc(r * 0.75, 0, r * 0.48, 0, TAU); ctx.fill();
-    ctx.strokeStyle = shade(col, -58); ctx.globalAlpha = 0.85 * ghost; ctx.lineWidth = Math.max(1.4, r * 0.11);
-    ctx.beginPath(); ctx.arc(r * 0.75, 0, r * 0.48, -1.9, 1.9); ctx.stroke();
-    // head gloss
-    ctx.globalAlpha = 0.3 * ghost; ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.ellipse(r * 0.62, -r * 0.24, r * 0.2, r * 0.1, -0.4, 0, TAU); ctx.fill();
-    ctx.globalAlpha = ghost;
-    // muzzle
-    ctx.fillStyle = shade(col, 38);
-    ctx.beginPath(); ctx.ellipse(r * 1.02, r * 0.12, r * 0.26, r * 0.19, 0.15, 0, TAU); ctx.fill();
-    // nose + nostrils
-    ctx.fillStyle = '#22252b';
-    ctx.beginPath(); ctx.ellipse(r * 1.17, r * 0.0, r * 0.075, r * 0.055, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(r * 1.1, r * 0.12); ctx.lineTo(r * 1.02, r * 0.2); ctx.stroke();
-    // eye + glint + brow
-    ctx.fillStyle = '#15181d';
-    ctx.beginPath(); ctx.arc(r * 0.68, -r * 0.17, r * 0.1, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.beginPath(); ctx.arc(r * 0.71, -r * 0.21, r * 0.032, 0, TAU); ctx.fill();
-    ctx.strokeStyle = shade(col, -40); ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.arc(r * 0.68, -r * 0.2, r * 0.16, -2.6, -0.9); ctx.stroke();
-    // whiskers
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1;
-    for (let i = -1; i <= 1; i++) {
-      ctx.beginPath();
-      ctx.moveTo(r * 1.0, r * 0.12);
-      ctx.quadraticCurveTo(r * 1.2, r * 0.12 + i * r * 0.06, r * 1.38, r * 0.1 + i * r * 0.15);
-      ctx.stroke();
+    /* ---- wheels ---- */
+    if (f !== 'hand') {
+      const ws = f === 'drum' ? 0.24 : 0.19;
+      const pos = f === 'robo' ? [[-0.55, 0.60], [0.55, 0.60]] : [[-0.58, GROUND - 0.11], [0.18, GROUND - 0.11]];
+      for (const [wx, wy] of pos) {
+        ctx.fillStyle = '#2b3138';
+        ctx.beginPath(); ctx.arc(r * wx, r * wy, r * ws, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#5d6873';
+        ctx.beginPath(); ctx.arc(r * wx, r * wy, r * ws * 0.42, 0, TAU); ctx.fill();
+      }
     }
 
-    /* --- type identity --- */
-    switch (type) {
-      case 'pup':
-        ctx.fillStyle = '#15181d'; // extra-big puppy eye
-        ctx.beginPath(); ctx.arc(r * 0.68, -r * 0.17, r * 0.13, 0, TAU); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.beginPath(); ctx.arc(r * 0.73, -r * 0.23, r * 0.05, 0, TAU); ctx.fill();
-        break;
-      case 'juvenile': {
-        ctx.fillStyle = shade(col, -34);
-        for (let i = 0; i < 3; i++) {
-          ctx.beginPath(); ctx.arc(r * (0.86 + i * 0.08), r * 0.2 + (i % 2) * r * 0.05, r * 0.025, 0, TAU); ctx.fill();
-        }
-        break;
+    /* ---- the headlight, which is also the face ----
+       One glowing eye on the front. It is the whole reason a box on wheels
+       reads as something coming for you rather than as scenery. */
+    const eyeX = f === 'robo' ? 0.80 : f === 'hand' ? 0.42 : 0.34;
+    const eyeY = f === 'robo' ? 0.30 : -0.16;
+    const eyeR = r * (boss ? 0.17 : 0.13);
+    ctx.fillStyle = 'rgba(255,240,180,0.35)';
+    ctx.beginPath(); ctx.arc(r * eyeX, r * eyeY, eyeR * 1.9, 0, TAU); ctx.fill();
+    ctx.fillStyle = spec.quiet ? '#6ec8e8' : boss ? '#ff6a4a' : '#ffe08a';
+    ctx.beginPath(); ctx.arc(r * eyeX, r * eyeY, eyeR, 0, TAU); ctx.fill();
+    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, r * 0.05);
+    ctx.beginPath(); ctx.arc(r * eyeX, r * eyeY, eyeR, 0, TAU); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(r * eyeX - eyeR * 0.3, r * eyeY - eyeR * 0.35, eyeR * 0.28, 0, TAU); ctx.fill();
+
+    /* ---- the one detail that tells this species from the last ---- */
+    if (spec.vents) {                        // Heavy Upright: cooling slots
+      ctx.fillStyle = shade(col, -50);
+      for (let i = 0; i < 4; i++) ctx.fillRect(r * (-0.86 + i * 0.13), -r * 0.34, r * 0.06, r * 0.44);
+    }
+    if (spec.quiet) {                        // Silent Runner: foam shroud
+      ctx.fillStyle = 'rgba(200,214,228,0.55)';
+      rounded(ctx, -r * 1.0, -r * 0.66, r * 1.6, r * 0.26, r * 0.12);
+      ctx.strokeStyle = 'rgba(120,140,164,0.7)'; ctx.lineWidth = 1;
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath(); ctx.moveTo(r * (-0.92 + i * 0.3), -r * 0.62); ctx.lineTo(r * (-0.92 + i * 0.3), -r * 0.44); ctx.stroke();
       }
-      case 'speedster':
-        // swim goggles
-        ctx.strokeStyle = '#2b3138'; ctx.lineWidth = r * 0.05;
-        ctx.beginPath(); ctx.moveTo(r * 0.4, -r * 0.32); ctx.lineTo(r * 0.95, -r * 0.28); ctx.stroke();
-        ctx.fillStyle = 'rgba(130,220,255,0.9)';
-        ctx.beginPath(); ctx.ellipse(r * 0.68, -r * 0.18, r * 0.13, r * 0.11, 0, 0, TAU); ctx.fill();
-        ctx.strokeStyle = '#20262e'; ctx.lineWidth = 1.4;
-        ctx.beginPath(); ctx.ellipse(r * 0.68, -r * 0.18, r * 0.13, r * 0.11, 0, 0, TAU); ctx.stroke();
-        // speed streaks
-        ctx.strokeStyle = 'rgba(150,200,235,0.7)'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(-r * 1.35, -r * 0.18); ctx.lineTo(-r * 1.95, -r * 0.18); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-r * 1.3, r * 0.14); ctx.lineTo(-r * 1.8, r * 0.14); ctx.stroke();
-        break;
-      case 'bull': {
-        // big shaggy mane ruff
-        ctx.fillStyle = shade(col, -26);
+    }
+    if (spec.plated) {                       // Steel Canister: riveted plate
+      ctx.fillStyle = '#a9b3bd';
+      rounded(ctx, -r * 0.92, -r * 0.56, r * 1.46, r * 0.40, r * 0.10);
+      ctx.strokeStyle = '#6f7a86'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.rect(-r * 0.92, -r * 0.56, r * 1.46, r * 0.40); ctx.stroke();
+      ctx.fillStyle = '#5d6873';
+      for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(r * (-0.80 + i * 0.30), -r * 0.36, r * 0.045, 0, TAU); ctx.fill(); }
+    }
+    if (spec.cyclone) {                      // Cyclone: the bin that empties itself
+      ctx.save();
+      ctx.strokeStyle = 'rgba(120,235,160,0.9)'; ctx.lineWidth = Math.max(1.2, r * 0.07);
+      ctx.beginPath();
+      for (let i = 0; i <= 26; i++) {
+        const a = i * 0.42, rad = r * 0.06 + i * r * 0.012;
+        const px = -r * 0.16 + Math.cos(a) * rad, py = r * 0.10 + Math.sin(a) * rad * 0.55;
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (spec.tank) {                         // Carpet Cleaner: solution tank on top
+      ctx.fillStyle = 'rgba(150,225,240,0.75)';
+      rounded(ctx, -r * 0.62, -r * 0.98, r * 1.0, r * 0.44, r * 0.12);
+      ctx.strokeStyle = shade(col, -40); ctx.lineWidth = lw * 0.7;
+      ctx.beginPath(); ctx.rect(-r * 0.62, -r * 0.98, r * 1.0, r * 0.44); ctx.stroke();
+    }
+    if (spec.pad) {                          // Floor Buffer: the spinning pad
+      ctx.fillStyle = '#d8dee4';
+      ctx.beginPath(); ctx.ellipse(r * 0.20, r * (GROUND - 0.04), r * 1.05, r * 0.20, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#8b98a5'; ctx.lineWidth = 1.4; ctx.stroke();
+    }
+    if (spec.stack) {                        // The Extractor: exhaust stacks
+      ctx.fillStyle = '#4a5560';
+      for (let i = -1; i <= 1; i++) {
+        rounded(ctx, r * (-0.30 + i * 0.34) - r * 0.09, -r * 1.14, r * 0.18, r * 0.62, r * 0.05);
+      }
+      ctx.fillStyle = '#2b3138';
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath(); ctx.ellipse(r * (-0.30 + i * 0.34), -r * 1.14, r * 0.10, r * 0.05, 0, 0, TAU); ctx.fill();
+      }
+    }
+    if (spec.pipes) {                        // Central Unit: it is plumbed into the wall
+      ctx.strokeStyle = '#8b98a5'; ctx.lineWidth = Math.max(2, r * 0.14); ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.55, -r * 0.62);
+      ctx.quadraticCurveTo(-r * 1.25, -r * 1.1, -r * 1.75, -r * 0.55);
+      ctx.stroke();
+      ctx.strokeStyle = '#5d6873'; ctx.lineWidth = Math.max(1, r * 0.05);
+      for (let i = 0; i < 4; i++) {
+        const px = -r * (0.75 + i * 0.26), py = -r * (0.85 + Math.sin(i) * 0.06);
+        ctx.beginPath(); ctx.moveTo(px, py - r * 0.12); ctx.lineTo(px, py + r * 0.12); ctx.stroke();
+      }
+    }
+    if (f === 'robo') {                      // Robo-Vac: bumper and sensor turret
+      ctx.strokeStyle = shade(col, -50); ctx.lineWidth = Math.max(1.4, r * 0.09);
+      ctx.beginPath(); ctx.ellipse(0, r * 0.34, r * 0.72, r * 0.26, 0, 0, TAU); ctx.stroke();
+      ctx.fillStyle = '#2b3138';
+      ctx.beginPath(); ctx.ellipse(-r * 0.25, r * 0.20, r * 0.20, r * 0.10, 0, 0, TAU); ctx.fill();
+    }
+
+    /* Bosses carry a warning stripe. It is the same yellow-and-black hazard
+       tape on all four of them, because "this one is different" has to be one
+       signal the player learns once, not four they learn separately. */
+    if (boss) {
+      ctx.save();
+      vacBody(ctx, r, spec); ctx.clip();
+      ctx.globalAlpha = 0.9;
+      for (let i = -4; i <= 6; i++) {
+        ctx.fillStyle = i % 2 ? '#1c1f24' : '#f2c14e';
         ctx.beginPath();
-        ctx.arc(r * 0.42, 0, r * 0.62, -2.3, 2.3);
-        ctx.quadraticCurveTo(r * 0.0, 0, r * 0.42 + Math.cos(-2.3) * r * 0.62, Math.sin(-2.3) * r * 0.62);
-        ctx.fill();
-        ctx.strokeStyle = shade(col, -44); ctx.lineWidth = 1.6;
-        for (let i = -3; i <= 3; i++) {
-          ctx.beginPath();
-          ctx.moveTo(r * 0.42 + Math.cos(i * 0.42 + Math.PI) * r * 0.28, Math.sin(i * 0.42) * r * 0.34);
-          ctx.lineTo(r * 0.42 + Math.cos(i * 0.42 + Math.PI) * r * 0.62, Math.sin(i * 0.42) * r * 0.66);
-          ctx.stroke();
-        }
-        break;
+        ctx.moveTo(r * (-1.1 + i * 0.22), r * 0.30);
+        ctx.lineTo(r * (-0.98 + i * 0.22), r * 0.30);
+        ctx.lineTo(r * (-1.10 + i * 0.22), r * 0.66);
+        ctx.lineTo(r * (-1.22 + i * 0.22), r * 0.66);
+        ctx.closePath(); ctx.fill();
       }
-      case 'stealth':
-        // cowl + glowing eyes
-        ctx.fillStyle = 'rgba(20,28,44,0.85)';
-        ctx.beginPath(); ctx.arc(r * 0.7, -r * 0.08, r * 0.42, Math.PI, 0); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = hidden ? 'rgba(120,220,255,0.7)' : 'rgba(140,235,255,0.95)';
-        ctx.beginPath(); ctx.arc(r * 0.68, -r * 0.16, r * 0.07, 0, TAU); ctx.fill();
-        break;
-      case 'armored':
-        // riveted helm + back plate
-        ctx.fillStyle = '#a9b3bd';
-        ctx.beginPath(); ctx.arc(r * 0.75, -r * 0.06, r * 0.5, Math.PI * 1.05, -Math.PI * 0.12); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#6f7a86'; ctx.lineWidth = 1.6;
-        ctx.beginPath(); ctx.arc(r * 0.75, -r * 0.06, r * 0.5, Math.PI * 1.05, -Math.PI * 0.12); ctx.stroke();
-        ctx.fillStyle = '#9aa5b0';
-        ctx.beginPath(); ctx.moveTo(-r * 0.85, -r * 0.28); ctx.quadraticCurveTo(-r * 0.1, -r * 0.75, r * 0.32, -r * 0.42);
-        ctx.lineTo(r * 0.25, -r * 0.05); ctx.quadraticCurveTo(-r * 0.2, -r * 0.4, -r * 0.85, -r * 0.02); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#6f7a86';
-        ctx.beginPath(); ctx.moveTo(-r * 0.85, -r * 0.28); ctx.quadraticCurveTo(-r * 0.1, -r * 0.75, r * 0.32, -r * 0.42); ctx.stroke();
-        ctx.fillStyle = '#5d6873';
-        for (let i = 0; i < 4; i++) {
-          ctx.beginPath(); ctx.arc(-r * 0.6 + i * r * 0.28, -r * 0.36 + Math.sin(i) * r * 0.05, r * 0.035, 0, TAU); ctx.fill();
-        }
-        break;
-      case 'regen': {
-        // the still half: two mossy patches. The rings and the cross pulse, so
-        // they are drawn live in drawVacLive.
-        ctx.fillStyle = 'rgba(110,210,140,0.6)';
-        ctx.beginPath(); ctx.ellipse(-r * 0.35, -r * 0.3, r * 0.2, r * 0.13, 0.4, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(r * 0.1, -r * 0.42, r * 0.16, r * 0.1, -0.3, 0, TAU); ctx.fill();
-        break;
-      }
-      case 'brute':
-        // heavy spiked collar + glowing angry eye + scars
-        ctx.fillStyle = '#3a3f46';
-        for (let i = -2; i <= 2; i++) {
-          const a = i * 0.42;
-          const bx = r * 0.42 + Math.cos(a + Math.PI) * r * 0.46;
-          const by = Math.sin(a) * r * 0.52;
-          ctx.save(); ctx.translate(bx, by); ctx.rotate(a + Math.PI);
-          ctx.beginPath(); ctx.moveTo(0, -r * 0.13); ctx.lineTo(r * 0.34, 0); ctx.lineTo(0, r * 0.13); ctx.closePath(); ctx.fill();
-          ctx.fillStyle = '#5d6873';
-          ctx.beginPath(); ctx.moveTo(0, -r * 0.13); ctx.lineTo(r * 0.17, -r * 0.04); ctx.lineTo(0, r * 0.02); ctx.closePath(); ctx.fill();
-          ctx.fillStyle = '#3a3f46';
-          ctx.restore();
-        }
-        ctx.strokeStyle = shade(col, -46); ctx.lineWidth = r * 0.08;
-        ctx.beginPath(); ctx.moveTo(r * 0.48, -r * 0.36); ctx.lineTo(r * 0.88, -r * 0.2); ctx.stroke();
-        ctx.fillStyle = 'rgba(255,90,70,0.95)'; // burning glare
-        ctx.beginPath(); ctx.arc(r * 0.68, -r * 0.17, r * 0.08, 0, TAU); ctx.fill();
-        ctx.strokeStyle = 'rgba(240,225,205,0.6)'; ctx.lineWidth = 1.8;
-        ctx.beginPath(); ctx.moveTo(-r * 0.4, -r * 0.44); ctx.lineTo(-r * 0.16, -r * 0.2); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-r * 0.32, -r * 0.44); ctx.lineTo(-r * 0.08, -r * 0.2); ctx.stroke();
-        break;
-      case 'beachmaster':
-        drawTusks(ctx, r, 0.9);
-        // grand mane
-        ctx.fillStyle = shade(col, -24);
-        ctx.beginPath(); ctx.arc(r * 0.35, 0, r * 0.58, -2.4, 2.4); ctx.quadraticCurveTo(-r * 0.1, 0, r * 0.35 + Math.cos(-2.4) * r * 0.58, Math.sin(-2.4) * r * 0.58); ctx.fill();
-        ctx.strokeStyle = shade(col, -40); ctx.lineWidth = 1.4;
-        for (let i = -3; i <= 3; i++) {
-          ctx.beginPath();
-          ctx.moveTo(r * 0.35 + Math.cos(i * 0.36 + Math.PI) * r * 0.3, Math.sin(i * 0.36) * r * 0.34);
-          ctx.lineTo(r * 0.35 + Math.cos(i * 0.36 + Math.PI) * r * 0.58, Math.sin(i * 0.36) * r * 0.6);
-          ctx.stroke();
-        }
-        scarPair(ctx, r);
-        break;
-      case 'colossus':
-        drawTusks(ctx, r, 1.25);
-        // kelp drape
-        ctx.strokeStyle = 'rgba(60,130,80,0.85)'; ctx.lineWidth = r * 0.07; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(-r * 0.3, -r * 0.55); ctx.quadraticCurveTo(-r * 0.15, 0, -r * 0.35, r * 0.55); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(r * 0.1, -r * 0.6); ctx.quadraticCurveTo(r * 0.25, -r * 0.1, r * 0.08, r * 0.35); ctx.stroke();
-        scarPair(ctx, r);
-        break;
-      case 'emperor':
-        drawTusks(ctx, r, 1.35);
-        // royal mantle
-        ctx.fillStyle = 'rgba(120,70,180,0.4)';
-        ctx.beginPath(); ctx.ellipse(-r * 0.2, -r * 0.28, r * 0.75, r * 0.34, 0, 0, TAU); ctx.fill();
-        // grand crown with jewels
-        ctx.fillStyle = '#ffd166';
-        for (let i = -1; i <= 1; i++) {
-          ctx.beginPath();
-          ctx.moveTo(r * 0.75 + (i - 0.5) * r * 0.22, -r * 0.46);
-          ctx.lineTo(r * 0.75 + i * r * 0.22, -r * 0.46 - (i === 0 ? r * 0.44 : r * 0.3));
-          ctx.lineTo(r * 0.75 + (i + 0.5) * r * 0.22, -r * 0.46);
-          ctx.closePath(); ctx.fill();
-        }
-        ctx.fillRect(r * 0.75 - r * 0.33, -r * 0.5, r * 0.66, r * 0.1);
-        ctx.fillStyle = '#e0606a';
-        ctx.beginPath(); ctx.arc(r * 0.75, -r * 0.45, r * 0.05, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#67d4f5';
-        ctx.beginPath(); ctx.arc(r * 0.53, -r * 0.45, r * 0.04, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.arc(r * 0.97, -r * 0.45, r * 0.04, 0, TAU); ctx.fill();
-        // glowing eye
-        ctx.fillStyle = '#ffd166';
-        ctx.beginPath(); ctx.arc(r * 0.68, -r * 0.17, r * 0.06, 0, TAU); ctx.fill();
-        break;
-      case 'leviathan':
-        drawTusks(ctx, r, 1.5);
-        // seaweed; the rune cracks and the gaze pulse are drawn live
-        ctx.strokeStyle = 'rgba(50,120,90,0.9)'; ctx.lineWidth = r * 0.06; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(-r * 0.55, -r * 0.5); ctx.quadraticCurveTo(-r * 0.4, 0, -r * 0.6, r * 0.5); ctx.stroke();
-        scarPair(ctx, r);
-        break;
+      ctx.restore();
     }
   }
 
@@ -2357,87 +2378,107 @@
   function drawVacLive(ctx, e, r, t, ghost) {
     switch (e.type) {
       case 'bull': {
-        // angry snort puffs from the nose
+        // exhaust puffing out of the back of an overworked motor
         const ph = (t * 1.1 + e.wob) % 1;
         if (ph < 0.4) {
           const pf = ph / 0.4;
-          ctx.fillStyle = `rgba(255,255,255,${(1 - pf) * 0.7})`;
-          ctx.beginPath(); ctx.arc(r * (1.3 + pf * 0.5), -r * 0.06, r * 0.09 + pf * r * 0.1, 0, TAU); ctx.fill();
-          ctx.beginPath(); ctx.arc(r * (1.28 + pf * 0.45), r * 0.18, r * 0.07 + pf * r * 0.09, 0, TAU); ctx.fill();
+          ctx.fillStyle = `rgba(210,215,220,${(1 - pf) * 0.55})`;
+          ctx.beginPath(); ctx.arc(-r * (1.0 + pf * 0.45), -r * (0.5 + pf * 0.3), r * 0.10 + pf * r * 0.12, 0, TAU); ctx.fill();
+          ctx.beginPath(); ctx.arc(-r * (0.85 + pf * 0.35), -r * (0.32 + pf * 0.2), r * 0.07 + pf * r * 0.08, 0, TAU); ctx.fill();
         }
         break;
       }
       case 'regen': {
+        // the self-emptying bin: it visibly clears itself and comes back
         const pulse = 0.5 + Math.sin(t * 5) * 0.3;
         ctx.strokeStyle = `rgba(110,230,150,${pulse * 0.75})`;
         ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(0, 0, r * 1.18, 0, TAU); ctx.stroke();
         ctx.strokeStyle = `rgba(110,230,150,${pulse * 0.3})`;
         ctx.beginPath(); ctx.arc(0, 0, r * (1.3 + pulse * 0.15), 0, TAU); ctx.stroke();
-        // floating heal cross
         ctx.fillStyle = `rgba(140,255,170,${pulse})`;
-        const cy = -r * 0.85 - Math.sin(t * 3) * r * 0.08;
+        const cy = -r * 0.95 - Math.sin(t * 3) * r * 0.08;
         ctx.fillRect(-r * 0.05, cy - r * 0.16, r * 0.1, r * 0.32);
         ctx.fillRect(-r * 0.16, cy - r * 0.05, r * 0.32, r * 0.1);
         break;
       }
+      case 'stealth': {
+        // a motor you cannot hear, running anyway: the ready light breathes
+        ctx.fillStyle = `rgba(110,200,232,${0.45 + Math.sin(t * 3) * 0.3})`;
+        ctx.beginPath(); ctx.arc(-r * 0.62, -r * 0.34, r * 0.07, 0, TAU); ctx.fill();
+        break;
+      }
+      case 'emperor': {
+        // heat shimmer off the exhaust stacks
+        ctx.globalAlpha = ghost * (0.3 + Math.sin(t * 4) * 0.2);
+        ctx.fillStyle = 'rgba(255,180,120,0.8)';
+        for (let i = -1; i <= 1; i++) {
+          ctx.beginPath();
+          ctx.arc(r * (-0.30 + i * 0.34), -r * (1.30 + ((t * 0.5 + i * 0.3) % 1) * 0.4), r * 0.09, 0, TAU);
+          ctx.fill();
+        }
+        ctx.globalAlpha = ghost;
+        break;
+      }
       case 'leviathan':
-        // rune cracks, breathing
+        // the pipe glows where it draws off the wall, breathing
         ctx.globalAlpha = 0.5 + Math.sin(t * 2.5) * 0.3;
         ctx.strokeStyle = '#6fe8e0';
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.moveTo(-r * 0.75, -r * 0.1);
-        ctx.lineTo(-r * 0.5, -r * 0.32); ctx.lineTo(-r * 0.28, -r * 0.16); ctx.lineTo(-r * 0.02, -r * 0.4);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(r * 0.15, r * 0.3); ctx.lineTo(r * 0.35, r * 0.08); ctx.lineTo(r * 0.52, r * 0.22);
+        ctx.moveTo(-r * 0.55, -r * 0.62);
+        ctx.quadraticCurveTo(-r * 1.25, -r * 1.1, -r * 1.75, -r * 0.55);
         ctx.stroke();
         ctx.globalAlpha = ghost;
-        // glowing gaze
-        ctx.fillStyle = `rgba(110,235,225,${0.7 + Math.sin(t * 4) * 0.3})`;
-        ctx.beginPath(); ctx.arc(r * 0.68, -r * 0.17, r * 0.07, 0, TAU); ctx.fill();
         break;
     }
   }
 
-  /* The tail flukes are four quadratics, and they were being flattened afresh
-     for every animal on the field — ninety bezier fills a frame for a shape
-     that is the same shape every time. The wag is a rigid turn about the hip,
-     so the turn stays live and only the outline is baked.
+  /* The power cord, trailing off the back. Baked because it does not move —
+     a vacuum has no gait, which is most of why the pack is cheaper to draw
+     than the animals were.
 
-     This sheet, paintVacFlipper's and paintHeavyTail's are keyed on the species
-     alone while baking in `r` and `col`, which is only correct because both are
-     copied straight off the ENEMIES table when the animal spawns and nothing
-     in the codebase ever writes to them afterwards. Give a vacuum a size that
-     varies — a giant modifier, a curve that swells them in deep endless — and
-     these three sheets go silently wrong, with every animal of the species
-     wearing whichever one was baked first. Put the varying thing in the key. */
-  function paintVacTail(ctx, r, col) {
-    ctx.fillStyle = shade(col, -12);
+     This sheet and paintHeavyCord's are keyed on the species alone while baking
+     in `r` and `col`, which is only correct because both are copied straight
+     off the ENEMIES table when the machine spawns and nothing in the codebase
+     ever writes to them afterwards. Give a vacuum a size that varies — a giant
+     modifier, a curve that swells them in deep endless — and these sheets go
+     silently wrong, with every machine of the species wearing whichever one was
+     baked first. Put the varying thing in the key. */
+  function paintVacCord(ctx, r, col) {
+    ctx.strokeStyle = '#2b3138';
+    ctx.lineWidth = Math.max(1.2, r * 0.07);
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(-r * 0.35, -r * 0.12, -r * 0.6, -r * 0.42);
-    ctx.quadraticCurveTo(-r * 0.42, -r * 0.05, -r * 0.38, 0);
-    ctx.quadraticCurveTo(-r * 0.42, r * 0.05, -r * 0.6, r * 0.42);
-    ctx.quadraticCurveTo(-r * 0.35, r * 0.12, 0, 0);
-    ctx.closePath(); ctx.fill();
+    ctx.moveTo(0, -r * 0.1);
+    ctx.quadraticCurveTo(-r * 0.34, -r * 0.34, -r * 0.62, -r * 0.06);
+    ctx.quadraticCurveTo(-r * 0.82, r * 0.14, -r * 1.05, r * 0.02);
+    ctx.stroke();
+    // the plug on the end, still hopefully looking for a socket
+    ctx.fillStyle = '#f2f4f6';
+    rounded(ctx, -r * 1.20, -r * 0.09, r * 0.17, r * 0.18, r * 0.04);
+    ctx.fillStyle = '#8b98a5';
+    ctx.fillRect(-r * 1.28, -r * 0.05, r * 0.08, r * 0.04);
+    ctx.fillRect(-r * 1.28, r * 0.02, r * 0.08, r * 0.04);
   }
 
-  /* The stealth fade is painted INTO this sheet rather than applied to the blit,
-     and the sheet is keyed on it. The webbing strokes lie on top of the fill,
-     and three translucent passes laid on the screen one after another are not
-     the same picture as three laid into a sheet that is then faded once — an
-     unrevealed stealth vacuum would have grown darker ribs. */
-  function paintVacFlipper(ctx, r, col, hidden) {
+  /* The brush roll under the floor head — the one part of a vacuum that turns,
+     so the one part drawn live. The stripes are what make the rotation read;
+     a plain cylinder spinning is a plain cylinder. */
+  function drawVacBrush(ctx, r, spin, hidden) {
+    ctx.save();
     ctx.globalAlpha = hidden ? 0.45 : 1;
-    ctx.fillStyle = shade(col, -18);
-    ctx.beginPath();
-    ctx.ellipse(0, r * 0.2, r * 0.16, r * 0.4, 0, 0, TAU);
-    ctx.fill();
-    ctx.strokeStyle = shade(col, -34); ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, r * 0.1); ctx.lineTo(0, r * 0.5); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-r * 0.07, r * 0.12); ctx.lineTo(-r * 0.09, r * 0.48); ctx.stroke();
+    const bw = r * 0.34;
+    ctx.fillStyle = '#3a3f46';
+    ctx.beginPath(); ctx.ellipse(0, 0, bw, r * 0.10, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#c9b98a'; ctx.lineWidth = Math.max(1, r * 0.05);
+    for (let i = 0; i < 3; i++) {
+      const ph = (spin + i / 3) % 1;
+      const x = -bw + ph * bw * 2;
+      ctx.globalAlpha = (hidden ? 0.45 : 1) * (0.35 + Math.sin(ph * Math.PI) * 0.55);
+      ctx.beginPath(); ctx.moveTo(x, -r * 0.09); ctx.lineTo(x, r * 0.09); ctx.stroke();
+    }
+    ctx.restore();
   }
 
   function drawVac(ctx, game, e, t) {
@@ -2490,30 +2531,36 @@
       return;
     }
 
-    // tail flippers — under the body, so they go on before the sprite
-    const tailWag = Math.sin(t * 10 + e.wob) * 0.3;
+    // the power cord, trailing behind — behind the machine, so it goes on first
     ctx.save();
-    ctx.translate(-r * 1.02, 0); ctx.rotate(tailWag);
-    blitSprite(ctx, sprite('tail|' + e.type, [r * 0.7, r * 0.1, r * 0.5, r * 0.5],
-      (c) => paintVacTail(c, r, col)));
+    ctx.translate(-r * 0.95, -r * 0.2);
+    blitSprite(ctx, sprite('cord|' + e.type, [r * 1.5, r * 0.2, r * 0.6, r * 0.4],
+      (c) => paintVacCord(c, r, col)));
     ctx.restore();
 
-    /* The animal itself, in one blit. Three freckle patterns per species is
-       all the variety ninety individually-seeded vacuums ever showed. */
+    /* The machine itself, in one blit. Three wear patterns per species is all
+       the variety ninety individually-seeded vacuums ever showed.
+
+       The pad box has to clear the handle grip (up and back to −1.55r on a
+       Stick Vac), the Central Unit's wall pipe (−1.75r back) and the floor head
+       (+1.34r forward). Under-measure any of them and the sprite is cropped
+       with no error — a vacuum that has quietly lost its handle. */
     const variant = ((e.wob * 1000) | 0) % 3;
-    const key = 'seal|' + e.type + '|' + (hidden ? 'h' : '') + variant;
+    const key = 'vac|' + e.type + '|' + (hidden ? 'h' : '') + variant;
     ctx.globalAlpha = 1;
-    blitSprite(ctx, sprite(key, [r * 2.4, r * 1.7, r * 1.25, r * 1.05],
+    blitSprite(ctx, sprite(key, [r * 2.1, r * 1.6, r * 1.85, r * 1.1],
       (c) => paintVac(c, e.type, r, hidden, variant)));
 
-    // front flipper — clear of the head, so it can go on over the sprite
-    ctx.save();
-    ctx.translate(-r * 0.05, r * 0.34);
-    ctx.rotate(0.55 + wob * 1.6);
-    blitSprite(ctx, sprite('flip|' + e.type + (hidden ? '|h' : ''),
-      [r * 0.2 + 2, r * 0.2 + 2, r * 0.25 + 2, r * 0.65 + 2],
-      (c) => paintVacFlipper(c, r, col, hidden)));
-    ctx.restore();
+    /* The brush roll, under the floor head. The only moving part on the whole
+       machine, and it turns with distance travelled rather than with the clock
+       so a clogged vacuum visibly slows down instead of spinning merrily on
+       the spot. */
+    if (e.type !== 'speedster') {
+      ctx.save();
+      ctx.translate(r * 0.86, r * (GROUND - 0.02));
+      drawVacBrush(ctx, r, ((e.dist || 0) / Math.max(4, r * 0.9)) % 1, hidden);
+      ctx.restore();
+    }
     ctx.globalAlpha = ghost;
 
     drawVacLive(ctx, e, r, t, ghost);
@@ -2586,203 +2633,193 @@
     ctx.restore();
   }
 
-  /* An heavy seen from above: long torpedo body, flukes at the stern, pectoral
-     fins swept back, the dorsal blade standing proud of the water, and the
-     markings that make the animal unmistakable — white eye ovals at the bow
-     and the grey saddle behind the fin. Drawn nose-right, like every other
-     creature here, so the caller's rotation carries it down the track.
+  /* A heavy seen from above: a steel drum on four casters, the clamped lid, a
+     wide intake mouth at the bow and the ribbed hose coiling back over its own
+     shoulder. Drawn nose-right, like everything else here, so the caller's
+     rotation carries it down the track.
 
-     Split the same way the vacuums are: the wake, the flukes and the
-     pectorals swim, so they are drawn every frame; the hull and its markings
-     are a sprite. Everything that moves is astern of everything that does not,
-     which is why the live half can go on first and the blit can finish the
-     job in one call. */
+     Where the ordinary machines are profile drawings, these are plan views —
+     the same split the game has always had between the small pack and the big
+     ones, kept because at this size a wide flat top-down drum reads as
+     enormous where a tall profile just reads as far away.
+
+     Nothing about a heavy is animated except the intake, which is the whole
+     threat: this is the thing that swallows the pack. The hull, the casters and
+     the hose are one sprite. */
   function paintHeavyBody(ctx, type, r, col) {
     const ink = '#0b1119';
-    const belly = '#f4f9ff';
+    const steel = '#8d99a6';
 
-    /* Pectoral fins, swept back. They used to paddle by 0.12 of a radian on
-       top of their 0.5 rest angle — seven degrees, next to the flukes' twenty,
-       on a fin a fifth the size. Baked at rest: what reads as swimming is the
-       tail, and this keeps the animal to two blits. */
+    /* Casters, one at each corner, splayed the way loaded castors actually
+       sit. Baked at rest — a caster that swivelled would be motion nobody
+       asked for on a machine whose menace is that it never hurries. */
     for (const side of [-1, 1]) {
-      ctx.save();
-      ctx.translate(r * 0.18, side * r * 0.42);
-      ctx.rotate(side * 0.5);
-      ctx.fillStyle = shade(col, -10);
-      ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1.2, r * 0.045);
+      for (const fore of [-0.52, 0.34]) {
+        ctx.save();
+        ctx.translate(r * fore, side * r * 0.62);
+        ctx.fillStyle = '#2b3138';
+        ctx.beginPath(); ctx.ellipse(0, 0, r * 0.17, r * 0.11, side * 0.3, 0, TAU); ctx.fill();
+        ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, r * 0.035); ctx.stroke();
+        ctx.fillStyle = '#5d6873';
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.05, 0, TAU); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    /* The hose: off the back of the drum, over the shoulder and forward to the
+       intake. Ribbed, because a smooth tube reads as a handle. */
+    ctx.strokeStyle = shade(col, 26);
+    ctx.lineWidth = Math.max(2, r * 0.19); ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.78, -r * 0.30);
+    ctx.quadraticCurveTo(-r * 1.15, -r * 0.72, -r * 0.35, -r * 0.80);
+    ctx.quadraticCurveTo(r * 0.45, -r * 0.86, r * 0.86, -r * 0.44);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(10,17,25,0.35)'; ctx.lineWidth = Math.max(0.8, r * 0.03);
+    for (let i = 0; i <= 9; i++) {
+      const u = i / 9;
+      const x = -0.78 + u * 1.64, y = -0.30 - Math.sin(u * Math.PI) * 0.52 - u * 0.14;
       ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(-r * 0.1, side * r * 0.42, -r * 0.5, side * r * 0.56);
-      ctx.quadraticCurveTo(-r * 0.28, side * r * 0.16, -r * 0.16, 0);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.moveTo(r * x, r * (y - 0.09));
+      ctx.lineTo(r * x, r * (y + 0.09));
+      ctx.stroke();
+    }
+
+    /* The drum. A hard-edged cylinder rather than the soft hull that was here:
+       every curve on this thing is a manufacturing radius, not an animal. */
+    const drum = ctx.createLinearGradient(0, -r * 0.7, 0, r * 0.7);
+    drum.addColorStop(0, shade(col, 52));
+    drum.addColorStop(0.4, shade(col, 12));
+    drum.addColorStop(1, shade(col, -26));
+    ctx.fillStyle = drum;
+    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1.6, r * 0.07);
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.10, 0, r * 0.92, r * 0.66, 0, 0, TAU);
+    ctx.fill(); ctx.stroke();
+
+    // the clamped lid: a ring inset from the rim, with four latches
+    ctx.strokeStyle = shade(col, -40); ctx.lineWidth = Math.max(1.2, r * 0.05);
+    ctx.beginPath(); ctx.ellipse(-r * 0.10, 0, r * 0.66, r * 0.46, 0, 0, TAU); ctx.stroke();
+    ctx.fillStyle = steel;
+    for (let i = 0; i < 4; i++) {
+      const a = 0.7 + i * (Math.PI / 2);
+      ctx.save();
+      ctx.translate(-r * 0.10 + Math.cos(a) * r * 0.80, Math.sin(a) * r * 0.56);
+      ctx.rotate(a);
+      ctx.fillRect(-r * 0.07, -r * 0.10, r * 0.14, r * 0.20);
       ctx.restore();
     }
 
-    // body — dark above, gradient to a lit crown along the back
-    const bodyGrad = ctx.createLinearGradient(0, -r * 0.6, 0, r * 0.6);
-    bodyGrad.addColorStop(0, shade(col, 46));
-    bodyGrad.addColorStop(0.45, col);
-    bodyGrad.addColorStop(1, shade(col, -18));
-    ctx.fillStyle = bodyGrad;
-    ctx.strokeStyle = ink;
-    ctx.lineWidth = Math.max(1.6, r * 0.07);
-    ctx.beginPath();
-    ctx.moveTo(r * 1.06, 0);                                    // snout
-    ctx.quadraticCurveTo(r * 0.86, -r * 0.46, r * 0.2, -r * 0.54);
-    ctx.quadraticCurveTo(-r * 0.44, -r * 0.56, -r * 0.94, -r * 0.2);
-    ctx.quadraticCurveTo(-r * 1.0, 0, -r * 0.94, r * 0.2);
-    ctx.quadraticCurveTo(-r * 0.44, r * 0.56, r * 0.2, r * 0.54);
-    ctx.quadraticCurveTo(r * 0.86, r * 0.46, r * 1.06, 0);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-
-    // grey saddle patch behind the dorsal
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = '#93a7bd';
-    ctx.beginPath();
-    ctx.ellipse(-r * 0.44, 0, r * 0.3, r * 0.34, 0, 0, TAU);
-    ctx.fill();
-    ctx.restore();
-
-    // white eye ovals — the marking that says "heavy" instantly
-    for (const side of [-1, 1]) {
-      ctx.fillStyle = belly;
-      ctx.strokeStyle = 'rgba(11,17,25,0.55)';
-      ctx.lineWidth = Math.max(0.8, r * 0.025);
+    // motor housing on the lid, with the cooling grille
+    ctx.fillStyle = steel;
+    ctx.beginPath(); ctx.ellipse(-r * 0.10, 0, r * 0.34, r * 0.26, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, r * 0.04); ctx.stroke();
+    ctx.strokeStyle = 'rgba(10,17,25,0.55)'; ctx.lineWidth = Math.max(0.8, r * 0.03);
+    for (let i = -2; i <= 2; i++) {
       ctx.beginPath();
-      ctx.ellipse(r * 0.56, side * r * 0.3, r * 0.2, r * 0.12, side * -0.24, 0, TAU);
-      ctx.fill(); ctx.stroke();
+      ctx.moveTo(-r * 0.10 + i * r * 0.10, -r * 0.20);
+      ctx.lineTo(-r * 0.10 + i * r * 0.10, r * 0.20);
+      ctx.stroke();
     }
-    // eyes
-    for (const side of [-1, 1]) {
-      ctx.fillStyle = ink;
+
+    /* The intake at the bow. This is what the whole machine is FOR, and what
+       the mechanic needs the player to read instantly: an open mouth that
+       swallows anything smaller than itself. Black, wide, and lit from inside. */
+    ctx.fillStyle = '#0a0f16';
+    ctx.beginPath();
+    ctx.moveTo(r * 0.74, -r * 0.44);
+    ctx.quadraticCurveTo(r * 1.34, -r * 0.30, r * 1.34, 0);
+    ctx.quadraticCurveTo(r * 1.34, r * 0.30, r * 0.74, r * 0.44);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = steel; ctx.lineWidth = Math.max(1.4, r * 0.06); ctx.stroke();
+    // the suction, drawn as rings pulled toward the throat
+    ctx.strokeStyle = 'rgba(150,200,235,0.35)'; ctx.lineWidth = Math.max(1, r * 0.04);
+    for (let i = 1; i <= 3; i++) {
       ctx.beginPath();
-      ctx.arc(r * 0.66, side * r * 0.26, Math.max(1.1, r * 0.05), 0, TAU);
-      ctx.fill();
+      ctx.ellipse(r * (0.86 + i * 0.12), 0, r * 0.05, r * (0.30 - i * 0.06), 0, 0, TAU);
+      ctx.stroke();
     }
-    // gloss along the back
+
+    /* The hazard chevrons along the flank — the same yellow-and-black the four
+       bosses wear, so "this one is different" stays one signal. */
     ctx.save();
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.ellipse(r * 0.2, -r * 0.3, r * 0.5, r * 0.11, -0.1, 0, TAU);
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-r * 0.10, 0, r * 0.92, r * 0.66, 0, 0, TAU); ctx.clip();
+    ctx.globalAlpha = 0.85;
+    for (let i = -5; i <= 5; i++) {
+      ctx.fillStyle = i % 2 ? '#1c1f24' : '#f2c14e';
+      ctx.beginPath();
+      ctx.moveTo(r * (-0.10 + i * 0.20), r * 0.42);
+      ctx.lineTo(r * (0.00 + i * 0.20), r * 0.42);
+      ctx.lineTo(r * (-0.10 + i * 0.20), r * 0.70);
+      ctx.lineTo(r * (-0.20 + i * 0.20), r * 0.70);
+      ctx.closePath(); ctx.fill();
+    }
     ctx.restore();
 
-    /* Dorsal fin — tall blade, upright on the bulls and kings. It used to lean
-       with the swim by 0.05 of a radian, which on a blade this size moves its
-       tip by a twentieth of the animal's length. Baked upright: nothing on
-       screen is measurably different and it keeps the hull to one blit. */
-    const finH = type === 'heavy_king' ? 1.15 : type === 'heavy_great' ? 0.95 : 0.78;
-    ctx.save();
-    ctx.translate(-r * 0.06, 0);
-    ctx.fillStyle = shade(col, 16);
-    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1.4, r * 0.06); ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(r * 0.26, 0);
-    ctx.quadraticCurveTo(r * 0.1, -r * finH * 0.62, -r * 0.3, -r * finH);
-    ctx.quadraticCurveTo(-r * 0.22, -r * finH * 0.34, -r * 0.3, 0);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    // lit edge down the blade
-    ctx.globalAlpha = 0.3;
-    ctx.strokeStyle = '#dfe9f5'; ctx.lineWidth = Math.max(1, r * 0.035);
-    ctx.beginPath();
-    ctx.moveTo(r * 0.2, -r * 0.06);
-    ctx.quadraticCurveTo(r * 0.06, -r * finH * 0.6, -r * 0.28, -r * finH * 0.94);
-    ctx.stroke();
-    ctx.restore();
-
-    // the MEGAVAC bares its teeth
+    // the biggest one in the room gets a second pair of eyes and a name plate
     if (type === 'heavy_king') {
-      ctx.fillStyle = belly;
-      ctx.strokeStyle = 'rgba(11,17,25,0.6)';
-      ctx.lineWidth = Math.max(0.8, r * 0.02);
-      for (let i = 0; i < 7; i++) {
-        const f = i / 6;
-        const x = r * (1.02 - f * 0.34);
-        const y = (-r * 0.16 + f * r * 0.32) * 0.9;
-        ctx.beginPath();
-        ctx.moveTo(x, y - r * 0.035);
-        ctx.lineTo(x + r * 0.075, y);
-        ctx.lineTo(x, y + r * 0.035);
-        ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ff5a3c';
+      for (const side of [-1, 1]) {
+        ctx.beginPath(); ctx.arc(r * 0.62, side * r * 0.30, r * 0.09, 0, TAU); ctx.fill();
       }
+      ctx.fillStyle = '#f2c14e';
+      rounded(ctx, -r * 0.72, -r * 0.12, r * 0.30, r * 0.24, r * 0.04);
     }
   }
 
-  /* The wake: a bow spray and a churned track astern. Two big soft ellipses,
-     and an heavy is a big animal — thirty of them in a deep endless wave meant
-     sixty large alpha fills a frame, which measured as the single most
-     expensive thing left on the board. The churn used to bob by a sixth of a
-     radius with the swim; it is painted at rest instead, and the flukes wag
-     over the top of it, which is what actually reads as swimming. */
+  /* The dust cloud a heavy kicks up behind it. */
   function paintHeavyWake(ctx, r) {
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = 'rgba(232,246,255,0.55)';
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = 'rgba(198,206,214,0.55)';
     ctx.beginPath();
     ctx.ellipse(-r * 1.5, 0, r * 0.72, r * 0.5, 0, 0, TAU);
     ctx.fill();
-    ctx.globalAlpha = 0.32;
+    ctx.globalAlpha = 0.24;
     ctx.beginPath();
     ctx.ellipse(-r * 2.15, 0, r * 0.5, r * 0.3, 0, 0, TAU);
     ctx.fill();
   }
 
-  /* The last piece of the heavy still being drawn by hand, and the most
-     expensive: five quadratics filled and then stroked again, on an animal the
-     deep endless tide fields thirty of at once. The wag is a rigid turn about
-     the tail stock, so the turn stays live and the outline is baked — which
-     leaves an heavy costing three blits and no vector work at all. */
-  function paintHeavyTail(ctx, r, col) {
-    ctx.fillStyle = shade(col, -6);
-    ctx.strokeStyle = '#0b1119'; ctx.lineWidth = Math.max(1.4, r * 0.055); ctx.lineJoin = 'round';
+  /* The trailing cable and its plug — the heavy version of the small machines'
+     cord, and the last piece drawn separately so the hull stays one blit. */
+  function paintHeavyCord(ctx, r, col) {
+    ctx.strokeStyle = '#1c2027';
+    ctx.lineWidth = Math.max(1.6, r * 0.09); ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(r * 0.12, 0);
-    ctx.quadraticCurveTo(-r * 0.28, -r * 0.1, -r * 0.66, -r * 0.5);
-    ctx.quadraticCurveTo(-r * 0.3, -r * 0.14, -r * 0.24, 0);
-    ctx.quadraticCurveTo(-r * 0.3, r * 0.14, -r * 0.66, r * 0.5);
-    ctx.quadraticCurveTo(-r * 0.28, r * 0.1, r * 0.12, 0);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.moveTo(r * 0.16, 0);
+    ctx.quadraticCurveTo(-r * 0.24, -r * 0.22, -r * 0.62, -r * 0.06);
+    ctx.quadraticCurveTo(-r * 0.86, r * 0.08, -r * 1.10, r * 0.16);
+    ctx.stroke();
+    ctx.fillStyle = '#f2f4f6';
+    rounded(ctx, -r * 1.28, r * 0.06, r * 0.20, r * 0.20, r * 0.05);
   }
 
   function drawHeavyBody(ctx, e, r, col, t) {
-    const swim = Math.sin(t * 3.4 + e.wob);
-
     blitSprite(ctx, sprite('heavywake|' + e.type, [r * 2.75, r * 0.1, r * 0.6, r * 0.6],
       (c) => paintHeavyWake(c, r)));
 
-    // tail stock + flukes
     ctx.save();
     ctx.translate(-r * 0.92, 0);
-    ctx.rotate(swim * 0.34);
-    blitSprite(ctx, sprite('heavytail|' + e.type, [r * 0.75, r * 0.22, r * 0.6, r * 0.6],
-      (c) => paintHeavyTail(c, r, col)));
+    blitSprite(ctx, sprite('heavycord|' + e.type, [r * 1.45, r * 0.25, r * 0.35, r * 0.35],
+      (c) => paintHeavyCord(c, r, col)));
     ctx.restore();
 
-    blitSprite(ctx, sprite('heavy|' + e.type, [r * 1.15, r * 1.2, r * 1.35, r * 0.85],
+    /* Pad box measured against the furthest thing the hull draws: the hose
+       crest at −0.86r above the axis, the casters at ±0.73r, the intake to
+       +1.34r and the hose tail to −1.15r behind. */
+    blitSprite(ctx, sprite('heavy|' + e.type, [r * 1.35, r * 1.55, r * 1.05, r * 0.95],
       (c) => paintHeavyBody(c, e.type, r, col)));
-  }
 
-  function drawTusks(ctx, r, s) {
-    ctx.fillStyle = '#f2e9d4';
+    /* The throat, pulsing. The one live element, and it is the mechanic: this
+       is the machine that eats the pack, so the mouth is what moves. */
+    const suck = 0.5 + Math.sin(t * 5 + e.wob) * 0.5;
+    ctx.save();
+    ctx.globalAlpha = 0.25 + suck * 0.35;
+    ctx.fillStyle = 'rgba(150,205,240,0.9)';
     ctx.beginPath();
-    ctx.moveTo(r * 0.98, r * 0.2);
-    ctx.quadraticCurveTo(r * 1.05, r * 0.5 * s, r * 1.18, r * 0.58 * s);
-    ctx.quadraticCurveTo(r * 1.16, r * 0.34, r * 1.16, r * 0.22);
-    ctx.closePath(); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(r * 0.8, r * 0.24);
-    ctx.quadraticCurveTo(r * 0.84, r * 0.52 * s, r * 0.94, r * 0.62 * s);
-    ctx.quadraticCurveTo(r * 0.95, r * 0.36, r * 0.97, r * 0.24);
-    ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(120,100,70,0.4)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(r * 1.02, r * 0.3); ctx.quadraticCurveTo(r * 1.08, r * 0.45 * s, r * 1.16, r * 0.54 * s); ctx.stroke();
-  }
-  function scarPair(ctx, r) {
-    ctx.strokeStyle = 'rgba(240,225,205,0.55)'; ctx.lineWidth = 1.8;
-    ctx.beginPath(); ctx.moveTo(-r * 0.15, -r * 0.5); ctx.lineTo(r * 0.12, -r * 0.24); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-r * 0.05, -r * 0.52); ctx.lineTo(r * 0.22, -r * 0.26); ctx.stroke();
+    ctx.ellipse(r * (1.16 - suck * 0.16), 0, r * 0.07, r * (0.10 + suck * 0.16), 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
   }
 
   /* ---------- projectiles & effects ---------- */
