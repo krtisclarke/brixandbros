@@ -713,7 +713,10 @@
       if (s) saves[i] = s;
     }
     return {
-      game: 'tundra-defense', kind: 'progress-backup', version: 1,
+      /* The other game stamps its own name here and refuses any file that does
+         not carry it. Two different stamps is what stops a backup from one
+         game being loaded over the other game's progress. */
+      game: 'brix-and-bros', kind: 'progress-backup', version: 1,
       exported: new Date().toISOString(),
       profile: UI.profile,
       saves,
@@ -721,7 +724,7 @@
   }
 
   async function exportProgress() {
-    const name = 'tundra-defense-progress-' + new Date().toISOString().slice(0, 10) + '.json';
+    const name = 'brix-and-bros-progress-' + new Date().toISOString().slice(0, 10) + '.json';
     const blob = new Blob([JSON.stringify(collectBackup(), null, 2)], { type: 'application/json' });
     if (IS_TOUCH && navigator.canShare) {
       const file = new File([blob], name, { type: 'application/json' });
@@ -752,8 +755,8 @@
     reader.onload = () => {
       let data = null;
       try { data = JSON.parse(reader.result); } catch (e) { /* not JSON — caught below */ }
-      if (!data || data.game !== 'tundra-defense' || data.kind !== 'progress-backup' || !data.profile) {
-        toast('That file is not a Tundra Defense backup.', 'bad');
+      if (!data || data.game !== 'brix-and-bros' || data.kind !== 'progress-backup' || !data.profile) {
+        toast('That file is not a Brix and Bros backup.', 'bad');
         return;
       }
       if (!confirm('Load this backup? It replaces the progress on this device.')) return;
