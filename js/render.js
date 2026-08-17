@@ -2713,21 +2713,34 @@
        a body that no longer has a top. */
     ctx.save();
     ctx.translate(-r * 1.85, 0);
-    blitSprite(ctx, sprite('cord|' + e.type, [r * 1.5, r * 0.2, r * 0.5, r * 0.5],
+    blitSprite(ctx, sprite('cord|' + e.type + '|' + Math.round(r), [r * 1.5, r * 0.2, r * 0.5, r * 0.5],
       (c) => paintVacCord(c, r, col)));
     ctx.restore();
 
     /* The machine itself, in one blit. Three wear patterns per species is all
        the variety ninety individually-seeded vacuums ever showed.
 
-       The pad box has to clear the handle grip (up and back to −1.55r on a
-       Stick Vac), the Central Unit's wall pipe (−1.75r back) and the floor head
-       (+1.34r forward). Under-measure any of them and the sprite is cropped
-       with no error — a vacuum that has quietly lost its handle. */
+       PAD BOX. Measured against the furthest thing any form actually draws,
+       not against the body — that was the bug. The old box gave 1.1r below the
+       axis when a drum's floor head reaches 1.16r and its wheels stick out to
+       1.36r, so every wide machine had one side of its head sliced off square.
+       Nothing errors; the sprite is simply cropped, and a machine missing half
+       its head reads as a different, smaller machine. The four extremes:
+
+         back    Stick Vac handle −1.86r, Central Unit wall pipe −1.85r
+         front   Floor Buffer's spinning pad, a circle out to +1.84r
+         sides   drum floor head 1.16r plus its wheels, 1.36r
+
+       `r` IS IN THE KEY. It is constant per species today, so this adds no
+       sheets — but the cache returns whatever was baked first for a key and
+       ignores the size it is asked for, so the day anything scales a vacuum
+       (a giant modifier, a deep-endless curve) every machine of that species
+       would silently wear the first size drawn. Cheap insurance against a bug
+       that is invisible in the code and obvious on the screen. */
     const variant = ((e.wob * 1000) | 0) % 3;
-    const key = 'vac|' + e.type + '|' + (hidden ? 'h' : '') + variant;
+    const key = 'vac|' + e.type + '|' + Math.round(r) + '|' + (hidden ? 'h' : '') + variant;
     ctx.globalAlpha = 1;
-    blitSprite(ctx, sprite(key, [r * 2.1, r * 1.6, r * 1.85, r * 1.1],
+    blitSprite(ctx, sprite(key, [r * 2.15, r * 2.10, r * 1.55, r * 1.55],
       (c) => paintVac(c, e.type, r, hidden, variant)));
 
     /* The brush roll, spanning the mouth of the floor head. From above it lies
@@ -2978,19 +2991,19 @@
   }
 
   function drawHeavyBody(ctx, e, r, col, t) {
-    blitSprite(ctx, sprite('heavywake|' + e.type, [r * 2.75, r * 0.1, r * 0.6, r * 0.6],
+    blitSprite(ctx, sprite('heavywake|' + e.type + '|' + Math.round(r), [r * 2.75, r * 0.1, r * 0.7, r * 0.7],
       (c) => paintHeavyWake(c, r)));
 
     ctx.save();
     ctx.translate(-r * 0.92, 0);
-    blitSprite(ctx, sprite('heavycord|' + e.type, [r * 1.45, r * 0.25, r * 0.35, r * 0.35],
+    blitSprite(ctx, sprite('heavycord|' + e.type + '|' + Math.round(r), [r * 1.45, r * 0.25, r * 0.4, r * 0.4],
       (c) => paintHeavyCord(c, r, col)));
     ctx.restore();
 
     /* Pad box measured against the furthest thing the hull draws: the hose
        crest at −0.86r above the axis, the casters at ±0.73r, the intake to
        +1.34r and the hose tail to −1.15r behind. */
-    blitSprite(ctx, sprite('heavy|' + e.type, [r * 1.35, r * 1.55, r * 1.05, r * 0.95],
+    blitSprite(ctx, sprite('heavy|' + e.type + '|' + Math.round(r), [r * 1.40, r * 1.55, r * 1.10, r * 1.05],
       (c) => paintHeavyBody(c, e.type, r, col)));
 
     /* The throat, pulsing. The one live element, and it is the mechanic: this

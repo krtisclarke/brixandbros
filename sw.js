@@ -2,7 +2,7 @@
    After the first visit, the phone keeps its own copy of every file, so the
    home-screen app works with no server and no internet.
    Bump VERSION whenever game files change so players pick up the update. */
-const VERSION = 'brix-v10';
+const VERSION = 'brix-v11';
 /* Cache Storage is scoped to the ORIGIN, and both games live on the same
    github.io origin. The activate handler below sweeps away old caches, so it
    must only sweep away OUR old caches — without this prefix it would delete
