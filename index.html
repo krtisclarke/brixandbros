@@ -9,9 +9,9 @@
   <meta name="theme-color" content="#0a111d" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-  <title>Tundra Defense — Penguins vs. Sea Lions</title>
+  <title>Brix and Bros — Bros vs. Vacuums</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐧</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧱</text></svg>" />
 </head>
 <body>
   <div id="app">
@@ -24,13 +24,14 @@
           <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 21s-7.5-4.9-10-9.5C.4 8.4 2.4 4.5 6 4.5c2.1 0 3.6 1.2 4.4 2.4h1.2c.8-1.2 2.3-2.4 4.4-2.4 3.6 0 5.6 3.9 4 7-2.5 4.6-10 9.5-10 9.5z"/></svg>
           <b id="hud-lives">0</b>
         </span>
-        <span class="stat cash" title="Fish — the recruiting currency for penguins">
-          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" fill-rule="evenodd" d="M2.2 12C4.8 8.1 8.5 6 12.4 6c3 0 5.6 1.2 7.4 3.2L23 6v12l-3.2-3.2c-1.8 2-4.4 3.2-7.4 3.2-3.9 0-7.6-2.1-10.2-6zm5.6-1.4a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8z"/></svg>
+        <span class="stat cash" title="Studs — the recruiting currency for Bros">
+          <!-- a stud: the round bump on top of a brick, seen at a slight angle -->
+          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 3c4.4 0 8 1.6 8 3.6v10.8c0 2-3.6 3.6-8 3.6s-8-1.6-8-3.6V6.6C4 4.6 7.6 3 12 3zm0 1.9c-3.2 0-5.6 1-5.6 1.7S8.8 8.3 12 8.3s5.6-1 5.6-1.7-2.4-1.7-5.6-1.7z"/></svg>
           <b id="hud-cash">0</b>
         </span>
-        <span class="stat pebbles" title="Pebbles — the colony's savings. Earned for surviving waves and winning battles, spent between them on heroes and boosts.">
-          <span class="stat-glyph">🪨</span>
-          <b id="hud-pebbles">0</b>
+        <span class="stat bricks" title="Bricks — the workshop's savings. Earned for surviving waves and winning battles, spent between them on heroes and boosts.">
+          <span class="stat-glyph">🧱</span>
+          <b id="hud-bricks">0</b>
         </span>
         <span class="stat wavebox">
           <span id="hud-wave">Wave 1/50</span>
@@ -53,7 +54,7 @@
       <div id="banner"></div>
       <div id="tooltip"></div>
 
-      <!-- The penguin you tapped, in a column down the left. It lives out here
+      <!-- The Bro you tapped, in a column down the left. It lives out here
            rather than in the dock because everything in the dock is scaled to
            about a third on a phone, which is how a 10px sell button ended up
            one pixel under an upgrade button. Out here it is drawn at its own
@@ -61,18 +62,18 @@
            hovered to be read. -->
       <div id="selpanel" hidden></div>
 
-      <!-- While a penguin is in hand. One quiet line along the bottom of the
+      <!-- While a Bro is in hand. One quiet line along the bottom of the
            map: the selection card used to do this job and it is a full-height
            column, which meant a third of the battlefield went dark to tell you
            two things. -->
       <div id="place-hint"></div>
 
-      <!-- touch: cancel an armed penguin (replaces right-click) -->
+      <!-- touch: cancel an armed Bro (replaces right-click) -->
       <button id="btn-cancel-place" title="Cancel placement">✕ cancel</button>
 
       <!-- Asking before something that cannot be taken back. Selling is the only
            one so far. It is a card over the map rather than a full screen: the
-           question is about one penguin, and covering the battlefield to ask it
+           question is about one Bro, and covering the battlefield to ask it
            would be answering a different question. -->
       <div id="confirm" hidden>
         <div class="cf-card" role="alertdialog" aria-modal="true" aria-labelledby="cf-title">
@@ -116,15 +117,15 @@
 
   <div id="overlay">
     <div class="screen" id="screen-menu">
-      <div class="title-art">🐧</div>
-      <h1>Tundra Defense</h1>
-      <p class="subtitle">Penguins vs. Sea Lions</p>
-      <p class="blurb">The sea lion herds are marching on the colony. Recruit 20 penguin defenders across
+      <div class="title-art">🧱</div>
+      <h1>Brix and Bros</h1>
+      <p class="subtitle">Bros vs. Vacuums</p>
+      <p class="blurb">The vacuum packs are marching on the workshop. Recruit 20 Bro defenders across
         four classes, hold the line across 30 battlefields in three campaign tiers — 30, 40 or 50
-        waves depending on your nerve — and keep every last chick safe.</p>
+        waves depending on your nerve — and keep every last build safe.</p>
       <div class="chip-row">
-        <div class="pebble-chip" title="Pebbles — win battles to earn them">🪨 <b class="js-pebbles">0</b> pebbles</div>
-        <div class="rank-chip" title="Every sea lion destroyed in a campaign wave is 1 XP; endless waves pay a quarter. Each rank recruits another penguin.">
+        <div class="brick-chip" title="Bricks — win battles to earn them">🧱 <b class="js-bricks">0</b> bricks</div>
+        <div class="rank-chip" title="Every vacuum destroyed in a campaign wave is 1 XP; endless waves pay a quarter. Each rank recruits another Bro.">
           <span class="js-rank">Rank 1</span>
           <span class="rank-bar js-rank-bar"><i></i></span>
         </div>
@@ -132,11 +133,11 @@
       <button class="btn big primary" id="btn-play">Play</button>
       <div class="menu-row">
         <button class="btn" id="btn-heroes">⭐ Heroes</button>
-        <button class="btn" id="btn-shop">🪨 Boosts</button>
-        <button class="btn" id="btn-colony">🏛️ Colony</button>
+        <button class="btn" id="btn-shop">🧱 Boosts</button>
+        <button class="btn" id="btn-workshop">🏛️ Workshop</button>
       </div>
       <div class="menu-row">
-        <button class="btn" id="btn-guide">📖 Penguin Guide</button>
+        <button class="btn" id="btn-guide">📖 Bro Guide</button>
         <button class="btn" id="btn-howto">❓ How to Play</button>
       </div>
       <div id="menu-audio"></div>
@@ -153,9 +154,9 @@
       <div class="screen-head">
         <button class="btn small" id="btn-levels-back">← Menu</button>
         <h2>Choose a Battlefield</h2>
-        <span class="pebble-chip" title="Pebbles — win battles to earn them">🪨 <b class="js-pebbles">0</b> pebbles</span>
+        <span class="brick-chip" title="Bricks — win battles to earn them">🧱 <b class="js-bricks">0</b> bricks</span>
       </div>
-      <div class="rank-chip wide" title="Every sea lion destroyed in a campaign wave is 1 XP; endless waves pay a quarter. Each rank recruits another penguin.">
+      <div class="rank-chip wide" title="Every vacuum destroyed in a campaign wave is 1 XP; endless waves pay a quarter. Each rank recruits another Bro.">
         <span class="js-rank">Rank 1</span>
         <span class="rank-bar js-rank-bar"><i></i></span>
       </div>
@@ -166,48 +167,48 @@
       <div class="screen-head">
         <button class="btn small" id="btn-diff-back">← Back</button>
         <h2>Choose Your Challenge</h2>
-        <span class="pebble-chip" title="Pebbles — win battles to earn them">🪨 <b class="js-pebbles">0</b> pebbles</span>
+        <span class="brick-chip" title="Bricks — win battles to earn them">🧱 <b class="js-bricks">0</b> bricks</span>
       </div>
       <p class="blurb" id="diff-sub"></p>
       <div id="diff-grid"></div>
-      <div id="hero-head">Your champion — one fights beside the colony each battle</div>
+      <div id="hero-head">Your champion — one fights beside the workshop each battle</div>
       <div id="hero-row"></div>
-      <button class="btn" id="btn-diff-shop">🪨 Boost Shop</button>
-      <button class="btn" id="btn-diff-colony">🏛️ Colony Upgrades</button>
+      <button class="btn" id="btn-diff-shop">🧱 Boost Shop</button>
+      <button class="btn" id="btn-diff-workshop">🏛️ Workshop Upgrades</button>
     </div>
 
     <div class="screen" id="screen-shop">
       <div class="screen-head">
         <button class="btn small" id="btn-shop-back">← Back</button>
-        <h2>🪨 Boost Shop</h2>
-        <span class="pebble-chip" title="Pebbles — win battles to earn them">🪨 <b class="js-pebbles">0</b> pebbles</span>
+        <h2>🧱 Boost Shop</h2>
+        <span class="brick-chip" title="Bricks — win battles to earn them">🧱 <b class="js-bricks">0</b> bricks</span>
       </div>
       <p class="blurb">Stock up before battle. Boosts you own appear in the command dock during a match —
-        one click fires them. Win battles to earn more pebbles.</p>
+        one click fires them. Win battles to earn more bricks.</p>
       <div id="shop-grid"></div>
     </div>
 
-    <div class="screen" id="screen-colony">
+    <div class="screen" id="screen-workshop">
       <div class="screen-head">
-        <button class="btn small" id="btn-colony-back">← Back</button>
-        <h2>🏛️ Colony Upgrades</h2>
-        <span class="pebble-chip" title="Pebbles — win battles to earn them">🪨 <b class="js-pebbles">0</b> pebbles</span>
+        <button class="btn small" id="btn-workshop-back">← Back</button>
+        <h2>🏛️ Workshop Upgrades</h2>
+        <span class="brick-chip" title="Bricks — win battles to earn them">🧱 <b class="js-bricks">0</b> bricks</span>
       </div>
-      <p class="blurb">Permanent improvements for the whole colony — bought once with pebbles,
+      <p class="blurb">Permanent improvements for the whole crew — bought once with bricks,
         working in every battle from then on. Three tiers each.</p>
-      <div id="colony-grid"></div>
+      <div id="workshop-grid"></div>
     </div>
 
     <div class="screen" id="screen-heroes">
       <div class="screen-head">
         <button class="btn small" id="btn-heroes-back">← Back</button>
         <h2>⭐ Heroes</h2>
-        <span class="pebble-chip" title="Pebbles — win battles to earn them">🪨 <b class="js-pebbles">0</b> pebbles</span>
+        <span class="brick-chip" title="Bricks — win battles to earn them">🧱 <b class="js-bricks">0</b> bricks</span>
       </div>
-      <p class="blurb">One champion fights beside the colony each battle. Nine to choose from, each built
+      <p class="blurb">One champion fights beside the workshop each battle. Nine to choose from, each built
         around a different job — shredding swarms, reaching the whole map, arcing over ridges, stripping
-        blubber, or simply paying better. Heroes are recruited once with pebbles and are yours forever:
-        they place like a tower, level up on sea lions felled while they stand on the ice, and unlock a
+        casing, or simply paying better. Heroes are recruited once with bricks and are yours forever:
+        they place like a tower, level up on vacuums felled while they stand on the board, and unlock a
         signature ability at level 3. Pick who marches with you here or on the challenge screen before
         any battle.</p>
       <div id="hero-row-menu" class="hero-row"></div>
@@ -216,7 +217,7 @@
     <div class="screen" id="screen-guide">
       <div class="screen-head">
         <button class="btn small" id="btn-guide-back">← Back</button>
-        <h2>📖 Penguin Guide</h2>
+        <h2>📖 Bro Guide</h2>
       </div>
       <p class="blurb">Every defender and every threat — stats, upgrade paths, and what they're for.</p>
       <div id="guide-body"></div>
@@ -228,18 +229,18 @@
         <h2>How to Play</h2>
       </div>
       <div class="howto">
-        <p><b>Goal:</b> stop the sea lions from reaching the colony igloo. Each leak costs lives — bigger sea lions cost more. Survive every wave to win the level and unlock the next.</p>
+        <p><b>Goal:</b> stop the vacuums from reaching the Home Build. Each leak costs lives — bigger vacuums cost more. Survive every wave to win the level and unlock the next.</p>
         <p><b>Difficulty:</b> pick it when you start a battle. <b>Easy</b> — 30 waves, towers 15% cheaper, +25% lives. <b>Medium</b> — 40 waves, standard prices and lives. <b>Hard</b> — 50 waves, towers 15% pricier, −20% lives. Every campaign ends on a boss.</p>
         <p><b>Unlocking:</b> each difficulty has its own campaign. You advance one battlefield at a time, and clearing a whole tier of ten on a difficulty opens the <i>next</i> tier on that difficulty. Winning on a harder setting also counts for the easier ones — beat it on Hard and the Easy and Medium unlocks come free.</p>
-        <p><b>Second Chance:</b> if the colony falls, you can spend pebbles to retry (Easy 25 · Medium 50 · Hard 100): lives fully restored, the field is cleared, and the wave that beat you replays — towers and fish are kept.</p>
-        <p><b>Pebbles &amp; boosts:</b> winning a battle earns 🪨 pebbles (Easy 100 · Medium 250 · Hard 500). Spend them in the <b>Boost Shop</b> (main menu) <i>before</i> a match: fish drops, spike walls, frenzy, a field-wide freeze, extra lives, an avalanche. Boosts you own sit in the command dock during battle — one click fires them.</p>
-        <p><b>Build:</b> click a penguin in the bottom bar — or press its key. The bar is laid out like your keyboard:
-          <kbd>1</kbd>–<kbd>5</kbd> Frostline, <kbd>Q</kbd>–<kbd>T</kbd> Navy, <kbd>A</kbd>–<kbd>G</kbd> Mystic, <kbd>Z</kbd>–<kbd>B</kbd> Support.
+        <p><b>Second Chance:</b> if the workshop falls, you can spend bricks to retry (Easy 25 · Medium 50 · Hard 100): lives fully restored, the field is cleared, and the wave that beat you replays — towers and studs are kept.</p>
+        <p><b>Bricks &amp; boosts:</b> winning a battle earns 🧱 bricks (Easy 100 · Medium 250 · Hard 500). Spend them in the <b>Boost Shop</b> (main menu) <i>before</i> a match: studs drops, spike walls, frenzy, a field-wide freeze, extra lives, an avalanche. Boosts you own sit in the command dock during battle — one click fires them.</p>
+        <p><b>Build:</b> click a Bro in the bottom bar — or press its key. The bar is laid out like your keyboard:
+          <kbd>1</kbd>–<kbd>5</kbd> Knights, <kbd>Q</kbd>–<kbd>T</kbd> Space, <kbd>A</kbd>–<kbd>G</kbd> Wizards, <kbd>Z</kbd>–<kbd>B</kbd> Crew.
           Then click the map to place (hold <kbd>Shift</kbd> to place several). Subs and boats need <span style="color:#67d4f5">water</span>.</p>
-        <p><b>Manage:</b> click a placed penguin — its card appears in the bottom-left. <kbd>Q</kbd>/<kbd>W</kbd>/<kbd>E</kbd> buy its three upgrade paths, <kbd>T</kbd> cycles targeting, <kbd>X</kbd> sells.</p>
-        <p><b>Three paths, choose two.</b> Fish may go into only two of a penguin's three paths — buying into a second shuts the third for the battle. One of your two can reach its <b>capstone</b> (tier 3); the other stops at tier 2. Tiers 1 and 2 sharpen the numbers; every capstone changes how the penguin plays.</p>
-        <p><b>Sea lions:</b> bigger ones split into smaller ones when destroyed. Watch for <b>Stealth</b> (needs detection), <b>Armored</b> (shred or pierce it), <b>Regenerators</b>, and bosses on waves 20, 30, 40, 50. The next wave's composition is previewed next to the Send button.</p>
-        <p><b>Economy:</b> two currencies. 🐟 <b>Fish</b> is match money — pops and wave clears pay it, and it recruits and upgrades penguins (it resets each battle). 🪨 <b>Pebbles</b> persist forever and buy boosts and retries. Fish Vendors net extra fish every wave — early economy snowballs.</p>
+        <p><b>Manage:</b> click a placed Bro — its card appears in the bottom-left. <kbd>Q</kbd>/<kbd>W</kbd>/<kbd>E</kbd> buy its three upgrade paths, <kbd>T</kbd> cycles targeting, <kbd>X</kbd> sells.</p>
+        <p><b>Three paths, choose two.</b> Studs may go into only two of a Bro's three paths — buying into a second shuts the third for the battle. One of your two can reach its <b>capstone</b> (tier 3); the other stops at tier 2. Tiers 1 and 2 sharpen the numbers; every capstone changes how the Bro plays.</p>
+        <p><b>Vacuums:</b> bigger ones split into smaller ones when destroyed. Watch for <b>Stealth</b> (needs detection), <b>Armored</b> (shred or pierce it), <b>Regenerators</b>, and bosses on waves 20, 30, 40, 50. The next wave's composition is previewed next to the Send button.</p>
+        <p><b>Economy:</b> two currencies. 🔩 <b>Studs</b> is match money — pops and wave clears pay it, and it recruits and upgrades Bros (it resets each battle). 🧱 <b>Bricks</b> persist forever and buy boosts and retries. Parts Traders net extra studs every wave — early economy snowballs.</p>
         <p><b>Saving:</b> autosaves after every wave; <kbd>Ctrl/⌘+S</kbd> (or the save button) saves <i>mid-wave</i>. Resume from the level screen.
           Progress lives in this browser — <b>💾 Back Up Progress</b> (main menu) writes it all to one file you keep
           (on iPhone/iPad: Save to Files — an iCloud Drive folder syncs it to your other devices), and <b>📂 Load Backup</b> restores it anywhere.</p>
@@ -251,14 +252,14 @@
       <h2>⏸ Paused</h2>
       <button class="btn big primary" id="btn-resume">Resume <span class="kbd-hint"><kbd>Esc</kbd></span></button>
       <button class="btn big" id="btn-pause-save">Save Game</button>
-      <button class="btn big" id="btn-pause-guide">📖 Penguin Guide</button>
+      <button class="btn big" id="btn-pause-guide">📖 Bro Guide</button>
       <button class="btn big" id="btn-pause-quit">Save &amp; Quit to Menu</button>
       <!-- Last, and set apart. It is the only control in the game that throws
            away a run on purpose, so it does not sit next to Resume. -->
       <button class="btn big danger" id="btn-pause-restart">↻ Restart Battle</button>
       <div id="pause-audio"></div>
       <div class="cheatsheet">
-        <div><kbd>1</kbd>–<kbd>5</kbd> <kbd>Q</kbd>–<kbd>T</kbd> <kbd>A</kbd>–<kbd>G</kbd> <kbd>Z</kbd>–<kbd>B</kbd><span>build penguins</span></div>
+        <div><kbd>1</kbd>–<kbd>5</kbd> <kbd>Q</kbd>–<kbd>T</kbd> <kbd>A</kbd>–<kbd>G</kbd> <kbd>Z</kbd>–<kbd>B</kbd><span>build Bros</span></div>
         <div><kbd>Space</kbd><span>send wave</span></div>
         <div><kbd>Tab</kbd><span>speed 1× / 2× / 3×</span></div>
         <div><kbd>Q</kbd> <kbd>W</kbd> <kbd>T</kbd> <kbd>X</kbd><span>upgrade · target · sell (selected)</span></div>
@@ -269,9 +270,9 @@
     <div class="screen" id="screen-end">
       <h2 id="end-title"></h2>
       <p class="blurb" id="end-sub"></p>
-      <div class="pebble-chip" title="Pebbles — win battles to earn them">🪨 <b class="js-pebbles">0</b> pebbles</div>
+      <div class="brick-chip" title="Bricks — win battles to earn them">🧱 <b class="js-bricks">0</b> bricks</div>
       <button class="btn big retry" id="btn-retry" style="display:none"></button>
-      <button class="btn big primary" id="btn-endless" style="display:none">🌊 Keep Going — Endless Tide</button>
+      <button class="btn big primary" id="btn-endless" style="display:none">🔁 Keep Going — Endless Shift</button>
       <button class="btn big" id="btn-end-menu">Back to Levels</button>
     </div>
   </div>
@@ -291,7 +292,7 @@
   <div id="rotate-hint">
     <div class="rot-icon">📱</div>
     <h3>Turn your phone sideways</h3>
-    <p>Tundra Defense needs a landscape screen — the battlefields are far wider than they are tall.</p>
+    <p>Brix and Bros needs a landscape screen — the battlefields are far wider than they are tall.</p>
   </div>
 
   <script src="js/data.js"></script>

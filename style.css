@@ -1,4 +1,4 @@
-/* Tundra Defense — styling */
+/* Brix and Bros — styling */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
@@ -103,7 +103,7 @@ html, body {
   touch-action: none;   /* the canvas handles its own drags */
 }
 
-/* cancel-placement button — only shown while a penguin is armed on touch */
+/* cancel-placement button — only shown while a Bro is armed on touch */
 #btn-cancel-place {
   display: none;
   position: absolute;
@@ -127,7 +127,7 @@ html, body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
 html.touch #btn-cancel-place.show { display: block; }
-/* Lit while a carried penguin is over it, so letting go there plainly means
+/* Lit while a carried Bro is over it, so letting go there plainly means
    "put it back" rather than "place it here". The button never sees the pointer
    itself — the tray slot holds the capture for the whole drag — so this is
    driven from the drag handler. */
@@ -178,7 +178,7 @@ html.touch #place-hint { bottom: calc(58px + var(--map-inset-b, 0px)); }
 @media (max-width: 700px) { #place-hint { font-size: 12px; padding: 6px 11px; } }
 
 /* ---------- "are you sure" ----------
-   Over the map, not over the screen: what is being asked about is one penguin,
+   Over the map, not over the screen: what is being asked about is one Bro,
    and blacking out the battlefield to ask would be answering a bigger question
    than the one on the card. The scrim is only dark enough to say the rest of
    the board is not listening, and tapping it is the same as Cancel. */
@@ -268,12 +268,12 @@ html.touch #place-hint { bottom: calc(58px + var(--map-inset-b, 0px)); }
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 .stat svg { width: 19px; height: 19px; }
-/* the other two carry an inline SVG at 19px; pebbles are an emoji everywhere
+/* the other two carry an inline SVG at 19px; bricks are an emoji everywhere
    else in the game, so it is matched to that height rather than redrawn */
 .stat-glyph { font-size: 15px; line-height: 1; }
 .stat.lives { color: #ffa8a8; }
 .stat.cash { color: var(--gold); }
-.stat.pebbles { color: #d9c6a6; }
+.stat.bricks { color: #d9c6a6; }
 .stat.wavebox { color: var(--accent); flex-direction: column; align-items: flex-start; gap: 5px; padding: 8px 17px; }
 #hud-wave { font-size: 15px; line-height: 1; font-weight: 800; }
 #wave-bar {
@@ -356,7 +356,7 @@ html.touch #btn-fs { display: none; }
    selection card — which opens in exactly that corner and is BELOW them in the
    stack — and, because the strip took pointer events, on top of the
    battlefield you were trying to tap. A wave clearing while you lined up a
-   penguin ate the tap.
+   Bro ate the tap.
 
    The foot of the map is the emptiest part of it, and pointer-events:none
    means the worst a toast can now do is be looked at. */
@@ -398,7 +398,7 @@ html.touch #btn-fs { display: none; }
 #dock.playing {
   /* FIXED height, never min-height. The stage is flex:1 above it, so any dock
      that grows steals map height and the battlefield visibly jumps the moment
-     you click a penguin. The selection card is kept short enough to always fit
+     you click a Bro. The selection card is kept short enough to always fit
      (upgrade details live in a hover card instead of inside the buttons). */
   height: 162px;
   display: flex;
@@ -423,17 +423,17 @@ html.touch #btn-fs { display: none; }
 #dock-powers { order: 4; }
 #command { order: 5; }
 
-/* ---- the selected penguin, as a column down the left of the map ----
+/* ---- the selected Bro, as a column down the left of the map ----
    It is position:fixed and outside #sidebar on purpose. Everything in the dock
    is drawn at 400px and then scaled into the column — about 0.36 on a phone —
    so no rule applied INSIDE the dock can make a control bigger than a third of
    what it says. That is how the sell button ended up 10px tall and one pixel
-   under the upgrade button, and how penguins got sold by accident. Out here the
+   under the upgrade button, and how Bros got sold by accident. Out here the
    panel is drawn at its real size, which is also what buys room for the full
    upgrade descriptions and retires the hover card for them.
 
    Left, not right, because the right is where the dock already is; and the map
-   is wide, so a column down one edge covers trail the player is not aiming at. */
+   is wide, so a column down one edge covers track the player is not aiming at. */
 #selpanel {
   position: fixed;
   /* left, top, width and height all come from JS — see fitSelPanel, which
@@ -452,7 +452,7 @@ html.touch #btn-fs { display: none; }
 
   z-index: 45;
   /* Still translucent, for a different reason than before. Over the battlefield
-     it was so you could watch the sea lions; over the tray it is so the thing
+     it was so you could watch the vacuums; over the tray it is so the thing
      underneath reads as a card the upgrade card was laid on top of, rather than
      a hole punched in the dock. Same numbers, and they were measured against
      snow, which is a brighter ground than the tray — so the text has more
@@ -523,7 +523,7 @@ html.touch #btn-fs { display: none; }
 @media (prefers-reduced-motion: reduce) {
   #selpanel { animation: none; }
 }
-/* A question about this penguin puts its card out of reach until it is
+/* A question about this Bro puts its card out of reach until it is
    answered — see setConfirming in ui.js for why the dialog's own scrim can no
    longer do this. Dimmed as well as disabled: a card that ignores presses
    without looking any different reads as the game having frozen. The wash is
@@ -563,7 +563,7 @@ html.touch #btn-fs { display: none; }
 /* Allowed to wrap to two lines here, and nowhere else. This column is about
    143px wide and "Pebble Flinger" ellipsed to "Peb…" — which is the one thing
    on the card that must always be readable, because it is how you know which
-   penguin you are looking at. */
+   Bro you are looking at. */
 #selpanel .ds-name {
   font-size: clamp(13.5px, 2.55cqh, 18px); line-height: 1.15;
   white-space: normal; overflow: visible; text-overflow: clip;
@@ -656,7 +656,7 @@ html.touch .dsp-desc { display: none; }
 .ds-path.shut { opacity: 0.45; }
 /* The one purchase that cannot be undone — it shuts the third path. */
 .ds-path.commits { border-color: rgba(212, 175, 55, 0.7); }
-/* A path you have already put fish into. Which two of the three you committed
+/* A path you have already put studs into. Which two of the three you committed
    to is the single most useful thing this card can say, and it was being said
    by tinting a 5px dot. A green edge down the row says it from across the
    table. Drawn rather than bordered so it cannot shift the row's box, and kept
@@ -667,7 +667,7 @@ html.touch .dsp-desc { display: none; }
   border-radius: 0 3px 3px 0;
   background: var(--good);
 }
-/* gold is reserved for a path that is finished, not merely one with fish in it */
+/* gold is reserved for a path that is finished, not merely one with studs in it */
 .ds-path.done::before { background: var(--gold); }
 .dsp-head { display: flex; align-items: baseline; gap: 4px; }
 .dsp-name {
@@ -733,11 +733,11 @@ html.touch .dsp-desc { display: none; }
    so the later rule won and the armed button kept the ordinary grey fill — with
    the armed state's near-black text on top of it, which reads as a disabled
    button rather than an armed one. A player who had just asked to sell a 14,000
-   fish penguin was looking at something that appeared to have refused.
+   studs Bro was looking at something that appeared to have refused.
 
    .btn is also written after the block below, which is why the idle colours are
    qualified: unqualified they lost the same argument and the button that sells
-   your penguin was the same colour as the button that changes its targeting. */
+   your Bro was the same colour as the button that changes its targeting. */
 .sell-btn.sell-btn {
   width: 100%;
   min-height: clamp(42px, 7.4cqh, 54px);
@@ -779,10 +779,10 @@ html.touch .dsp-desc { display: none; }
 .ds-head .ds-stats { grid-column: 1 / -1; grid-row: 2; }
 
 /* ---- a tall column turns the head into a portrait ----
-   Beside the name, the penguin can only ever be as wide as the leftovers — 67px
+   Beside the name, the Bro can only ever be as wide as the leftovers — 67px
    in a 230px column, which is a stamp, not a picture. Stacked, it gets the
    column's whole width and roughly doubles, with the name reading as its
-   caption. This is what the top of a card about ONE penguin should look like.
+   caption. This is what the top of a card about ONE Bro should look like.
 
    Gated on height, not turned on everywhere, because the head grows by about
    120px doing this and the three upgrade rows have to come out of the same
@@ -839,7 +839,7 @@ html.touch .dsp-desc { display: none; }
      gaps is 132, the sell row's floor is 38, this column's own two gaps are 12,
      and the head is 47 even with a one-line name and a one-line stat line.
      That is 230 wanted against 220 available in the BEST case, and 256 for a
-     penguin whose name takes three lines in a 56px column. The only slack in
+     Bro whose name takes three lines in a 56px column. The only slack in
      that list is the size of a finger.
 
      Without this line the deficit came out of nowhere: .ds-upgs is the only
@@ -847,11 +847,11 @@ html.touch .dsp-desc { display: none; }
      overflow:visible — carried on drawing outside it. The third one landed on
      top of the sell button, and .ds-path is position:relative against a plain
      .btn, so it painted above it AND took its taps. A press on the top of
-     "Sell +270" bought a 270-fish upgrade instead. Nothing overflowed the card
+     "Sell +270" bought a 270-studs upgrade instead. Nothing overflowed the card
      itself, so no scrollbar ever appeared to say so.
 
      Scrolling costs about a third of the third row on a phone, which is the
-     right thing to lose: the head says which penguin this is and the foot sells
+     right thing to lose: the head says which Bro this is and the foot sells
      it, and both stay put and stay honest. No gutter is reserved — iOS and
      macOS draw this as an overlay while it moves — so the rows keep their full
      width on every screen that has the room. */
@@ -871,12 +871,12 @@ html.touch .dsp-desc { display: none; }
    squeezed row did not look squeezed — it silently dropped the description and
    went back to looking exactly like the version that had none. Measured at
    700x360: two of the three rows lost their sentence, on seventeen of the
-   twenty penguins, with no scrollbar to say anything was missing.
+   twenty Bros, with no scrollbar to say anything was missing.
    Content-sized rows overflow honestly instead, and .ds-upgs scrolls. */
 .ds-upgs .ds-prow { flex: 1 0 auto; min-height: 0; display: flex; align-items: stretch; gap: 3px; min-width: 0; }
 .ds-upgs .ds-prow .ds-path { flex: 1 1 auto; min-width: 0; justify-content: center; }
 /* And the sentence itself is not the part that gives. It is the only thing on
-   the row that says what the fish buy. */
+   the row that says what the studs buy. */
 .dsp-desc { flex: none; }
 .ds-actions { margin-top: auto; }
 .btn.upg-mini {
@@ -904,7 +904,7 @@ html.touch .dsp-desc { display: none; }
 }
 .um-sub { flex: none; font-size: 11px; color: var(--dim); font-weight: 650; white-space: nowrap; }
 .um-sub b { color: var(--gold); }
-/* green glow = buy it now; red price = keep fishing (mirrors the build bar) */
+/* green glow = buy it now; red price = keep studsing (mirrors the build bar) */
 .btn.upg-mini.can {
   border-color: rgba(87, 212, 136, 0.55);
   background: rgba(87, 212, 136, 0.10);
@@ -938,7 +938,7 @@ html.touch .dsp-desc { display: none; }
 }
 .ds-actions .btn.danger { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
-/* build palette: one grid of twenty penguins, ten across here — two classes to
+/* build palette: one grid of twenty Bros, ten across here — two classes to
    a row, told apart by the coloured edge under each tile rather than by a box
    around each five. The grid is the whole layout mechanism: give it a different
    shaped container and it lays the same twenty out to suit. */
@@ -965,7 +965,7 @@ html.touch .dsp-desc { display: none; }
   padding: 3px 1px;
   text-align: center;
   cursor: pointer;
-  /* dragging a penguin out must never become a text selection or browser gesture */
+  /* dragging a Bro out must never become a text selection or browser gesture */
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -1302,7 +1302,7 @@ kbd {
 }
 .screen-head h2 { flex: 1; margin: 0; font-size: 22px; text-align: center; }
 .screen-head .btn { flex: none; }
-.screen-head .pebble-chip { flex: none; margin: 0; }
+.screen-head .brick-chip { flex: none; margin: 0; }
 @keyframes screenIn {
   from { opacity: 0; transform: translateY(14px) scale(0.97); }
   to { opacity: 1; transform: none; }
@@ -1398,7 +1398,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
 .lvl-stars { color: var(--gold); font-size: 12px; letter-spacing: 1px; white-space: nowrap; }
 .dim-star { color: rgba(255, 255, 255, 0.15); }
 /* Off the dim grey: this is the one line that says what the battlefield is.
-   Three lines reserved, not two — a locked card's reason ("Beat Penguin Village
+   Three lines reserved, not two — a locked card's reason ("Beat Bro Village
    on Easy first.") runs to three at this width, and a card whose text is one
    line taller than its neighbour's pushes everything below it out of step with
    the rest of the row. */
@@ -1471,7 +1471,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
 .diff-facts b { color: var(--text); }
 .diff-reward { color: var(--gold); font-weight: 750; }
 
-/* colony rank chip + progress bar */
+/* builder rank chip + progress bar */
 .chip-row { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
 .rank-chip {
   display: inline-flex; align-items: center; gap: 9px;
@@ -1505,7 +1505,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
 .menu-row { display: flex; gap: 8px; justify-content: center; width: min(420px, 92vw); margin: 6px auto; }
 .menu-row .btn { flex: 1 1 0; padding: 12px 8px; font-size: 14px; }
 
-/* Penguin Guide */
+/* Bro Guide */
 #screen-guide { max-width: 980px; }
 .gd-rank {
   background: rgba(116, 220, 251, 0.09);
@@ -1590,7 +1590,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
 .gd-etraits { color: var(--dim); font-size: 12px; line-height: 1.4; }
 @media (max-width: 640px) { .gd-paths { grid-template-columns: 1fr; } }
 
-/* tower drip: penguins not yet recruited — ghost the penguin, keep the padlock crisp */
+/* tower drip: Bros not yet recruited — ghost the Bro, keep the padlock crisp */
 #palette .slot.locked { cursor: default; }
 #palette .slot.locked canvas,
 #palette .slot.locked .slot-cost,
@@ -1608,7 +1608,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
   pointer-events: none;
 }
 
-/* Colony Upgrades */
+/* Workshop Upgrades */
 .cu-pips { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
 .cu-pip {
   width: 8px; height: 8px;
@@ -1779,8 +1779,8 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
 .ds-rank { color: var(--gold); }
 .hero-tag { color: var(--gold); font-size: 12px; }
 
-/* pebbles */
-.pebble-chip {
+/* bricks */
+.brick-chip {
   display: inline-flex; align-items: center; gap: 6px;
   background: rgba(255, 217, 126, 0.1);
   border: 1px solid rgba(255, 217, 126, 0.35);
@@ -1931,14 +1931,14 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
 
      The margins carry --map-inset-*, which is whatever a cutout still reaches
      into the map after the block has moved as far off it as the leftover
-     margin allowed. Usually zero. When it is not, the lives and fish counters
+     margin allowed. Usually zero. When it is not, the lives and studs counters
      step in far enough to stay readable rather than disappearing behind an
      island the player cannot move. */
   #hud-stats { top: 0; left: 0; transform: scale(var(--uiscale, 1)); transform-origin: top left; margin: calc(14px + var(--map-inset-t, 0px)) 0 0 calc(16px + var(--map-inset-l, 0px)); }
   #hud-sys { top: 0; right: 0; transform: scale(var(--uiscale, 1)); transform-origin: top right; margin: calc(14px + var(--map-inset-t, 0px)) 16px 0 0; }
   #banner { transform: translateX(-50%) scale(var(--uiscale, 1)); }
 
-  /* Build tray: the top half of the column, two penguins across, scrolling for
+  /* Build tray: the top half of the column, two Bros across, scrolling for
      the rest. Two across is fixed on purpose — the tiles grow and shrink with
      the column instead of the count changing, so the tray looks the same shape
      at every window size. */
@@ -1975,7 +1975,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
   }
   #palette::-webkit-scrollbar { display: none; }
 
-  /* A penguin tile. It keeps one shape at every size — 27:20, near the
+  /* A Bro tile. It keeps one shape at every size — 27:20, near the
      proportion the narrow column happened to produce — instead of stretching
      into a letterbox when the column is wide, which left the icon marooned in
      the middle of a lot of nothing.
@@ -1985,11 +1985,11 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
      rattling around in it. At the nominal 400px column a tile is 187 wide and
      these work out to a 52px icon, 14px price and 11px key — the sizes they
      were designed at. */
-  /* The penguin IS the tile: the icon takes the whole height and the price and
+  /* The Bro IS the tile: the icon takes the whole height and the price and
      the key ride over it in the corners, rather than the icon being a thumbnail
      with a caption underneath. The tile went from 27:20 to 5:4 for the same
      reason — the icon is square, so a wider tile is just margin either side of
-     it. That trades one row of the tray for a penguin two and a half times the
+     it. That trades one row of the tray for a Bro two and a half times the
      size it was. */
   #palette .slot {
     max-width: none;
@@ -1998,7 +1998,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
     overflow: hidden;
     padding: 0;
     /* Enough class colour to sort the tray at a glance, not so much that the
-       penguin has to fight it: a wash from the top, over the dark panel. */
+       Bro has to fight it: a wash from the top, over the dark panel. */
     background:
       linear-gradient(170deg,
         color-mix(in srgb, var(--cls) 30%, transparent),
@@ -2020,11 +2020,11 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
     display: block; height: 100%; width: auto; margin: 0 auto;
   }
   /* the price as a small card in the corner, dark enough to stay readable over
-     whatever part of the penguin ends up behind it */
+     whatever part of the Bro ends up behind it */
   #palette .slot-cost {
     position: absolute; left: 1.1cqw; bottom: 1.1cqw;
     /* big enough to read on a laptop — 13px where it was 9. It covers a corner
-       of the penguin, which is the trade that was asked for. */
+       of the Bro, which is the trade that was asked for. */
     font-size: 4.8cqw; line-height: 1; letter-spacing: -0.2px;
     color: var(--gold); font-weight: 800;
     background: rgba(6, 11, 20, 0.86);
@@ -2042,7 +2042,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
     font-size: 4.6cqw;
   }
   #palette .slot:hover { transform: translateY(-2px); }
-  /* A locked penguin should read as locked at a glance rather than as a
+  /* A locked Bro should read as locked at a glance rather than as a
      slightly dimmer coloured tile: it loses the class colour entirely. */
   #palette .slot.locked {
     opacity: 1; filter: none;
@@ -2194,7 +2194,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
     scrollbar-width: none;
   }
   #dock-powers .dp-grid::-webkit-scrollbar { display: none; }
-  /* Same treatment as the penguin tiles: the icon fills the button rather than
+  /* Same treatment as the Bro tiles: the icon fills the button rather than
      sitting in the middle of it. The button is its own container so the glyph
      can be a share of it — 62% — and grows with the panel. */
   #dock-powers .dp-btn {
@@ -2282,7 +2282,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
   .screen { padding: 16px 18px; max-height: calc(100dvh - 20px - var(--sat) - var(--sab)); border-radius: 14px; }
   .screen-head { top: -16px; margin: -16px -18px 12px; padding: 8px 10px; gap: 8px; }
   .screen-head h2 { font-size: 17px; }
-  .screen-head .pebble-chip { padding: 4px 10px; font-size: 12px; }
+  .screen-head .brick-chip { padding: 4px 10px; font-size: 12px; }
   .title-art { font-size: 34px; }
   h1 { font-size: 28px; }
   h2 { font-size: 20px; margin-bottom: 10px; }
@@ -2316,7 +2316,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
   #screen-menu .subtitle { margin-bottom: 8px; }
   #screen-menu h1 { font-size: 25px; }
   .btn.big { padding: 9px; font-size: 13.5px; margin: 5px auto; }
-  .pebble-chip { padding: 5px 12px; font-size: 13px; margin-bottom: 9px; }
+  .brick-chip { padding: 5px 12px; font-size: 13px; margin-bottom: 9px; }
   #diff-grid { gap: 9px; margin: 4px 0 12px; }
   .diff-card { width: 152px; padding: 11px 9px 10px; }
   .diff-icon { font-size: 25px; }
@@ -2330,7 +2330,7 @@ h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
    What an upgrade does has to be reachable by pressing something that looks
    like it can be pressed. Long-press was the only route and nobody found it:
    there is nothing on screen advertising that a row can be held, and the row's
-   obvious gesture spends fish. A full-height strip down the edge of the row, so
+   obvious gesture spends studs. A full-height strip down the edge of the row, so
    the target is the row's whole height rather than the size of the glyph in it.
 
    22px, not the 36 this was before. It comes out of a column that is about
@@ -2423,7 +2423,7 @@ html.touch .btn.upg-mini { padding-left: 8px; }
   .ds-path.shut .dsp-tiers { display: none; }
 }
 
-/* While a carried penguin is over the tray it came from: letting go here puts
+/* While a carried Bro is over the tray it came from: letting go here puts
    it back. Driven from the drag handler, which is the only thing that can see
    the pointer during a drag. */
 #palette.returning {

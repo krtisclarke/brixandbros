@@ -1,4 +1,4 @@
-/* Tundra Defense — chiptune music engine (Game Boy style, pure WebAudio)
+/* Brix and Bros — chiptune music engine (Game Boy style, pure WebAudio)
    Two pulse channels + triangle bass + noise drums, 16-step sequencer.
    Tempo scales by +1% per wave via setTempoScale().                       */
 (function () {

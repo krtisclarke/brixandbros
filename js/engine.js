@@ -1,4 +1,4 @@
-/* Tundra Defense — core simulation engine */
+/* Brix and Bros — core simulation engine */
 (function () {
   const G = (globalThis.G = globalThis.G || {});
   const dist2 = (ax, ay, bx, by) => (ax - bx) ** 2 + (ay - by) ** 2;
@@ -46,7 +46,7 @@
     return px * px + py * py <= r2;
   }
 
-  /* An upgrade must never make a penguin worse at anything. With two paths
+  /* An upgrade must never make a Bro worse at anything. With two paths
      that was easy to keep true by hand; with three it is not, because the
      pairs a player can buy are now six per tower and effects overlap across
      them. So combining an effect TAKES THE BETTER of the two rather than
@@ -55,7 +55,7 @@
      The case that forced it: the Slush Thrower's Thicker Slush (65% slow, 2.4s)
      and Slow Drip (50% slow, 4.8s) are a legal pair, and plain assignment
      handed the player a 50% slow for their trouble — a downgrade they paid
-     🐟320 for. Merged, they get the 65% AND the 4.8s, which is what buying
+     🔩320 for. Merged, they get the 65% AND the 4.8s, which is what buying
      both plainly ought to mean. */
   function mergeFx(fx, add) {
     for (const k in add) {
@@ -89,15 +89,15 @@
     }
     s.fx = fx;
 
-    /* Global nerf, applied last so it scales the finished penguin rather than
+    /* Global nerf, applied last so it scales the finished Bro rather than
        each of 120 upgrade tiers. Ranges of 5000+ are the deliberately
-       map-wide ones (the Harpoon Sniper) and stay that way. */
+       map-wide ones (the Laser Sniper) and stay that way. */
     const N = G.NERF;
     if (N) {
       /* N.damage is 1 today, so this is a no-op — kept as the one place a
          damage change would go. If it ever drops below 1 again, do NOT clamp
          the result back up to 1: that would make "+1 damage" upgrades change
-         nothing on the weakest penguins, the exact dead upgrade this codebase
+         nothing on the weakest Bros, the exact dead upgrade this codebase
          already had once. Fractional damage is fine. */
       if (s.damage) s.damage *= N.damage;
       if (s.spikeDmg) s.spikeDmg *= N.damage;
@@ -127,7 +127,7 @@
       /* hero: chosen before battle, placed like a tower, one per battle */
       this.heroType = G.TOWERS[heroType] && G.TOWERS[heroType].hero ? heroType : null;
       this.heroTower = null;      // the placed hero (a towers[] entry) or null
-      this.heroKills = 0;         // sea lions felled while placed -> level
+      this.heroKills = 0;         // vacuums felled while placed -> level
       this.heroLevel = 1;
       this.heroReadyAt = 0;       // game time when the ability recharges
       this.totalWaves = G.DIFFICULTIES[this.diffId].waves;
@@ -139,7 +139,7 @@
       this.sightBlockers = L.blockers
         .filter((b) => G.SIGHT_BLOCKS[b.kind])
         .map((b) => ({ x: b.x, y: b.y, r: b.r * G.SIGHT_SHRINK, r2: (b.r * G.SIGHT_SHRINK) ** 2 }));
-      this.cash = L.cash + G.PERK.cash;   // Deeper Stores colony upgrade
+      this.cash = L.cash + G.PERK.cash;   // Deeper Stores workshop upgrade
       this.lives = this.startLives;
       this.wave = 1;              // next wave to start (1-based)
       this.waveInProgress = false;
@@ -149,16 +149,16 @@
       this.projectiles = [];
       this.piles = [];            // ice-wall spikes, drift mines and ice decoys on track
       /* Ground zones: craters, slicks, wakes, aurora fire, corrupt stains,
-         squalls, quagmires. One patch on the trail with a lifetime and an
-         effect, checked against sea lions exactly as spike piles already are —
+         squalls, quagmires. One patch on the track with a lifetime and an
+         effect, checked against vacuums exactly as spike piles already are —
          ten capstones share this list rather than each inventing a system. */
       this.zones = [];
       /* Buffs that live for a few seconds rather than for the battle: the
-         Igloo's breach alarm, the War Drummer's opening solo. Static auras are
+         Brick Fort's breach alarm, the War Drummer's opening solo. Static auras are
          settled in recomputeBuffs; these can't be, because they start and stop
          while nothing about the board has changed. */
       this.tempAuras = [];
-      this.costMult = 1;          // Colony Contracts discount on everything bought
+      this.costMult = 1;          // Bulk Orders discount on everything bought
       this.towers = [];
       this.effects = [];          // transient visuals
       this.texts = [];            // floating cash/damage text
@@ -169,8 +169,8 @@
       this.nextWaveIn = null;   // auto-start countdown (ticks only while unpaused)
       this.over = null;           // 'win' | 'lose'
       this.endless = false;       // set after victory if the player keeps going
-      this.kills = 0;             // sea lions destroyed this battle (the ☠ count)
-      /* Colony XP is no longer the raw count: an endless kill is worth
+      this.kills = 0;             // vacuums destroyed this battle (the ☠ count)
+      /* Builder XP is no longer the raw count: an endless kill is worth
          G.ENDLESS_RANK_XP of a campaign one, so depth on one map cannot outrun
          the ten-battlefield tier the rank ladder was fitted to. Kept as its own
          running total rather than derived at bank time, because banking happens
@@ -209,8 +209,8 @@
       return true;
     }
 
-    /* What a thing actually costs right now: the difficulty and colony-perk
-       price, then the Colony Contracts discount if a Fish Vendor is running
+    /* What a thing actually costs right now: the difficulty and workshop-perk
+       price, then the Bulk Orders discount if a Parts Trader is running
        one. Every surface that quotes a price has to come through here, or the
        dock advertises one number and the purchase takes another. */
     priceOf(raw) {
@@ -236,7 +236,7 @@
     }
 
     /* re-derive the hero's level and battle stats (called when either input
-       moves: a sea lion fell, the endless curve deepened, a save loaded) */
+       moves: a vacuum fell, the endless curve deepened, a save loaded) */
     refreshHero() {
       this.heroLevel = G.heroLevelFor(this.heroKills);
       const t = this.heroTower;
@@ -271,7 +271,7 @@
       const tier = tower.up[pathIdx];
       const upg = def.paths[pathIdx].tiers[tier];
       const cost = this.priceOf(upg.cost);
-      if (this.cash < cost) return { ok: false, msg: 'Not enough fish.' };
+      if (this.cash < cost) return { ok: false, msg: 'Not enough studs.' };
       this.cash -= cost;
       tower.invested += cost;
       tower.up[pathIdx]++;
@@ -307,7 +307,7 @@
       for (const t of this.towers) {
         const c = t.calc;
         if (c.bountyBonus) this.bountyBonus = Math.max(this.bountyBonus, c.bountyBonus);
-        /* Colony Contracts and Cold Storage take the BEST stall rather than the
+        /* Bulk Orders and Cold Storage take the BEST stall rather than the
            sum, for the same reason Fresh Catch does: a discount that stacked
            would just be vendor spam wearing a different hat, and two of them
            would be worth more than the vendors themselves. */
@@ -317,7 +317,7 @@
       this.deathZoners = this.towers.filter((t) => t.calc.zoneAt === 'death');
       /* Auras used to add up flat and without limit, so the winning move was
          simply to build more of them: a real board reached x7 attack speed and
-         x2.65 range on one penguin, and 44% of it was support towers. Now each
+         x2.65 range on one Bro, and 44% of it was support towers. Now each
          extra source of the same buff counts for HALF the one before it (so a
          second drummer is worth 50%, a third 25%) and every channel has a hard
          ceiling. One excellent aura tower gets you most of the way; a wall of
@@ -330,13 +330,13 @@
         if (c.kind !== 'aura' && !c.auraDmg && !c.auraRate && !c.auraRange && !c.auraStealth
             && !c.auraShred && !c.auraPierce && !c.auraArcs) continue;
         /* An aura's reach is the tower's own, unless it says otherwise. The
-           Artillery Emperor's Firebase is why: his shells carry 320, and using
-           that as the circle would have steadied every penguin on the map. */
+           Mech Cannon's Firebase is why: his shells carry 320, and using
+           that as the circle would have steadied every Bro on the map. */
         const ar = c.auraR || c.range;
         const r2 = ar * ar;
         for (const t of this.towers) {
           if (t === s || t.calc.kind === 'aura' || t.calc.kind === 'income') continue;
-          // Scout Tilly's Pack Scout lends her eyes to Frostline and no one else
+          // Scout Tilly's Pack Scout lends her eyes to Knights and no one else
           if (c.auraClass && G.TOWERS[t.type].cls !== c.auraClass) continue;
           if (dist2(s.x, s.y, t.x, t.y) > r2) continue;
           const k = inbox.get(t);
@@ -421,7 +421,7 @@
         hp, maxHp: hp, hpMult: hpMult || 1,
         speed: def.speed * this.level.speedMult * (this.endless ? G.endlessSpeed(this.wave) : 1),
         armor: def.armor, stealth: def.stealth, regen: def.regen,
-        size: def.size, rank: def.rank, boss: !!def.boss, orca: !!def.orca,
+        size: def.size, rank: def.rank, boss: !!def.boss, heavy: !!def.heavy,
         slowF: 1, slowUntil: 0, dotDps: 0, dotUntil: 0, stunUntil: 0, revealUntil: 0,
         vulnAmt: 0, vulnUntil: 0, bleedPct: 0, bleedUntil: 0, frostHits: 0,
         wob: Math.random() * Math.PI * 2,
@@ -447,7 +447,7 @@
     }
 
     /* Some upgrades take the choice out of the player's hands: Spotter's Eye
-       and Hunter-Killer are bought precisely so the penguin stops wasting
+       and Hunter-Killer are bought precisely so the Bro stops wasting
        shots on pups, so they override the targeting toggle. */
     targetMode(t) { return t.calc.forceTarget || t.target; }
 
@@ -478,10 +478,10 @@
       return best;
     }
 
-    /* The same sweep, but keeping the best N distinct sea lions — Double
-       Launcher and Twin Auroras exist to stop two shots landing on one body.
+    /* The same sweep, but keeping the best N distinct vacuums — Double
+       Launcher and Twin Sparks exist to stop two shots landing on one body.
        Builds a list, so it is only called by the handful of towers that need
-       it rather than by every penguin every shot. */
+       it rather than by every Bro every shot. */
     pickTargets(t, pos, range, n) {
       const r2 = range * range;
       const minR2 = (t.calc.minRange || 0) ** 2;
@@ -499,7 +499,7 @@
       return out.slice(0, n);
     }
 
-    /* ----- what each Fish Vendor actually pays at the end of a wave -----
+    /* ----- what each Parts Trader actually pays at the end of a wave -----
        Richest stall first, and every vendor after it earns G.VENDOR_FALLOFF of
        the one before — a second is worth 0.7 of the first, a third 0.49. Left
        uncapped, stacking vendors was a money printer.
@@ -518,7 +518,7 @@
       for (const t of vendors) {
         const c = t.calc;
         let pay = c.income || 0;
-        // Trade Hub: pays per penguin standing in this vendor's circle
+        // Trade Hub: pays per Bro standing in this vendor's circle
         if (c.tradeHub) {
           const r2 = (c.range || 0) ** 2;
           let near = 0;
@@ -540,8 +540,8 @@
       return out;
     }
 
-    /* How many mystic curses are riding on this sea lion right now — chill,
-       rot and the vulnerability mark. Read by the Aurora Mage's Resonance,
+    /* How many mystic curses are riding on this vacuum right now — chill,
+       rot and the vulnerability mark. Read by the Spark Mage's Resonance,
        which pays out for arriving second. Warden Kell's Corrosion leaves a rot,
        so it counts here without needing a case of its own. */
     debuffCount(e) {
@@ -556,22 +556,22 @@
       opts = opts || {};
       const c = tower ? tower.calc : {};
       let dmg = rawDmg * (tower ? tower.buff.dmg : 1);
-      // boss-killers earn their price against orcas too — see G.isLeviathan
-      if (c.bossBonus && G.isLeviathan(e)) dmg *= c.bossBonus;
-      // Stonebreaker: a pebble aimed at the plates rather than around them
+      // boss-killers earn their price against heavies too — see G.isHeavyweight
+      if (c.bossBonus && G.isHeavyweight(e)) dmg *= c.bossBonus;
+      // Stonebreaker: a brick aimed at the plates rather than around them
       if (c.vsArmored && e.armor > 0) dmg *= c.vsArmored;
       if (c.resonance) dmg += c.resonance * this.debuffCount(e);
-      /* Killing Frost — the game's only random damage roll, deliberately
+      /* Killing Strike — the game's only random damage roll, deliberately
          capstone-priced. A shuriken that finds something hiding always lands
          the crit, which is the Shadow Diver's whole reason to see stealth. */
       if (c.crit && ((c.crit.stealthAlways && e.stealth) || Math.random() < c.crit.p)) dmg *= c.crit.mult;
       if (!opts.pure && !c.armorPierce) {
-        // Heroic Ballad and friends let nearby penguins punch through blubber
+        // Heroic Ballad and friends let nearby Bros punch through casing
         const armor = Math.max(0, e.armor - (tower ? tower.buff.shred || 0 : 0));
         /* Armour can strip at most 90% of a shot, never all of it. This used to
            be a flat "at least 1 damage", which quietly rescued every weak shot
            and made "+1 damage" upgrades pointless against heavy armour: a
-           2-damage and a 3-damage penguin both dealt exactly 1 through 3
+           2-damage and a 3-damage Bro both dealt exactly 1 through 3
            armour, so the upgrade you just paid for changed nothing. A
            proportional floor keeps the original intent (no shot is ever
            completely wasted) while letting the upgrade matter. Shots with no
@@ -581,14 +581,14 @@
       }
       /* Vulnerability marks multiply LAST, after armour, because that is what
          "+30% damage from every source" has to mean to be worth its price —
-         marking a Colossus should raise the damage that actually lands on it,
-         not the damage its blubber then eats. */
+         marking a Floor Buffer should raise the damage that actually lands on it,
+         not the damage its casing then eats. */
       if (e.vulnUntil > this.time) dmg *= 1 + e.vulnAmt;
       e.hp -= dmg;
       if (tower && c.fx) this.applyFx(e, c.fx);
-      /* Prism Conduit and Miasma: what the bolt does to the sea lions the bolt
+      /* Prism Conduit and Miasma: what the bolt does to the vacuums the bolt
          did not hit. Kept here rather than at each firing site so every weapon
-         kind the Aurora Mage and Frost Witch can become carries it. */
+         kind the Spark Mage and Hex Witch can become carries it. */
       if (c.conduit) this.spreadCurse(e, c.conduit);
       if (c.miasma && c.fx) this.splashFx(e, c.miasma, c.fx);
       if (e.hp <= 0) this.killEnemy(e, tower);
@@ -629,8 +629,8 @@
     }
 
     applyFx(e, fx) {
-      /* Deep endless herds shrug off the chill (and the ice) — without this a
-         wave-150 sea lion sits pinned at a third speed forever and the wave
+      /* Deep endless packs shrug off the chill (and the ice) — without this a
+         wave-150 vacuum sits pinned at a third speed forever and the wave
          never resolves. Bosses resist on top of that, as they always did. */
       const resist = this.endless ? G.slowResist(this.wave) : 0;
       const soften = (f) => 1 - (1 - f) * (1 - resist);
@@ -647,16 +647,16 @@
       if (fx.shred && e.armor > 0) e.armor = Math.max(0, e.armor - fx.shred);
       /* Solar Judgment strips one plate a SECOND, not one per beam tick — the
          Sun Priest fires four times a second, so a plain shred would have
-         peeled an Ancient Leviathan bare in a second and a quarter. */
+         peeled an Central Unit bare in a second and a quarter. */
       if (fx.shredPerSec && e.armor > 0 && (e.shredReady || 0) <= this.time) {
         e.armor = Math.max(0, e.armor - fx.shredPerSec);
         e.shredReady = this.time + 1;
       }
-      // Deep Chill: slush holds a sea lion open, so every freeze that lands sticks longer
+      // Deep Chill: slush holds a vacuum open, so every freeze that lands sticks longer
       if (fx.frostbite) { e.frostMul = fx.frostbite; e.frostMulUntil = this.time + 3; }
       if (fx.stun) this.stunEnemy(e, fx.stun, resist);
       /* The freeze meter. A counter on the victim rather than a chance roll,
-         because "the third hit freezes it solid" was the whole Snowball Roller
+         because "the third hit freezes it solid" was the whole Boulder Knight
          fantasy and a 33% chance is a different, worse promise. */
       if (fx.freezeMeter) {
         e.frostHits = (e.frostHits || 0) + 1;
@@ -665,25 +665,25 @@
           this.stunEnemy(e, fx.freezeMeter.stun, resist);
         }
       }
-      /* Vulnerability marks. One field on the sea lion and one multiply where
+      /* Vulnerability marks. One field on the vacuum and one multiply where
          damage is dealt — six capstones share it. The strongest mark wins
          rather than adding, so stacking two markers is coverage, not a combo. */
       if (fx.mark) {
         if (e.vulnUntil <= this.time || fx.mark.amt >= e.vulnAmt) e.vulnAmt = fx.mark.amt;
         e.vulnUntil = Math.max(e.vulnUntil || 0, this.time + fx.mark.d);
       }
-      /* Knockback. A sea lion's progress is a distance along the trail, so
+      /* Knockback. A vacuum's progress is a distance along the track, so
          knocking it back is a subtraction — the field has simply never been
          written to before. Bosses budge a third as far. */
       if (fx.knock && (fx.knock.p >= 1 || Math.random() < fx.knock.p)) {
-        const back = fx.knock.d * (G.isLeviathan(e) ? 0.35 : 1) * (1 - resist);
+        const back = fx.knock.d * (G.isHeavyweight(e) ? 0.35 : 1) * (1 - resist);
         if (back > 0) {
           e.dist = Math.max(0, e.dist - back);
           this.effects.push({ kind: 'knock', e, life: 0.25, max: 0.25 });
         }
       }
-      // Leviathan Lance: bosses only. Stacks refresh the bleed, they don't multiply it.
-      if (fx.bleed && G.isLeviathan(e)) {
+      // Extractor Lance: bosses only. Stacks refresh the bleed, they don't multiply it.
+      if (fx.bleed && G.isHeavyweight(e)) {
         e.bleedPct = Math.max(e.bleedPct || 0, fx.bleed.pct);
         e.bleedUntil = Math.max(e.bleedUntil || 0, this.time + fx.bleed.d);
       }
@@ -691,13 +691,13 @@
 
     stunEnemy(e, secs, resist) {
       const boost = (e.frostMulUntil || 0) > this.time ? e.frostMul : 1;
-      e.stunUntil = Math.max(e.stunUntil, this.time + secs * boost * (G.isLeviathan(e) ? 0.25 : 1) * (1 - (resist || 0)));
+      e.stunUntil = Math.max(e.stunUntil, this.time + secs * boost * (G.isHeavyweight(e) ? 0.25 : 1) * (1 - (resist || 0)));
     }
 
     /* ----- ground zones -----
-       Lay a patch on the trail. `r: 0` in the definition means "as wide as the
-       penguin reaches", which is what the ring capstones (Hailfield, The
-       Anchored Eye) want. The list is capped because a fast penguin with a
+       Lay a patch on the track. `r: 0` in the definition means "as wide as the
+       Bro reaches", which is what the ring capstones (Hailfield, The
+       Anchored Eye) want. The list is capped because a fast Bro with a
        short-lived zone can otherwise put hundreds down inside a second. */
     dropZone(tower, x, y, radius) {
       const z = tower.calc.zone;
@@ -735,7 +735,7 @@
       if (this.zones.length > 160) this.zones.splice(0, this.zones.length - 160);
     }
 
-    /* Buffs with a clock on them — the Igloo's breach alarm, the War Drummer's
+    /* Buffs with a clock on them — the Brick Fort's breach alarm, the War Drummer's
        opening solo. Refreshed rather than duplicated, so an alarm that keeps
        tripping stays one entry. */
     pushTempAura(key, x, y, r, rate, dur) {
@@ -755,9 +755,9 @@
       return m;
     }
 
-    /* ----- a penguin's second job, on its own clock -----
-       Shard Bulwark, Drift Mines and Decoy Dive all put something on the trail
-       while the penguin keeps shooting, and Thunder Drums staggers on a beat
+    /* ----- a Bro's second job, on its own clock -----
+       Shard Bulwark, Drift Mines and Decoy Dive all put something on the track
+       while the Bro keeps shooting, and Thunder Drums staggers on a beat
        the drummer does not otherwise have. One timer serves all four. */
     auxTick(t, dt) {
       const a = t.calc.aux;
@@ -783,7 +783,7 @@
 
       const mine = this.piles.filter((p) => p.owner === t.id);
       if (mine.length >= (a.maxPiles || 3)) return;
-      const spot = this.pickTrailSpot(t, range);
+      const spot = this.pickTrackSpot(t, range);
       if (!spot) return;
       this.piles.push({
         x: spot.x, y: spot.y, owner: t.id,
@@ -793,8 +793,8 @@
       });
     }
 
-    // somewhere on the trail this penguin can actually reach
-    pickTrailSpot(t, range) {
+    // somewhere on the track this Bro can actually reach
+    pickTrackSpot(t, range) {
       const pos = this.towerPos(t);
       const spots = [];
       for (const path of this.paths) {
@@ -812,8 +812,8 @@
       this.kills++;                                     // leaks never reach here
       this.rankXp += this.endless ? G.ENDLESS_RANK_XP : 1;
       if (tower) tower.kills = (tower.kills || 0) + 1;
-      /* Hero XP. Every sea lion the colony fells counts, not only the ones the
-         hero shot — the hero is the champion the colony fights around, and
+      /* Hero XP. Every vacuum the workshop fells counts, not only the ones the
+         hero shot — the hero is the champion the workshop fights around, and
          crediting only its own kills would punish the two support heroes for
          doing their job. But it must be ON THE FIELD to earn: this is what
          "waves cleared while placed" used to mean. */
@@ -828,8 +828,8 @@
       const bounty = Math.max(1, Math.round(def.bounty * (this.level.bountyMult || 1) * G.PERK.bounty)
         + (this.bountyBonus || 0));   // Fresh Catch
       this.cash += bounty;
-      this.texts.push({ x: 0, y: 0, e, txt: '+' + bounty + '🐟', life: 0.9, kind: 'cash' });
-      // plague spread (Frost Witch — Plague of Brine)
+      this.texts.push({ x: 0, y: 0, e, txt: '+' + bounty + '🔩', life: 0.9, kind: 'cash' });
+      // plague spread (Hex Witch — Plague of Rust)
       if (tower && tower.calc.plague && e.dotDps > 0) {
         const ep = samplePath(this.paths[e.pathIdx], e.dist);
         for (const o of this.enemies) {
@@ -838,7 +838,7 @@
           if (dist2(ep.x, ep.y, op.x, op.y) < 70 * 70) this.applyFx(o, { dot: { dps: e.dotDps, d: 2 } });
         }
       }
-      /* Corrupted Ground — a sea lion that dies CURSED stains the trail. It
+      /* Corrupted Ground — a vacuum that dies CURSED stains the track. It
          asks the BOARD whether a witch is running the stain, not whoever landed
          the killing blow: the likeliest way to die cursed is to die OF the
          curse, and a rot tick kills with no tower credited at all. Hanging this
@@ -857,38 +857,38 @@
       if (e.boss) this.emit('bossDown', def.name);
     }
 
-    /* ----- Orcas devour the herds -----
-       Any ordinary sea lion that drifts into an orca's jaws is swallowed
+    /* ----- Heavies devour the packs -----
+       Any ordinary vacuum that drifts into an heavy's jaws is swallowed
        whole. The player gets nothing for it — no bounty, no XP, no splits,
-       and no life lost either; the sea lion simply ceases. The orca heals,
+       and no life lost either; the vacuum simply ceases. The heavy heals,
        but each meal is capped at a small slice of its own maximum, so a
-       feeding orca is a stalling problem rather than an immortal one.
+       feeding heavy is a stalling problem rather than an immortal one.
        Starving it — clearing the chaff first — is the counter-play. */
-    orcaEat() {
+    heavyEat() {
       let fed = false;
       for (const o of this.enemies) {
-        if (o.dead || !o.orca) continue;
+        if (o.dead || !o.heavy) continue;
         const maw = o.size * 0.9;
         const rate = G.ENEMIES[o.type].eat || 0.015;
-        /* Total healing is capped at 60% of the orca's own maximum, however
-           rich the herd is. Without it a big enough shoal could keep one
+        /* Total healing is capped at 60% of the heavy's own maximum, however
+           rich the pack is. Without it a big enough shoal could keep one
            topped up indefinitely; with it, feeding buys time and nothing more. */
         const budget = o.maxHp * 0.6 - (o.healed || 0);
         if (budget <= 0) continue;
         for (const e of this.enemies) {
-          if (e.dead || e === o || e.orca || e.boss) continue;
+          if (e.dead || e === o || e.heavy || e.boss) continue;
           if (e.pathIdx !== o.pathIdx) continue;
           if (e.rank > G.EDIBLE_RANK) continue;         // too big to swallow
           if (Math.abs(e.dist - o.dist) > maw) continue;
           e.dead = true;
           e.devoured = true;                            // pays nothing, splits nothing
-          /* The heal is a slice of the ORCA's bulk, not the meal's — late-game
-             sea lions are crumbs beside a Great Orca, so scaling off the meal
+          /* The heal is a slice of the HEAVY's bulk, not the meal's — late-game
+             vacuums are crumbs beside a Great Heavy, so scaling off the meal
              made this inert exactly where it mattered. Bigger prey still feeds
              better: a Brute is worth roughly twice a Pup. */
           const meal = o.maxHp * rate * (0.35 + 0.65 * (e.rank / G.EDIBLE_RANK));
           /* Only healing actually applied is charged against the budget — an
-             unhurt orca still swallows the sea lion, it just banks nothing,
+             unhurt heavy still swallows the vacuum, it just banks nothing,
              so a healthy one can't be "fed empty" before the shooting starts. */
           const given = Math.max(0, Math.min(meal, o.maxHp * 0.6 - (o.healed || 0), o.maxHp - o.hp));
           o.healed = (o.healed || 0) + given;
@@ -908,7 +908,7 @@
       if (!tower) return;
       const c = tower.calc;
       if (c.zone && !c.zoneAt) this.dropZone(tower, x, y);
-      // Cluster Ice: the chunk cracks apart and the halves fly on. Children
+      // Cluster Load: the chunk cracks apart and the halves fly on. Children
       // never cluster again, or one shell would seed an endless cascade.
       if (c.cluster && !pr.child) {
         const near = this.pickTargets(tower, { x, y }, (c.splash || 60) * 3.2, c.cluster.n + 1)
@@ -926,9 +926,9 @@
       }
     }
 
-    /* Ricochet — the pebble comes off the hide into whoever is standing close.
+    /* Ricochet — the brick comes off the shell into whoever is standing close.
        No new projectile: the bounce lands where it lands, which is what the
-       player sees, and a spawned pebble would have to be aimed at a body that
+       player sees, and a spawned brick would have to be aimed at a body that
        may already be dead by the time it arrives. */
     ricochet(tower, pr, from, fp) {
       let left = tower.calc.ricochet;
@@ -950,7 +950,7 @@
     }
 
     /* `bite` is the hero-ability share-of-the-animal (see G.heroBite): a
-       fraction of a leviathan's own maximum health, added on top of the flat
+       fraction of a heavyweight's own maximum health, added on top of the flat
        damage and only for the two abilities that reach their targets through a
        splash. `bitten` is an optional Set that survives across the several
        blasts of one cast, so a boss standing inside two of them takes the
@@ -983,7 +983,7 @@
 
     frenzyMult() { return this.time < this.frenzyUntil ? 1.5 : 1; }
 
-    /* ----- Second Chance: revive after defeat (pebble cost handled by the UI).
+    /* ----- Second Chance: revive after defeat (brick cost handled by the UI).
        Clears the field and restores full lives; the fatal wave replays. ----- */
     retry() {
       if (this.over !== 'lose') return false;
@@ -1001,7 +1001,7 @@
       return true;
     }
 
-    /* ----- Endless Tide: keep playing past the final scripted wave.
+    /* ----- Endless Shift: keep playing past the final scripted wave.
        The victory is already banked; from here waves scale without end. ----- */
     goEndless() {
       if (this.over !== 'win') return false;
@@ -1012,11 +1012,11 @@
       return true;
     }
 
-    /* ----- power-ups (pebble accounting lives in the UI) ----- */
+    /* ----- power-ups (brick accounting lives in the UI) ----- */
     usePower(id) {
       if (this.over) return { ok: false, msg: 'The battle is over.' };
       switch (id) {
-        case 'fishfeast':
+        case 'studdump':
           this.cash += 600;
           return { ok: true };
         case 'icespikes':
@@ -1060,7 +1060,7 @@
       if (c.kind === 'spikes') {
         const mine = this.piles.filter((p) => p.owner === t.id);
         if (mine.length >= c.maxPiles) return;
-        const p = this.pickTrailSpot(t, range);
+        const p = this.pickTrackSpot(t, range);
         if (!p) return;
         this.piles.push({
           x: p.x, y: p.y, charges: c.charges, max: c.charges, damage: c.spikeDmg, owner: t.id,
@@ -1104,7 +1104,7 @@
       const target = this.pickTarget(t, pos, range);
       if (!target) return;
       t.aim = Math.atan2(target.ep.y - pos.y, target.ep.x - pos.x);
-      // Double Launcher, Twin Auroras: one aim point per shot instead of one for all
+      // Double Launcher, Twin Sparks: one aim point per shot instead of one for all
       const aimPoints = c.multiTarget && (c.shots || 1) > 1
         ? this.pickTargets(t, pos, range, c.shots) : null;
 
@@ -1120,7 +1120,7 @@
           dmg += t.ramp;
         }
         for (let i = 0; i < shots; i++) {
-          this.effects.push({ kind: c.kind === 'ray' ? 'ray' : 'snipeTrail', x: pos.x, y: pos.y, tx: target.ep.x, ty: target.ep.y, life: 0.12, max: 0.12 });
+          this.effects.push({ kind: c.kind === 'ray' ? 'ray' : 'snipeTrack', x: pos.x, y: pos.y, tx: target.ep.x, ty: target.ep.y, life: 0.12, max: 0.12 });
           this.damageEnemy(target.e, dmg, t);
           // Scorched Path: the ground catches light where the beam lands
           if (c.zone && !c.zoneAt) this.dropZone(t, target.ep.x, target.ep.y);
@@ -1134,7 +1134,7 @@
           }
           /* chain harpoons / solar lance: bounce to extra targets. These kinds
              fire no projectile, so a pierce aura has to be added here or it
-             would silently do nothing for the Harpoon Sniper and Sun Priest. */
+             would silently do nothing for the Laser Sniper and Sun Priest. */
           let extra = (c.pierce || 1) - 1 + (t.buff.pierce || 0), last = target.e;
           while (extra-- > 0) {
             const lp = samplePath(this.paths[last.pathIdx], last.dist);
@@ -1161,7 +1161,7 @@
             const pick = aimPoints[Math.min(i, aimPoints.length - 1)] || target;
             tx = pick.ep.x; ty = pick.ep.y;
           } else if (c.walk) {
-            /* Rolling Barrage — three shells WALKED along the trail rather than
+            /* Rolling Barrage — three shells WALKED along the track rather than
                scattered around it, so the volley covers a stretch of lane. */
             const path = this.paths[target.e.pathIdx];
             const d = target.e.dist + (i - (shots - 1) / 2) * c.walk;
@@ -1207,7 +1207,7 @@
           });
         }
         /* Wolfpack Salvo — every third launch, a fan of light torpedoes that
-           each pick a different sea lion. Counted per penguin, so two subs do
+           each pick a different vacuum. Counted per Bro, so two subs do
            not share a rhythm. */
         if (c.salvo && ((t.salvoN = (t.salvoN || 0) + 1) % c.salvo.every === 0)) {
           const fan = this.pickTargets(t, pos, range, c.salvo.n);
@@ -1256,7 +1256,7 @@
         if (e.slowUntil <= this.time) e.slowF = 1;
         if (e.regen && e.hp < e.maxHp) e.hp = Math.min(e.maxHp, e.hp + e.regen * dt);
         if (e.dotUntil > this.time) e.hp -= e.dotDps * dt;
-        // Leviathan Lance: the barb keeps working on the big ones
+        // Extractor Lance: the barb keeps working on the big ones
         if (e.bleedUntil > this.time) e.hp -= e.maxHp * e.bleedPct * dt;
         if (e.hp <= 0) { this.killEnemy(e, null); continue; }
         const path = this.paths[e.pathIdx];
@@ -1267,7 +1267,7 @@
           this.emit('leak', e.type);
           continue;
         }
-        /* One position, three checks. Sampling the trail is the hot call in
+        /* One position, three checks. Sampling the track is the hot call in
            this loop, and decloak zones, ground zones and spike piles were all
            asking for it separately. */
         if (!decloakers.length && !this.zones.length && !this.piles.length) continue;
@@ -1277,7 +1277,7 @@
           for (const s of decloakers) {
             if (dist2(s.x, s.y, ep.x, ep.y) > s.calc.range * s.calc.range) continue;
             e.revealUntil = this.time + 0.5;
-            // Full Decloak: what the whole colony can see, it hits harder
+            // Full Decloak: what the whole crew can see, it hits harder
             if (s.calc.revealMark) this.applyFx(e, { mark: { amt: s.calc.revealMark, d: 1 } });
             break;
           }
@@ -1305,7 +1305,7 @@
           p.charges--;
           if (p.regrow) p.grindUntil = this.time + 1;
           if (p.mine) {
-            // Drift Mines: the first sea lion over it sets the whole thing off
+            // Drift Mines: the first vacuum over it sets the whole thing off
             p.charges = 0;
             this.splashAt(p.x, p.y, p.mine, p.damage, null, 12);
           } else if (p.hold) {
@@ -1321,10 +1321,10 @@
           if (e.dead) break;
         }
       }
-      this.orcaEat();
+      this.heavyEat();
       this.enemies = this.enemies.filter((e) => !e.dead);
 
-      /* Living Ice: a wall being ground down grows a spike back every second,
+      /* Self-Repairing: a wall being ground down grows a spike back every second,
          so long as something is still grinding on it. A wall spent to nothing
          is gone — regrowth keeps a wall standing, it does not resurrect one. */
       for (const p of this.piles) {
@@ -1418,7 +1418,7 @@
             pr.grew = want;
           }
         }
-        // Icy Wake: the trail polishes over into ice behind the roll
+        // Icy Wake: the track polishes over into ice behind the roll
         if (pr.wake && pr.traveled - (pr.lastWake || 0) > 30) {
           pr.lastWake = pr.traveled;
           const ow = this.towers.find((t) => t.id === pr.owner);
@@ -1434,7 +1434,7 @@
           if (dist2(pr.x, pr.y, ep.x, ep.y) < (e.size + 6) ** 2) {
             if (pr.splash > 0) {
               pr.dead = true;
-              /* the sea lion the shell actually struck always takes the hit —
+              /* the vacuum the shell actually struck always takes the hit —
                  big bodies used to shrug off blasts that burst on their rim,
                  outside the blast's own center-measured radius */
               this.damageEnemy(e, pr.damage, owner);
@@ -1471,7 +1471,7 @@
       // wave end
       if (this.waveInProgress && !this.spawnQueue.length && !this.enemies.length) {
         this.waveInProgress = false;
-        // Keen Scouts (colony perk) and Cold Storage (a vendor on the board)
+        // Keen Scouts (workshop perk) and Cold Storage (a vendor on the board)
         const wr = Math.round(this.waveReward * G.PERK.reward * (1 + (this.waveBonus || 0)));
         this.cash += wr;
         let earned = wr;
@@ -1548,10 +1548,10 @@
       }
       g.heroReadyAt = g.time + (data.heroReadyIn || 0);
       for (const td of data.towers) {
-        /* Saves written when penguins had two paths carry a two-slot array.
+        /* Saves written when Bros had two paths carry a two-slot array.
            Padding it leaves those towers exactly as they were — the third path
            simply starts empty, and the rule of two then treats them like any
-           other penguin with one or two paths already going. */
+           other Bro with one or two paths already going. */
         const up = [td.up[0] || 0, td.up[1] || 0, td.up[2] || 0];
         const t = {
           id: nextId++, type: td.type, x: td.x, y: td.y, up, target: td.target,

@@ -1,7 +1,7 @@
 {
-  "name": "Tundra Defense",
-  "short_name": "Tundra",
-  "description": "Penguins vs. Sea Lions — a tower defense game.",
+  "name": "Brix and Bros",
+  "short_name": "Brix",
+  "description": "Bros vs. Vacuums — a tower defense game.",
   "start_url": "./",
   "display": "fullscreen",
   "orientation": "landscape",

@@ -1,4 +1,4 @@
-/* Tundra Defense — wave generation.
+/* Brix and Bros — wave generation.
    generateWave(levelIdx 0-29, wave 1-50) -> { groups, reward }
    Each group: { type, count, spacing (s between spawns), delay (s after prior group), path } */
 (function () {
@@ -9,7 +9,7 @@
   G.generateWave = function (li, w) {
     /* Density grows with wave and with the level's position *within its tier* —
        each tier ramps like a fresh campaign, plus a flat step up per tier.
-       (Using the absolute index would field 5× herds by level 30.) */
+       (Using the absolute index would field 5× packs by level 30.) */
     const L = G.LEVELS[li] || {};
     const slot = L.slot == null ? li : L.slot;
     const tier = L.tier || 1;
@@ -42,7 +42,7 @@
       case w === 17: g('speedster', 14 * d, 0.4); break;
       case w === 18: g('armored', 9 * d, 0.8); g('stealth', 8 * d, 0.6); break;
       case w === 19: g('regen', 9 * d, 0.9); g('adult', 10 * d, 0.5); break; // regen debut
-      case w === 20: // BOSS: the first Beachmaster
+      case w === 20: // BOSS: the first Carpet Cleaner
         g('beachmaster', 1, 1, { hpMult: 1 });
         if (esc >= 1) g('bull', 6 * d, 0.6, { delay: 2.5 });
         if (esc >= 4) g('stealth', 8 * d, 0.5, { delay: 1.5 });
@@ -57,7 +57,7 @@
       case w === 27: g('brute', 4 * d, 1.6); g('bull', 12 * d, 0.5); break; // brute debut
       case w === 28: g('armored', 13 * d, 0.55); g('regen', 10 * d, 0.6); break;
       case w === 29: g('juvenile', 40 * d, 0.12); g('speedster', 12 * d, 0.4); break;
-      case w === 30: // BOSS: Beachmaster pair
+      case w === 30: // BOSS: Carpet Cleaner pair
         g('beachmaster', 2, 3.5, { hpMult: 1.6 });
         g('brute', 3 * d, 1.2, { delay: 2 });
         if (esc >= 3) g('beachmaster', 1, 1, { hpMult: 1.6, delay: 3 });
@@ -72,7 +72,7 @@
       case w === 37: g('armored', 18 * d, 0.4); g('speedster', 14 * d, 0.3); break;
       case w === 38: g('beachmaster', 2, 4, { hpMult: 2.2 }); g('stealth', 14 * d, 0.4, { delay: 2 }); break;
       case w === 39: g('brute', 12 * d, 0.8); g('regen', 14 * d, 0.45); break;
-      case w === 40: // BOSS: the Colossus surfaces
+      case w === 40: // BOSS: the Floor Buffer surfaces
         g('colossus', 1, 1, { hpMult: 1 });
         if (esc >= 2) g('beachmaster', 1, 1, { hpMult: 2.2, delay: 4 });
         if (esc >= 5) g('brute', 6 * d, 0.9, { delay: 2 });
@@ -102,39 +102,39 @@
         /* ---- ENDLESS — wave 51 and beyond ----
            The scripted campaign is over; the sea sends everything it has left.
            Toughness compounds every wave (so every endless run ends someday),
-           while herd sizes stay capped so the field never floods. */
+           while pack sizes stay capped so the field never floods. */
         const depth = Math.max(1, w - 50);
         /* Toughness compounds more gently than it used to (was 1.05/1.07) —
            the rest of the escalation now comes from G.endlessSpeed, because
-           fat slow sea lions made waves long rather than hard. */
+           fat slow vacuums made waves long rather than hard. */
         const hp = Math.pow(1.04, depth);        // regulars: +4% compounding per wave
         const bossHp = Math.pow(1.055, depth);   // bosses ramp harder still
         const sp = Math.max(0.45, 1 - depth * 0.008); // spawns pack tighter with depth
         const n = (base) => Math.min(60, R(base * d));
 
-        /* ---- the tide turns at wave 71: orcas join the hunt ----
-           They arrive alongside the herds, never instead of them — the sea
-           lions still carry the stealth/armour/regen problems the roster is
-           built to answer, while the orca is the slab you must actually break.
+        /* ---- the tide turns at wave 71: heavies join the hunt ----
+           They arrive alongside the packs, never instead of them — the
+           vacuums still carry the stealth/armour/regen problems the roster is
+           built to answer, while the heavy is the slab you must actually break.
            Their own scaling is gentler (1.035) because their base HP is already
-           enormous and they heal by eating; the sea lions around them still
+           enormous and they heal by eating; the vacuums around them still
            ramp at the usual rate. */
-        if (w >= G.ORCA_WAVE) {
-          const oDepth = w - G.ORCA_WAVE + 1;
+        if (w >= G.HEAVY_WAVE) {
+          const oDepth = w - G.HEAVY_WAVE + 1;
           const oHp = Math.pow(1.035, oDepth);
           const century = w % 100 === 0;
           if (century) {
-            // the leviathan of the deep: one KILLER WHALE, with an escort
-            g('orca_king', 1, 10, { hpMult: Math.pow(1.05, w - 100) || 1 });
-            g('orca_great', 2, 7, { hpMult: oHp * 0.6, delay: 6 });
+            // the biggest machine in the room: one MEGAVAC, with an escort
+            g('heavy_king', 1, 10, { hpMult: Math.pow(1.05, w - 100) || 1 });
+            g('heavy_great', 2, 7, { hpMult: oHp * 0.6, delay: 6 });
           } else if (w >= 91) {
-            g('orca_great', Math.min(5, 1 + Math.floor((w - 91) / 3)), 6, { hpMult: oHp });
+            g('heavy_great', Math.min(5, 1 + Math.floor((w - 91) / 3)), 6, { hpMult: oHp });
           } else if (w >= 81) {
-            g('orca_bull', Math.min(6, 2 + Math.floor((w - 81) / 3)), 5, { hpMult: oHp });
+            g('heavy_bull', Math.min(6, 2 + Math.floor((w - 81) / 3)), 5, { hpMult: oHp });
           } else {
-            g('orca_young', Math.min(8, 2 + Math.floor((w - 71) / 2)), 4, { hpMult: oHp });
+            g('heavy_young', Math.min(8, 2 + Math.floor((w - 71) / 2)), 4, { hpMult: oHp });
           }
-          /* Chum: the herd the orcas swim through (and feed on).
+          /* Chum: the pack the heavies swim through (and feed on).
              It carries the stealth and the regenerators as well as the muscle,
              because the note above this branch promised it did and the code did
              not: from wave 71 the deep game fielded nothing hidden and
@@ -143,7 +143,7 @@
              one owner per class — quietly stopped mattering in the deepest
              content in the game, along with the Shadow Diver's stealth-crit.
              The bull and armoured counts come down to pay for them: the point
-             is a wider spread of problems, not a bigger herd. */
+             is a wider spread of problems, not a bigger pack. */
           g('bull', n(9), 0.35 * sp, { hpMult: hp, delay: 2 });
           g('armored', n(8), 0.4 * sp, { hpMult: hp, delay: 1.5 });
           g('stealth', n(7), 0.45 * sp, { hpMult: hp, delay: 2.5 });
@@ -153,7 +153,7 @@
         }
 
         if (w % 10 === 0) {
-          // boss court every 10th wave — colossi first, leviathans from wave 80
+          // boss court every 10th wave — Floor Buffers first, Central Units from wave 80
           if (w >= 80) {
             g('leviathan', Math.min(3, 1 + Math.floor((w - 80) / 30)), 8, { hpMult: bossHp * 0.5 });
             g('colossus', 2, 6, { hpMult: bossHp * 0.4, delay: 5 });
@@ -177,7 +177,7 @@
       }
     }
 
-    // later tiers pay richer purses to match their far tougher herds
+    // later tiers pay richer purses to match their far tougher packs
     return { groups, reward: Math.round((100 + w * 3) * (L.bountyMult || 1)) };
   };
 })();

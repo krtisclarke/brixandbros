@@ -1,4 +1,4 @@
-/* Tundra Defense — DOM UI: RTS-style command dock, hotkeys, menus, persistence, sound */
+/* Brix and Bros — DOM UI: RTS-style command dock, hotkeys, menus, persistence, sound */
 (function () {
   const G = (globalThis.G = globalThis.G || {});
   const $ = (sel) => document.querySelector(sel);
@@ -28,9 +28,9 @@
     node._html = html;
     node.innerHTML = html;
   };
-  // in-match currency is fish 🐟 (recruiting); pebbles 🪨 are the meta-currency
-  const fmt = (n) => '🐟' + Math.round(n).toLocaleString();
-  const num = (n) => Math.round(n).toLocaleString();   // a count, not a fish price
+  // in-match currency is studs 🔩 (recruiting); bricks 🧱 are the meta-currency
+  const fmt = (n) => '🔩' + Math.round(n).toLocaleString();
+  const num = (n) => Math.round(n).toLocaleString();   // a count, not a stud price
   /* Compact form for the selection card's stat line, which is one line by
      decree and has no room to grow. Deep endless drives hero damage into five
      and six figures and a long run's kill count with it — spelled out, those
@@ -86,10 +86,10 @@
     const p = store.get(PROFILE_KEY, {});
     // backfill every key a profile written by an older build might be missing
     if (!(p.unlocked > 0)) p.unlocked = 1;
-    if (p.pebbles == null) p.pebbles = 0;
+    if (p.bricks == null) p.bricks = 0;
     if (!p.completed) p.completed = {};
     if (!p.bestWave) p.bestWave = {};
-    if (!p.endlessBest) p.endlessBest = {};   // per-level record wave in Endless Tide
+    if (!p.endlessBest) p.endlessBest = {};   // per-level record wave in Endless Shift
     if (!p.diffDone) p.diffDone = {};
     if (!p.powerInv) p.powerInv = {};
     if (!p.heroes) p.heroes = { hero_frost: true };  // the Captain serves for free
@@ -98,15 +98,15 @@
     if (p.musicVol == null) p.musicVol = 0.7;
     if (p.sfxVol == null) p.sfxVol = 1;
     if (p.heroSel === undefined) p.heroSel = 'hero_frost'; // null = fight heroless
-    if (!p.colony) p.colony = {};                    // permanent Colony Upgrades tiers
-    /* Colony rank. Profiles from the battlefields-defended era are seeded with
+    if (!p.workshop) p.workshop = {};                    // permanent Workshop Upgrades tiers
+    /* Builder rank. Profiles from the battlefields-defended era are seeded with
        the XP for the rank their wins had already earned (that drip gave five
-       starters + two per battlefield), so nobody loses a penguin they had. */
+       starters + two per battlefield), so nobody loses a Bro they had. */
     if (p.xp == null) {
       const grandfathered = Math.min(G.MAX_RANK, 1 + G.defendedCount(p) * 2);
       p.xp = G.xpForRank(grandfathered);
     }
-    G.applyColony(p.colony);                         // perks live in G.PERK from here on
+    G.applyWorkshop(p.workshop);                         // perks live in G.PERK from here on
     // legacy profiles: a completed level was a 50-wave campaign → credit it as Hard
     for (const id in p.completed) {
       if (p.completed[id] && !p.diffDone[id]) p.diffDone[id] = { hard: true };
@@ -230,7 +230,7 @@
     $('#btn-cancel-place').classList.toggle('show', on);
     /* The placement hint. This used to be the selection card's job, but that
        card is a full-height column now — a third of the battlefield going dark
-       to say a penguin's name and two keys. One line along the bottom of the
+       to say a Bro's name and two keys. One line along the bottom of the
        map instead, where the cancel button already lives.
 
        Touch gets the name only: there is no shift and no esc on a phone, and
@@ -240,9 +240,9 @@
     /* setHTML, not innerHTML. setHTML remembers the last string it wrote to a
        node and skips the write when nothing changed; emptying the node behind
        its back left it remembering a sentence that was no longer there. So
-       picking up the SAME penguin a second time was a no-op — the pill opened
+       picking up the SAME Bro a second time was a no-op — the pill opened
        along the bottom of the map with nothing written in it, and stayed empty
-       for as long as the penguin was in hand. Every route out of a placement
+       for as long as the Bro was in hand. Every route out of a placement
        comes through here, so this was every placement after the first. */
     if (!on) { setHTML(hint, ''); return; }
     const def = G.TOWERS[g.placingType];
@@ -253,15 +253,15 @@
          · hold <kbd>shift</kbd> to place several · <kbd>esc</kbd> cancel`);
   }
 
-  /* Tray slots, touch: hold shows the penguin's description card; drag out of
-     the dock and you are carrying the penguin — the card vanishes, the ghost
+  /* Tray slots, touch: hold shows the Bro's description card; drag out of
+     the dock and you are carrying the Bro — the card vanishes, the ghost
      follows the finger, and lifting on the map places it. A quick tap still
      arms for tap-then-drag. Vertical strokes stay with the browser (tray
      scrolling): touch-action pan-y makes those fire pointercancel here. */
   /* Where the control column starts. #dock cannot answer this any more: it is
      display:contents in the only layout there is, so it generates no box and
      getBoundingClientRect() returns all zeros. That silently broke dragging a
-     penguin out of the tray on a phone — the drag begins when the finger
+     Bro out of the tray on a phone — the drag begins when the finger
      crosses the column's left edge, and the edge was reported as 0, so the
      finger could never be left of it. The tray is a real element in that
      column and spans its full width, so it is the one to ask. */
@@ -324,11 +324,11 @@
   window.addEventListener('scroll', invalidateRects, true);
   window.addEventListener('orientationchange', invalidateRects);
 
-  /* Is this point on the cancel button? Used while a penguin is being carried,
+  /* Is this point on the cancel button? Used while a Bro is being carried,
      because the tray slot holds an implicit pointer capture for the whole drag
      — every move and the lift are delivered to the SLOT, so the button never
-     sees them and its own click never fires. Dropping a penguin on the big red
-     cancel button used to place the penguin underneath it, which is the exact
+     sees them and its own click never fires. Dropping a Bro on the big red
+     cancel button used to place the Bro underneath it, which is the exact
      opposite of what it says. A little slop, because fingers are not precise. */
   function overCancelBtn(x, y) {
     const b = $('#btn-cancel-place');
@@ -339,7 +339,7 @@
     return x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
   }
 
-  /* Is this point back inside the dock column? Dragging a penguin out and then
+  /* Is this point back inside the dock column? Dragging a Bro out and then
      back into the tray means "never mind", the same as dropping it on cancel —
      there is nowhere in the column it could sensibly be placed. */
   function overTray(x) { return x >= columnLeft() - 4; }
@@ -348,7 +348,7 @@
 
      This is the rule, stated exactly: cast a ray from where the finger started,
      along the direction it is moving, and ask whether it enters the map. If it
-     does, the player is pulling a penguin out. If it does not — straight down
+     does, the player is pulling a Bro out. If it does not — straight down
      the tray, up the tray, off to the right — it is a scroll.
 
      It answers the question properly rather than with an angle threshold,
@@ -430,7 +430,7 @@
       }, 200);
     });
 
-    /* Pick the penguin up. Returns false when it cannot be taken, so the caller
+    /* Pick the Bro up. Returns false when it cannot be taken, so the caller
        knows not to claim the gesture. */
     function beginCarry() {
       const g = UI.game;
@@ -465,7 +465,7 @@
       if (carrying) {
         g.mouse = canvasPos(ev);
         /* Both ways out light up as the finger passes over them, so it is clear
-           before letting go that this drop puts the penguin back rather than
+           before letting go that this drop puts the Bro back rather than
            placing it: the cancel button, and the tray it came from. */
         const back = overCancelBtn(ev.clientX, ev.clientY);
         const home = overTray(ev.clientX);
@@ -518,8 +518,8 @@
       $('#palette').classList.remove('returning');
       if (mode === 'scroll') { glideTray(vy); mode = null; carrying = false; return; }
       /* Two ways to change your mind, and they are the two places a player
-         would try: the cancel button, and the tray the penguin came out of.
-         Neither spends a fish. Dropping it back where you got it is the more
+         would try: the cancel button, and the tray the Bro came out of.
+         Neither spends a stud. Dropping it back where you got it is the more
          natural of the two — there is nothing in the column it could be placed
          on anyway, so a drop there could only ever have meant "never mind". */
       if (carrying && g && g.placingType === id
@@ -539,13 +539,13 @@
           g.placingType = null;
           g.mouse = { x: -999, y: -999 };
         } else {
-          /* A bad spot keeps the penguin in hand rather than sending it back to
-             the tray. Letting go over a rock or the trail used to mean starting
+          /* A bad spot keeps the Bro in hand rather than sending it back to
+             the tray. Letting go over a rock or the track used to mean starting
              the whole drag again, which is most of a fiddly placement's misery.
              Held is exactly the state tap-to-arm leaves behind, so the ghost
              stays under the finger with its red X and the next touch anywhere
              on the map tries again — no new machinery, and the cancel button is
-             already the way out. No fish are ever spent on a failed drop. */
+             already the way out. No studs are ever spent on a failed drop. */
           sfx.error(); buzz(30);
         }
         syncCancelBtn(); renderDockSel(); updateHud();
@@ -574,7 +574,7 @@
   }
 
   /* Long-press stands in for hover: it opens the same tooltip and swallows the
-     tap that would otherwise have armed the penguin. */
+     tap that would otherwise have armed the Bro. */
   function attachLongPress(el, showFn) {
     let timer = null, fired = false, sx = 0, sy = 0;
     const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
@@ -655,7 +655,7 @@
     $('#overlay').style.display = id ? 'flex' : 'none';
     /* A menu covers the game, and the selection card is part of the game. It
        sits at z-index 45 against the overlay's 20, so a battle that ended with
-       a penguin selected drew its upgrade card across the victory screen with
+       a Bro selected drew its upgrade card across the victory screen with
        the dock still hidden behind it. Raising the overlay instead would have
        put it over the toasts and the fullscreen button too, which is a bigger
        change than the problem. */
@@ -666,12 +666,12 @@
       closeConfirm();
       /* And drop the selection with it, or the game comes back from the menu
          believing a card is open that is not on screen — which leaves the panel
-         shut until you tap a DIFFERENT penguin, because the poll only redraws
+         shut until you tap a DIFFERENT Bro, because the poll only redraws
          when the selection changes. */
       if (UI.game) UI.game.selected = null;
     }
     // every menu screen carries a pebble chip — keep them all current
-    for (const b of document.querySelectorAll('.js-pebbles')) b.textContent = UI.profile.pebbles.toLocaleString();
+    for (const b of document.querySelectorAll('.js-bricks')) b.textContent = UI.profile.bricks.toLocaleString();
     syncRankChips();
   }
 
@@ -730,7 +730,7 @@
       const file = new File([blob], name, { type: 'application/json' });
       if (navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], title: 'Tundra Defense progress' });
+          await navigator.share({ files: [file], title: 'Brix and Bros progress' });
           toast('Progress backed up 💾');
           return;
         } catch (e) {
@@ -775,7 +775,7 @@
   function buildMainMenu() {
     $('#btn-play').onclick = () => { buildLevelSelect(); show('#screen-levels'); };
     $('#btn-shop').onclick = () => buildShop('#screen-menu');
-    $('#btn-colony').onclick = () => buildColony('#screen-menu');
+    $('#btn-workshop').onclick = () => buildWorkshop('#screen-menu');
     $('#btn-heroes').onclick = () => { buildHeroRow($('#hero-row-menu')); show('#screen-heroes'); };
     $('#btn-heroes-back').onclick = () => show('#screen-menu');
     $('#btn-guide').onclick = () => buildGuide('#screen-menu');
@@ -873,7 +873,7 @@
         <div class="lvl-meta">
           ${diffBadges}
           ${best && !p.completed[L.id] ? `<span class="badge">Best: wave ${best}</span>` : ''}
-          ${p.endlessBest[L.id] ? `<span class="badge" title="Endless Tide record — keep going after a victory to beat it">🌊 Endless: wave ${p.endlessBest[L.id]}</span>` : ''}
+          ${p.endlessBest[L.id] ? `<span class="badge" title="Endless Shift record — keep going after a victory to beat it">🔁 Endless: wave ${p.endlessBest[L.id]}</span>` : ''}
           ${save ? '<span class="badge save">💾 Saved game</span>' : ''}
         </div>`;
       card.appendChild(body);
@@ -917,7 +917,7 @@
   /* ---------- difficulty select ---------- */
   function openDiffSelect(levelIdx) {
     const L = G.LEVELS[levelIdx];
-    $('#diff-sub').textContent = `${L.name} — how hard should the herds hit?`;
+    $('#diff-sub').textContent = `${L.name} — how hard should the packs hit?`;
     const grid = $('#diff-grid');
     grid.innerHTML = '';
     for (const dId of G.DIFF_ORDER) {
@@ -936,14 +936,14 @@
           <li><b>${D.waves}</b> waves</li>
           <li><b>${G.scaleLives(L.lives, dId)}</b> lives</li>
           <li>${priceLine}</li>
-          <li class="diff-reward">win: +${D.pebbles} 🪨 · retry: ${G.scaleRetry(D.retryCost)} 🪨</li>
+          <li class="diff-reward">win: +${D.bricks} 🧱 · retry: ${G.scaleRetry(D.retryCost)} 🧱</li>
         </ul>`}`;
       if (!locked) card.onclick = () => startGame(levelIdx, null, dId);
       grid.appendChild(card);
     }
     buildHeroRow($('#hero-row'));
     $('#btn-diff-shop').onclick = () => buildShop('#screen-diff');
-    $('#btn-diff-colony').onclick = () => buildColony('#screen-diff');
+    $('#btn-diff-workshop').onclick = () => buildWorkshop('#screen-diff');
     $('#btn-diff-back').onclick = () => show('#screen-levels');
     show('#screen-diff');
   }
@@ -978,20 +978,20 @@
           buildHeroRow(row);
         };
       } else {
-        const afford = p.pebbles >= H.pebbles;
-        const btn = el('button', 'btn small' + (afford ? ' primary' : ''), `Recruit · ${H.pebbles.toLocaleString()} 🪨`);
+        const afford = p.bricks >= H.bricks;
+        const btn = el('button', 'btn small' + (afford ? ' primary' : ''), `Recruit · ${H.bricks.toLocaleString()} 🧱`);
         btn.disabled = !afford;
         if (!afford) card.appendChild(el('div', 'hc-state', 'win battles to afford them'));
         btn.onclick = (ev) => {
           ev.stopPropagation();
-          if (p.pebbles < H.pebbles) return;
-          if (!confirm(`Recruit ${def.name} for ${H.pebbles.toLocaleString()} 🪨 pebbles? Heroes are yours forever.`)) return;
-          p.pebbles -= H.pebbles;
+          if (p.bricks < H.bricks) return;
+          if (!confirm(`Recruit ${def.name} for ${H.bricks.toLocaleString()} 🧱 bricks? Heroes are yours forever.`)) return;
+          p.bricks -= H.bricks;
           p.heroes[id] = true;
           p.heroSel = id;
           putProfile(p);
           sfx.win();
-          toast(`⭐ ${def.name} joins the colony!`);
+          toast(`⭐ ${def.name} joins the workshop!`);
           rescreen();               // pebble chips update wherever we are
           buildHeroRow(row);
         };
@@ -1063,9 +1063,9 @@
 
      Three things have to happen around it, none of which startGame does:
        · bank the XP first. Kills are only banked at the end of a wave, so
-         everything felled since then is unbanked, and the colony rank that
-         recruits new penguins is built from exactly those kills. The game's
-         standing rule is that a sea lion felled is never forfeited, defeat
+         everything felled since then is unbanked, and the builder rank that
+         recruits new Bros is built from exactly those kills. The game's
+         standing rule is that a vacuum felled is never forfeited, defeat
          included, and a restart should not be the one exception.
        · delete the save. It is keyed on the level alone and startGame does not
          touch it, so the abandoned run would still be sitting there offering
@@ -1104,12 +1104,12 @@
       sfx.wave();
       // +1% tempo per wave, but the march stops getting faster at wave 75
       G.music.setTempoScale(G.tempoForWave(payload));
-      if (g.endless && payload === G.ORCA_WAVE) {
+      if (g.endless && payload === G.HEAVY_WAVE) {
         sfx.boss();
-        banner('🌊 THE TIDE COMES IN — the orcas have found you');
-        toast('The trails have flooded. Orcas hunt the herds and the colony alike — and every sea lion they swallow heals them.', 'bad');
+        banner('🔁 THE BIG MACHINES ARRIVE — the heavies have found you');
+        toast('The board has come apart. Heavies hunt the packs and the workshop alike — and every vacuum they swallow heals them.', 'bad');
       } else {
-        banner(g.endless ? `🌊 Wave ${payload} — the tide rises` : `Wave ${payload} / ${g.totalWaves}`);
+        banner(g.endless ? `🔁 Wave ${payload} — the shift drags on` : `Wave ${payload} / ${g.totalWaves}`);
       }
       const spec = G.generateWave(g.levelIdx, payload);
       if (spec.groups.some((gr) => G.ENEMIES[gr.type].boss)) { sfx.boss(); banner(`⚠ Wave ${payload} — something huge is coming…`); }
@@ -1126,13 +1126,13 @@
         if (payload.wave % 100 === 0) {
           const D = G.DIFFICULTIES[g.diffId];
           const bonus = D.drip * 10;
-          p.pebbles += bonus;
-          banner(`🌊 Wave ${payload.wave} — the tide bows to you`);
-          toast(`🏆 Century! Wave ${payload.wave} survived: +${bonus} 🪨 pebbles`);
+          p.bricks += bonus;
+          banner(`🔁 Wave ${payload.wave} — the shift bows to you`);
+          toast(`🏆 Century! Wave ${payload.wave} survived: +${bonus} 🧱 bricks`);
         } else if (payload.wave % 10 === 0) {
           const D = G.DIFFICULTIES[g.diffId];
-          p.pebbles += D.drip;
-          toast(`🌊 Wave ${payload.wave} survived! +${D.drip} 🪨 pebbles`);
+          p.bricks += D.drip;
+          toast(`🔁 Wave ${payload.wave} survived! +${D.drip} 🧱 bricks`);
         } else {
           toast(`Wave ${payload.wave} cleared! +${fmt(payload.earned)}`);
         }
@@ -1162,20 +1162,20 @@
       banner(`☠ ${payload} down!`);
     } else if (kind === 'victory') {
       G.music.stop();
-      bankXp();          // the final wave's sea lions count too
+      bankXp();          // the final wave's vacuums count too
       sfx.win();
       const p = UI.profile;
       const D = G.DIFFICULTIES[g.diffId];
       p.completed[g.level.id] = true;
       p.diffDone[g.level.id] = Object.assign({}, p.diffDone[g.level.id], { [g.diffId]: true });
       p.bestWave[g.level.id] = Math.max(p.bestWave[g.level.id] || 0, g.totalWaves);
-      p.pebbles += D.pebbles;
+      p.bricks += D.bricks;
       putProfile(p);
       store.del(saveKey(g.levelIdx));
 
-      // who earned their fish this battle?
+      // who earned their studs this battle?
       const top = [...g.towers].sort((a, b) => (b.kills || 0) - (a.kills || 0))[0];
-      const topLine = top && top.kills ? ` Top defender: ${G.TOWERS[top.type].name} — ${top.kills.toLocaleString()} sea lions.` : '';
+      const topLine = top && top.kills ? ` Top defender: ${G.TOWERS[top.type].name} — ${top.kills.toLocaleString()} vacuums.` : '';
 
       // say what this win actually opened up on this difficulty
       const nextTier = G.TIERS.find((T) => T.id === g.level.tier + 1);
@@ -1185,25 +1185,25 @@
       } else if (g.levelIdx + 1 < G.LEVELS.length && G.levelUnlocked(p, g.levelIdx + 1, g.diffId)) {
         opened = ` "${G.LEVELS[g.levelIdx + 1].name}" is now open on ${D.name}.`;
       } else if (!nextTier && G.tierLevels(g.level.tier).every((L) => G.beatenAtLeast(p, L.id, g.diffId))) {
-        opened = ` You have cleared the whole campaign on ${D.name}. The sea lions have given up!`;
+        opened = ` You have cleared the whole campaign on ${D.name}. The vacuums have given up!`;
       }
 
       $('#btn-retry').style.display = 'none';
       const eb = $('#btn-endless');
       eb.style.display = 'block';
       const rec = p.endlessBest[g.level.id] || 0;
-      eb.innerHTML = `🌊 Keep Going — Endless Tide${rec ? ` · record: wave ${rec}` : ''}`;
-      eb.title = 'The waves keep coming, tougher every time, until the colony falls. Your victory is already banked.';
+      eb.innerHTML = `🔁 Keep Going — Endless Shift${rec ? ` · record: wave ${rec}` : ''}`;
+      eb.title = 'The waves keep coming, tougher every time, until the workshop falls. Your victory is already banked.';
       eb.onclick = keepGoing;
-      $('#end-title').textContent = '🏆 Colony Defended!';
+      $('#end-title').textContent = '🏆 Build Defended!';
       $('#end-sub').textContent = `${g.level.name} (${D.name}) is safe. All ${g.totalWaves} waves repelled with ${g.lives} lives to spare.` + topLine +
-        ` Reward: +${D.pebbles} 🪨 pebbles — you now have ${p.pebbles.toLocaleString()}. ` +
-        `${g.kills.toLocaleString()} sea lions destroyed — ${rankChipText()}.` + opened;
+        ` Reward: +${D.bricks} 🧱 bricks — you now have ${p.bricks.toLocaleString()}. ` +
+        `${g.kills.toLocaleString()} vacuums destroyed — ${rankChipText()}.` + opened;
       show('#screen-end');
       keepAwake(false);   // the battle is over; stop holding the screen on
     } else if (kind === 'defeat') {
       G.music.stop();
-      bankXp();          // a lost battle still earned every sea lion it felled
+      bankXp();          // a lost battle still earned every vacuum it felled
       sfx.lose();
       const p = UI.profile;
       p.bestWave[g.level.id] = Math.max(p.bestWave[g.level.id] || 0, g.wave - 1);
@@ -1212,28 +1212,28 @@
       store.del(saveKey(g.levelIdx));
       const D = G.DIFFICULTIES[g.diffId];
       const price = G.scaleRetry(D.retryCost);
-      const afford = p.pebbles >= price;
+      const afford = p.bricks >= price;
       const rb = $('#btn-retry');
       rb.style.display = 'block';
       rb.disabled = !afford;
-      rb.innerHTML = `🪨 Second Chance — retry wave ${g.wave} · ${price} pebbles`;
+      rb.innerHTML = `🧱 Second Chance — retry wave ${g.wave} · ${price} bricks`;
       rb.title = afford
         ? `Restore all ${g.startLives} lives and replay wave ${g.wave}. Towers and cash are kept.`
-        : `You need ${price} 🪨 — win battles to earn more.`;
+        : `You need ${price} 🧱 — win battles to earn more.`;
       rb.onclick = retryBattle;
       $('#btn-endless').style.display = 'none';
       if (g.endless) {
         const rec = p.endlessBest[g.level.id];
-        $('#end-title').textContent = '🌊 The Endless Tide Recedes';
-        $('#end-sub').textContent = `The colony held for ${g.wave - 1} waves — ` +
+        $('#end-title').textContent = '🔁 The Shift Ends';
+        $('#end-sub').textContent = `The workshop held for ${g.wave - 1} waves — ` +
           `${g.wave - 1 - g.totalWaves} beyond the campaign's ${g.totalWaves}. ` +
           (g.wave - 1 >= rec ? 'A new record for this battlefield!' : `Record here: wave ${rec}.`) +
-          (afford ? ' The colony can rally, for a price…' : '');
+          (afford ? ' The workshop can rally, for a price…' : '');
       } else {
-        $('#end-title').textContent = '💔 The Colony Has Fallen';
-        $('#end-sub').textContent = `The sea lions broke through on wave ${g.wave}. You survived ${g.wave - 1} full waves ` +
-          `and felled ${g.kills.toLocaleString()} sea lions — ${rankChipText()}.` +
-          (afford ? ' The colony can rally, for a price…' : ' Regroup and try again!');
+        $('#end-title').textContent = '💔 The Workshop Has Fallen';
+        $('#end-sub').textContent = `The vacuums broke through on wave ${g.wave}. You survived ${g.wave - 1} full waves ` +
+          `and felled ${g.kills.toLocaleString()} vacuums — ${rankChipText()}.` +
+          (afford ? ' The workshop can rally, for a price…' : ' Regroup and try again!');
       }
       show('#screen-end');
       keepAwake(false);   // the battle is over; stop holding the screen on
@@ -1245,11 +1245,11 @@
     const g = UI.game;
     if (!g) return;
     $('#hud-lives').textContent = g.lives;
-    $('#hud-cash').textContent = Math.round(g.cash).toLocaleString(); // fish icon sits beside it
-    /* Set here rather than by the .js-pebbles sweep, which only runs on a
-       screen change: pebbles are awarded mid-battle for surviving a wave, and
+    $('#hud-cash').textContent = Math.round(g.cash).toLocaleString(); // studs icon sits beside it
+    /* Set here rather than by the .js-bricks sweep, which only runs on a
+       screen change: bricks are awarded mid-battle for surviving a wave, and
        this is the one place that is already re-reading the HUD as it happens. */
-    $('#hud-pebbles').textContent = UI.profile.pebbles.toLocaleString();
+    $('#hud-bricks').textContent = UI.profile.bricks.toLocaleString();
     $('#hud-wave').textContent = g.endless ? `Wave ${g.wave} · ∞` : `Wave ${Math.min(g.wave, g.totalWaves)} / ${g.totalWaves}`;
     $('#wave-bar i').style.width = Math.min(100, ((g.wave - 1) / g.totalWaves) * 100) + '%';
     $('#hud-level').textContent = `${g.level.name} · ${G.DIFFICULTIES[g.diffId].name}`;
@@ -1261,7 +1261,7 @@
     } else if (g.waveInProgress) {
       btn.disabled = true;
       const remaining = g.enemies.length + g.spawnQueue.length;
-      setHTML(btn, `${remaining} sea lion${remaining === 1 ? '' : 's'} left`);
+      setHTML(btn, `${remaining} vacuum${remaining === 1 ? '' : 's'} left`);
     } else if (g.autoStart && g.nextWaveIn != null) {
       btn.disabled = true;
       setHTML(btn, 'Auto-sending…');
@@ -1278,7 +1278,7 @@
     for (const slot of document.querySelectorAll('#palette .slot')) {
       if (slot.classList.contains('locked')) continue;
       const def = G.TOWERS[slot.dataset.type];
-      /* Colony Contracts can cut every price mid-battle, so the tray's own
+      /* Bulk Orders can cut every price mid-battle, so the tray's own
          labels are refreshed here rather than left at whatever they cost when
          the dock was built — a tile that advertises the old price is a lie the
          player only finds out about at the checkout. */
@@ -1357,9 +1357,9 @@
   }
 
   /* ---------- command dock: palette ---------- */
-  /* One flat grid of twenty penguins, not four bordered class boxes. The class
+  /* One flat grid of twenty Bros, not four bordered class boxes. The class
      was being carried by a box — a border, a tinted panel and 11px of chrome
-     around every five penguins — when each penguin's own tile was already
+     around every five Bros — when each Bro's own tile was already
      tinted with it; the tile keeps the tint and takes the coloured edge the box
      used to have, and the boxes go.
 
@@ -1373,14 +1373,14 @@
     const pal = $('#palette');
     pal.innerHTML = '';
     G.TOWER_ORDER.forEach((id, i) => {
-      const r = Math.floor(i / 5), c = i % 5;      // five penguins per class
+      const r = Math.floor(i / 5), c = i % 5;      // five Bros per class
       const color = G.CLASSES[Object.keys(G.CLASSES)[r]].color;
       const def = G.TOWERS[id];
       const slot = el('div', 'slot');
       slot.dataset.type = id;
       /* Only the colour goes on the element. The fill itself is built from it
          in CSS, so a locked tile can drop the class tint entirely — an inline
-         background wins over any stylesheet rule, and every locked penguin was
+         background wins over any stylesheet rule, and every locked Bro was
          coming out as brightly coloured as a usable one. */
       slot.style.setProperty('--cls', color);
       /* 128, not 38: the tile shows this at its full height now rather than as
@@ -1392,7 +1392,7 @@
       G.drawTowerIcon(cv, id);
       slot.appendChild(el('kbd', 'slot-key', HOTKEY_ROWS[r][c]));
       slot.appendChild(cv);
-      /* No 🐟 on the tray price. A four-figure cost plus the emoji cannot
+      /* No 🔩 on the tray price. A four-figure cost plus the emoji cannot
          fit a slot at the width the dock can spare, and the gold number
          already reads as a price — the tooltip and guide still spell it
          out with the icon. */
@@ -1408,15 +1408,15 @@
     });
   }
 
-  // why this penguin can't be built yet (colony rank) — null when usable
+  // why this Bro can't be built yet (builder rank) — null when usable
   function towerLockMsg(id) {
     const need = G.towerNeed(UI.profile, id);
     if (!need) return null;
     const short = Math.max(0, G.xpForRank(need) - (UI.profile.xp || 0));
-    return `${G.TOWERS[id].name} joins the colony at rank ${need} — ${short.toLocaleString()} more sea lions.`;
+    return `${G.TOWERS[id].name} joins the workshop at rank ${need} — ${short.toLocaleString()} more vacuums.`;
   }
 
-  /* ---------- colony rank: XP banked from the battle, one penguin per rank ---------- */
+  /* ---------- builder rank: XP banked from the battle, one Bro per rank ---------- */
   function bankXp() {
     const g = UI.game;
     if (!g) return;
@@ -1435,11 +1435,11 @@
     for (let r = before + 1; r <= after; r++) {
       const id = G.unlockAtRank(r);
       sfx.win();
-      banner(`⬆ Colony Rank ${r}`);
+      banner(`⬆ Builder Rank ${r}`);
       toast(id
-        ? `⬆ Rank ${r}! 🐧 ${G.TOWERS[id].name} joins the colony — build it right now.`
+        ? `⬆ Rank ${r}! 🧑‍🔧 ${G.TOWERS[id].name} joins the workshop — build it right now.`
         : `⬆ Rank ${r}!`);
-      if (id) buildPalette();   // the new penguin appears in the tray mid-battle
+      if (id) buildPalette();   // the new Bro appears in the tray mid-battle
     }
     updateHud();
   }
@@ -1448,8 +1448,8 @@
   function rankChipText() {
     const pr = G.rankProgress(UI.profile.xp);
     return pr.maxed
-      ? `Rank ${pr.rank} · every penguin recruited`
-      : `Rank ${pr.rank} · ${(UI.profile.xp || 0).toLocaleString()} / ${pr.next.toLocaleString()} 🦭`;
+      ? `Rank ${pr.rank} · every Bro recruited`
+      : `Rank ${pr.rank} · ${(UI.profile.xp || 0).toLocaleString()} / ${pr.next.toLocaleString()} 🔌`;
   }
   function syncRankChips() {
     const pr = G.rankProgress(UI.profile.xp);
@@ -1479,9 +1479,9 @@
   /* The numbers a player is shown BEFORE building anything.
      G.TOWERS[id].stats holds the design-time figures; the global nerf is
      applied inside computeEffective, so any surface quoting stats has to go
-     through it or it advertises a penguin that does not exist. This bit the
+     through it or it advertises a Bro that does not exist. This bit the
      guide and this tooltip once already — both were promising 1.2/s and 150
-     range for a penguin that builds at 1.02/s and 128. */
+     range for a Bro that builds at 1.02/s and 128. */
   function shopStats(typeId) {
     const s = G.computeEffective(typeId, [0, 0]);
     if (s.damage) s.damage = Math.round(s.damage * 100) / 100;
@@ -1500,7 +1500,7 @@
     if (s.range && s.range < 5000) bits.push(['Range', s.range]);
     if (s.range >= 5000) bits.push(['Range', '∞']);
     if (s.pierce > 1) bits.push(['Pierce', s.pierce]);
-    if (s.income) bits.push(['Income', '🐟' + s.income + '/wave']);
+    if (s.income) bits.push(['Income', '🔩' + s.income + '/wave']);
     const cost = UI.game ? UI.game.priceOf(def.cost) : def.cost;
     const tip = $('#tooltip');
     tip.innerHTML = `
@@ -1523,7 +1523,7 @@
      which is the one place it must not be. It lands on the map instead, which
      is the cheaper thing to hide for a moment.
 
-     It cannot interfere with dragging a penguin out: the card is
+     It cannot interfere with dragging a Bro out: the card is
      pointer-events:none, so it never takes a pointer, and a touch drag is
      implicitly captured by the tile that received the press, so the moves keep
      arriving there wherever the finger goes. The drag hides the card the moment
@@ -1573,11 +1573,11 @@
      fires there are the compatibility mouse events a browser sends at the end
      of a tap, so the card opens, and its mouseleave partner may never arrive at
      all. Tapping an upgrade was the case that stranded it — buying rebuilds the
-     penguin's panel and destroys the very button the mouseleave was waiting on,
+     Bro's panel and destroys the very button the mouseleave was waiting on,
      leaving the card sitting over the battlefield with nothing able to clear it.
 
      So on touch the card also arms the next-tap dismiss. Arming here rather
-     than at show time is what keeps dragging a penguin out of the tray intact:
+     than at show time is what keeps dragging a Bro out of the tray intact:
      the compatibility events only fire once the finger is already up, so there
      is never a drag in flight to disturb. The long-press routes arm themselves
      at their own right moment (the tray waits for pointerup precisely so a hold
@@ -1612,7 +1612,7 @@
     const owned = UI.profile.powerInv[id] || 0;
     if (owned <= 0) {
       sfx.error();
-      toast(`No ${P.name} in stock — visit the 🪨 Boost Shop on the main menu.`, 'bad');
+      toast(`No ${P.name} in stock — visit the 🧱 Boost Shop on the main menu.`, 'bad');
       return;
     }
     const res = g.usePower(id);
@@ -1632,17 +1632,17 @@
     tip.innerHTML = `
       <div class="tt-head"><b>${P.icon} ${P.name}</b><span class="tt-cost">×${owned}</span></div>
       <div class="tt-desc">${P.desc}</div>
-      <div class="tt-key">${owned > 0 ? 'Click to fire it now.' : `Buy for ${P.cost} 🪨 in the Boost Shop (main menu).`}</div>`;
+      <div class="tt-key">${owned > 0 ? 'Click to fire it now.' : `Buy for ${P.cost} 🧱 in the Boost Shop (main menu).`}</div>`;
     tip.style.display = 'block';
     placeTip(anchor);
   }
 
-  /* Which penguin and which of its three paths the open upgrade card is about,
+  /* Which Bro and which of its three paths the open upgrade card is about,
      so renderDockSel can redraw the card instead of leaving it behind.
 
      It used to be left behind. Buying an upgrade rebuilds the selection panel
      and nothing touched the card floating beside it, so it went on describing
-     the penguin you had a second ago: the tier you had just bought still marked
+     the Bro you had a second ago: the tier you had just bought still marked
      as the one to buy next, at the price you had just paid, over a footer
      saying "tap the row to buy Keen Eyes" when Keen Eyes was already yours. The
      one card in the game whose whole job is to say where a path has got to was
@@ -1720,9 +1720,9 @@
     if (!g || g.over !== 'lose') return;
     const D = G.DIFFICULTIES[g.diffId];
     const price = G.scaleRetry(D.retryCost);   // Rally Flags discount
-    if (UI.profile.pebbles < price) { sfx.error(); return; }
+    if (UI.profile.bricks < price) { sfx.error(); return; }
     if (!g.retry()) return;
-    UI.profile.pebbles -= price;
+    UI.profile.bricks -= price;
     putProfile(UI.profile);
     $('#auto-start').checked = false;
     show(null);
@@ -1731,7 +1731,7 @@
     G.music.play(G.music.trackForLevel(g.levelIdx));
     G.music.setTempoScale(G.tempoForWave(g.wave));
     banner(`Second chance — Wave ${g.wave}`);
-    toast(`🪨 −${price} pebbles. Lives restored to ${g.lives} — regroup and hold the line!`);
+    toast(`🧱 −${price} bricks. Lives restored to ${g.lives} — regroup and hold the line!`);
     updateWavePreview();
     renderDockSel();
     updateHud();
@@ -1787,14 +1787,14 @@
     ab.onclick = fireHeroAbility;
     /* No description card on this button, in either state. Once the hero is on
        the ice this is not a hero any more, it is a weapon — and holding it, or
-       resting a cursor on it, opened the recruitment card for a penguin you
+       resting a cursor on it, opened the recruitment card for a Bro you
        have already recruited and cannot recruit again. Worse on a finger: the
        gesture for firing the ability is a press, so every hesitation on the way
        to firing it put a card over the battlefield.
 
        What the button does is on the button — icon, name, level and cooldown —
        and its title says the rest on a mouse. The hero's own card is a tap on
-       the hero itself, out on the ice, where every other penguin's card is. */
+       the hero itself, out on the board, where every other Bro's card is. */
     box.appendChild(ab);
     updateDockHero();
   }
@@ -1814,7 +1814,7 @@
       const cost = g.priceOf(G.TOWERS[g.heroType].cost);
       chip.classList.toggle('armed', g.placingType === g.heroType);
       chip.classList.toggle('poor', g.cash < cost);
-      chip.querySelector('.hero-lv').textContent = '🐟' + cost;
+      chip.querySelector('.hero-lv').textContent = '🔩' + cost;
     }
 
     const ready = placed && g.heroLevel >= H.ability.unlock && g.time >= g.heroReadyAt && !g.over;
@@ -1846,27 +1846,27 @@
     updateDockHero();
   }
 
-  /* ---------- Penguin Guide: the colony's field manual ---------- */
+  /* ---------- Bro Guide: the workshop's field manual ---------- */
   function buildGuide(backTo) {
     const body = $('#guide-body');
     body.innerHTML = '';
     const p = UI.profile;
 
-    // where the colony stands, and who joins next
+    // where the workshop stands, and who joins next
     const pr = G.rankProgress(p.xp);
     const nextId = pr.maxed ? null : G.unlockAtRank(pr.rank + 1);
     body.appendChild(el('div', 'gd-rank', pr.maxed
-      ? `<b>Colony Rank ${pr.rank}</b> — every penguin has been recruited.`
-      : `<b>Colony Rank ${pr.rank}</b> · ${(p.xp || 0).toLocaleString()} / ${pr.next.toLocaleString()} sea lions` +
+      ? `<b>Builder Rank ${pr.rank}</b> — every Bro has been recruited.`
+      : `<b>Builder Rank ${pr.rank}</b> · ${(p.xp || 0).toLocaleString()} / ${pr.next.toLocaleString()} vacuums` +
         (nextId ? ` — <b>${G.TOWERS[nextId].name}</b> joins at rank ${pr.rank + 1}, ${(pr.next - (p.xp || 0)).toLocaleString()} to go.` : '')));
 
     /* The rule of two, once, above the roster — it governs every card below it
        and repeating it twenty times would be worse than saying it here. */
     body.appendChild(el('div', 'gd-rule',
-      `<b>Three paths, choose two.</b> Every penguin has three upgrade paths, and fish may go into
+      `<b>Three paths, choose two.</b> Every Bro has three upgrade paths, and studs may go into
        only <b>two</b> of them — buying into a second path shuts the third for the rest of the battle.
        One of your two may run all the way to its <b>capstone</b> (tier 3); the other stops at tier 2.
-       Tiers 1 and 2 sharpen the numbers. Every capstone changes how the penguin plays.`));
+       Tiers 1 and 2 sharpen the numbers. Every capstone changes how the Bro plays.`));
 
     // one section per class, every tower with all three upgrade paths
     for (const clsKey of Object.keys(G.CLASSES)) {
@@ -1888,14 +1888,14 @@
         if (s.range) bits.push(`◎ ${s.range >= 5000 ? '∞' : s.range}`);
         if (s.pierce > 1) bits.push(`pierce ${s.pierce}`);
         if (s.splash) bits.push(`splash ${s.splash}`);
-        if (s.income) bits.push(`+🐟${s.income}/wave`);
+        if (s.income) bits.push(`+🔩${s.income}/wave`);
         if (s.stealth) bits.push('sees stealth');
         if (s.water === 'only') bits.push('water only');
         const head = el('div', 'gd-head');
         head.appendChild(cv);
         head.appendChild(el('div', '', `
           <div class="gd-name" style="color:${cls.color}">${def.name}
-            <span class="gd-cost">🐟${def.cost}</span>
+            <span class="gd-cost">🔩${def.cost}</span>
             ${need ? `<span class="gd-lock">🔒 recruited at rank ${need}</span>` : ''}</div>
           <div class="gd-stats">${bits.join(' · ')}</div>
           <div class="gd-desc">${def.desc}</div>`));
@@ -1907,7 +1907,7 @@
           path.tiers.forEach((t, i) => {
             const cap = i === 2 ? '<span class="tt-capstone">capstone</span> ' : '';
             col.appendChild(el('div', 'gd-tier' + (i === 2 ? ' cap' : ''),
-              `<b>${t.name}</b> <span class="gd-cost">🐟${t.cost.toLocaleString()}</span><br><span class="gd-tier-desc">${cap}${t.desc}</span>`));
+              `<b>${t.name}</b> <span class="gd-cost">🔩${t.cost.toLocaleString()}</span><br><span class="gd-tier-desc">${cap}${t.desc}</span>`));
           });
           paths.appendChild(col);
         }
@@ -1920,7 +1920,7 @@
     // heroes
     const hsec = el('div', 'gd-sec');
     hsec.appendChild(el('div', 'gd-sec-head',
-      `<span class="gd-sec-name" style="color:var(--gold)">⭐ Heroes</span><span class="gd-sec-desc">One per battle. They level up on sea lions felled while they stand on the field — to level ${G.HERO_MAX_LEVEL} — and hit as hard as the herd is tough.</span>`));
+      `<span class="gd-sec-name" style="color:var(--gold)">⭐ Heroes</span><span class="gd-sec-desc">One per battle. They level up on vacuums felled while they stand on the field — to level ${G.HERO_MAX_LEVEL} — and hit as hard as the pack is tough.</span>`));
     for (const id of G.HERO_ORDER) {
       const def = G.TOWERS[id];
       const H = G.HEROES[id];
@@ -1932,7 +1932,7 @@
       head.appendChild(cv);
       head.appendChild(el('div', '', `
         <div class="gd-name" style="color:var(--gold)">${def.name}
-          <span class="gd-cost">${H.pebbles ? H.pebbles.toLocaleString() + ' 🪨 to recruit' : 'free'} · 🐟${def.cost} to place</span></div>
+          <span class="gd-cost">${H.bricks ? H.bricks.toLocaleString() + ' 🧱 to recruit' : 'free'} · 🔩${def.cost} to place</span></div>
         <div class="gd-stats">${H.blurb}</div>
         <div class="gd-desc">${H.ability.icon} <b>${H.ability.name}</b> (level ${H.ability.unlock}, recharges ${H.ability.cd}s) — ${H.ability.desc}</div>`));
       card.appendChild(head);
@@ -1943,9 +1943,9 @@
     // the enemy roster
     const esec = el('div', 'gd-sec');
     esec.appendChild(el('div', 'gd-sec-head',
-      `<span class="gd-sec-name">🦭 The Sea Lions</span><span class="gd-sec-desc">Bigger ones break apart into smaller ones — a wave isn't over until the last pup is down.</span>`));
+      `<span class="gd-sec-name">🔌 The Vacuums</span><span class="gd-sec-desc">Bigger ones break apart into smaller ones — a wave isn't over until the last handheld is down.</span>`));
     const egrid = el('div', 'gd-enemies');
-    for (const id of G.ENEMY_ORDER.filter((x) => !G.ENEMIES[x].orca)) {
+    for (const id of G.ENEMY_ORDER.filter((x) => !G.ENEMIES[x].heavy)) {
       const e = G.ENEMIES[id];
       const traits = [];
       if (e.speed >= 120) traits.push('fast');
@@ -1955,25 +1955,25 @@
       if (e.boss) traits.push('BOSS');
       egrid.appendChild(el('div', 'gd-enemy' + (e.boss ? ' boss' : ''), `
         <span class="gd-dot" style="background:${e.color}"></span>
-        <div><div class="gd-ename">${e.name} <span class="gd-cost">${e.hp} hp · ${e.lives} ♥ if it leaks · 🐟${e.bounty}</span></div>
+        <div><div class="gd-ename">${e.name} <span class="gd-cost">${e.hp} hp · ${e.lives} ♥ if it leaks · 🔩${e.bounty}</span></div>
         <div class="gd-etraits">${traits.length ? traits.join(' · ') + ' · ' : ''}${e.children.length ? 'splits into ' + e.children.map((c) => G.ENEMIES[c].name).join(' + ') : 'the smallest — just pops'}</div></div>`));
     }
     esec.appendChild(egrid);
     body.appendChild(esec);
 
-    // the orcas — deep endless only
+    // the heavies — deep endless only
     const osec = el('div', 'gd-sec');
     osec.appendChild(el('div', 'gd-sec-head',
-      `<span class="gd-sec-name" style="color:#7fd4f0">🐋 The Orcas</span>` +
-      `<span class="gd-sec-desc">From Endless wave ${G.ORCA_WAVE} the trails flood and the hunters arrive. They never split — and any ordinary sea lion that swims into one is swallowed, healing it. Clear the herd fast or you are feeding them.</span>`));
+      `<span class="gd-sec-name" style="color:#7fd4f0">🐋 The Heavies</span>` +
+      `<span class="gd-sec-desc">From Endless wave ${G.HEAVY_WAVE} the board comes apart and the heavies arrive. They never split — and any ordinary vacuum that rolls into one is swallowed, healing it. Clear the pack fast or you are feeding them.</span>`));
     const ogrid = el('div', 'gd-enemies');
-    for (const id of G.ORCA_ORDER) {
+    for (const id of G.HEAVY_ORDER) {
       const e = G.ENEMIES[id];
-      const traits = [`armor ${e.armor}`, `heals ${Math.round(e.eat * 100)}% per sea lion eaten`];
+      const traits = [`armor ${e.armor}`, `heals ${Math.round(e.eat * 100)}% per vacuum eaten`];
       if (e.boss) traits.push('SUPER BOSS — Endless wave 100');
       ogrid.appendChild(el('div', 'gd-enemy' + (e.boss ? ' boss' : ''), `
         <span class="gd-dot" style="background:${e.color}"></span>
-        <div><div class="gd-ename">${e.name} <span class="gd-cost">${e.hp.toLocaleString()} hp · ${e.lives} ♥ if it leaks · 🐟${e.bounty.toLocaleString()}</span></div>
+        <div><div class="gd-ename">${e.name} <span class="gd-cost">${e.hp.toLocaleString()} hp · ${e.lives} ♥ if it leaks · 🔩${e.bounty.toLocaleString()}</span></div>
         <div class="gd-etraits">${traits.join(' · ')}</div></div>`));
     }
     osec.appendChild(ogrid);
@@ -1983,16 +1983,16 @@
     show('#screen-guide');
   }
 
-  /* ---------- Colony Upgrades: permanent pebble-bought perks ---------- */
-  function buildColony(backTo) {
-    const grid = $('#colony-grid');
+  /* ---------- Workshop Upgrades: permanent pebble-bought perks ---------- */
+  function buildWorkshop(backTo) {
+    const grid = $('#workshop-grid');
     grid.innerHTML = '';
-    for (const id of G.COLONY_ORDER) {
-      const C = G.COLONY[id];
-      const tier = UI.profile.colony[id] || 0;
+    for (const id of G.WORKSHOP_ORDER) {
+      const C = G.WORKSHOP[id];
+      const tier = UI.profile.workshop[id] || 0;
       const maxed = tier >= C.tiers.length;
       const next = maxed ? null : C.tiers[tier];
-      const afford = next && UI.profile.pebbles >= next.cost;
+      const afford = next && UI.profile.bricks >= next.cost;
       const pips = C.tiers.map((t, i) =>
         `<span class="cu-pip${i < tier ? ' on' : ''}" title="Tier ${i + 1}: ${C.fmt(t.v)}"></span>`).join('');
       const card = el('div', 'shop-card');
@@ -2003,27 +2003,27 @@
         <div class="cu-now">${tier ? '✓ now: ' + C.fmt(C.tiers[tier - 1].v) : ' '}</div>
         <div class="shop-row">
           <span class="shop-owned">${maxed ? '★ fully upgraded' : 'next: ' + C.fmt(next.v)}</span>
-          ${maxed ? '' : `<button class="btn small${afford ? ' primary' : ''}" ${afford ? '' : 'disabled'}>Buy · ${next.cost.toLocaleString()} 🪨</button>`}
+          ${maxed ? '' : `<button class="btn small${afford ? ' primary' : ''}" ${afford ? '' : 'disabled'}>Buy · ${next.cost.toLocaleString()} 🧱</button>`}
         </div>`;
       if (!maxed) {
         card.querySelector('button').onclick = () => {
-          if (UI.profile.pebbles < next.cost) { sfx.error(); return; }
-          UI.profile.pebbles -= next.cost;
-          UI.profile.colony[id] = tier + 1;
-          G.applyColony(UI.profile.colony);
+          if (UI.profile.bricks < next.cost) { sfx.error(); return; }
+          UI.profile.bricks -= next.cost;
+          UI.profile.workshop[id] = tier + 1;
+          G.applyWorkshop(UI.profile.workshop);
           putProfile(UI.profile);
           sfx.upgrade();
           toast(`${C.icon} ${C.name} — ${C.fmt(next.v)}, in every battle from now on.`);
-          buildColony(backTo);
+          buildWorkshop(backTo);
         };
       }
       grid.appendChild(card);
     }
-    $('#btn-colony-back').onclick = () => show(backTo);
-    show('#screen-colony');
+    $('#btn-workshop-back').onclick = () => show(backTo);
+    show('#screen-workshop');
   }
 
-  /* ---------- Endless Tide (keep playing after victory) ---------- */
+  /* ---------- Endless Shift (keep playing after victory) ---------- */
   function keepGoing() {
     const g = UI.game;
     if (!g || !g.goEndless()) return;
@@ -2033,8 +2033,8 @@
     keepAwake(true); startLoop();   // the end screen released both
     G.music.play(G.music.trackForLevel(g.levelIdx));
     G.music.setTempoScale(G.tempoForWave(g.wave));
-    banner(`🌊 The Endless Tide — Wave ${g.wave}`);
-    toast('Victory is banked — now hold as long as you can. Every 10th wave pays 🪨 pebbles.');
+    banner(`🔁 The Endless Shift — Wave ${g.wave}`);
+    toast('Victory is banked — now hold as long as you can. Every 10th wave pays 🧱 bricks.');
     updateWavePreview();
     renderDockSel();
     updateHud();
@@ -2047,7 +2047,7 @@
     for (const id of G.POWER_ORDER) {
       const P = G.POWERS[id];
       const owned = UI.profile.powerInv[id] || 0;
-      const afford = UI.profile.pebbles >= P.cost;
+      const afford = UI.profile.bricks >= P.cost;
       const card = el('div', 'shop-card');
       card.innerHTML = `
         <div class="shop-icon">${P.icon}</div>
@@ -2055,11 +2055,11 @@
         <div class="shop-desc">${P.desc}</div>
         <div class="shop-row">
           <span class="shop-owned" title="How many you own">×${owned}</span>
-          <button class="btn small${afford ? ' primary' : ''}" ${afford ? '' : 'disabled'}>Buy · ${P.cost} 🪨</button>
+          <button class="btn small${afford ? ' primary' : ''}" ${afford ? '' : 'disabled'}>Buy · ${P.cost} 🧱</button>
         </div>`;
       card.querySelector('button').onclick = () => {
-        if (UI.profile.pebbles < P.cost) { sfx.error(); return; }
-        UI.profile.pebbles -= P.cost;
+        if (UI.profile.bricks < P.cost) { sfx.error(); return; }
+        UI.profile.bricks -= P.cost;
         UI.profile.powerInv[id] = (UI.profile.powerInv[id] || 0) + 1;
         putProfile(UI.profile);
         sfx.upgrade();
@@ -2087,7 +2087,7 @@
      it, dimmed it and swallowed its taps. The card sits in the control column
      now, outside the stage's box, so the scrim no longer reaches it and the
      card was left fully tappable behind a dialog asking whether to destroy the
-     penguin it describes. Buying an upgrade from it while "Sell this?" was on
+     Bro it describes. Buying an upgrade from it while "Sell this?" was on
      screen left the dialog quoting a refund that was no longer the one it would
      pay: it said "Sell +102" and paid 168.
 
@@ -2104,11 +2104,11 @@
     setConfirming(false);
   }
   /* `about` is what the question concerns — a tower, so far. The panel closes
-     the dialog when it rebuilds for a DIFFERENT penguin and leaves it alone
+     the dialog when it rebuilds for a DIFFERENT Bro and leaves it alone
      otherwise. Closing on every rebuild was the first attempt and it took the
      question away for reasons that have nothing to do with it: the selection
      poll runs at 0.3s and fires on any change to what is in hand, so placing a
-     penguin and selling one in quick succession dismissed the dialog by
+     Bro and selling one in quick succession dismissed the dialog by
      itself. */
   function askConfirm(title, body, yesLabel, onYes, about) {
     confirmYes = onYes;
@@ -2138,7 +2138,7 @@
      battlefield.
 
      It used to open down the left of the map, which meant that reading a
-     penguin's upgrades cost you 178px of the thing you were reading them about
+     Bro's upgrades cost you 178px of the thing you were reading them about
      — a quarter of the battlefield on a phone — and put the card in the one
      place an iPhone's Dynamic Island also wants. Here it covers nothing: the
      tray and the hero and boost panels step aside for it and step back when it
@@ -2210,12 +2210,12 @@
     /* Tell the 0.3s poll what the card is now showing. The poll redraws when
        g.selected differs from what it last saw, and it does not run while the
        game is paused — so a menu that cleared the selection left the poll still
-       remembering the old penguin, and re-selecting that same penguin after
+       remembering the old Bro, and re-selecting that same Bro after
        resuming looked like no change at all and drew nothing. Every route that
        redraws the card comes through here, so this is the one place the two can
        be kept in step. */
     lastSelected = g.selected;
-    // a question about a penguin you are no longer looking at is not a question
+    // a question about a Bro you are no longer looking at is not a question
     if (confirmAbout && confirmAbout !== g.selected) closeConfirm();
 
     /* Closed is the resting state. The old card lived in the column and so was
@@ -2224,7 +2224,7 @@
        not be there, and take whatever room it needs when it is.
 
        Closed while PLACING, too. The card opened during placement to say the
-       penguin's name and repeat two keyboard hints, which was tolerable when it
+       Bro's name and repeat two keyboard hints, which was tolerable when it
        was a small box and absurd once it became a full-height column: a third
        of the battlefield went dark at exactly the moment you were trying to
        read the battlefield and choose a spot on it. #place-hint carries that
@@ -2261,7 +2261,7 @@
       stats.push(`⚔ ${d < 10000 ? Math.round(d * 10) / 10 : short(d)}`);
     }
     if (c.rate) stats.push(`⚡ ${Math.round(c.rate * t.buff.rate * 100) / 100}/s`);
-    // ∞ rather than nothing for the map-wide reaches (Harpoon Sniper, Bosun
+    // ∞ rather than nothing for the map-wide reaches (Laser Sniper, Gunner
     // Rook) — an absent range chip read as "this one has no range at all"
     if (c.range) stats.push(`◎ ${c.range >= 5000 ? '∞' : Math.round(c.range * t.buff.range)}`);
     /* A vendor's headline number is what it will ACTUALLY pay next wave, not
@@ -2279,7 +2279,7 @@
     }
     // ☠ only where it can ever be non-zero — vendors and aura towers never shoot
     if (!['income', 'aura'].includes(c.kind))
-      stats.push(`<span title="Sea lions destroyed by this penguin">☠ <b class="ds-kills">${short(t.kills || 0)}</b></span>`);
+      stats.push(`<span title="Vacuums destroyed by this Bro">☠ <b class="ds-kills">${short(t.kills || 0)}</b></span>`);
     /* The name sits beside the portrait and the stats run full width beneath
        both. In a column this narrow, name and stats side by side left each of
        them 33px — the name came out as "Pe…" and the stat line was invisible. */
@@ -2327,7 +2327,7 @@
          card was two lines of text in a 654px column: 65% of it was empty. */
       const prog = G.heroProgress(g.heroKills);
       const xpLine = prog
-        ? `<b>${num(prog.into)}</b> / ${num(prog.need)} sea lions to Lv ${prog.next}` +
+        ? `<b>${num(prog.into)}</b> / ${num(prog.need)} vacuums to Lv ${prog.next}` +
           `<span class="hero-xp"><i style="width:${Math.round((prog.into / prog.need) * 100)}%"></i></span>`
         : `<b>Level ${G.HERO_MAX_LEVEL}</b> — fully grown`;
       const abil = g.heroLevel < H.ability.unlock
@@ -2338,8 +2338,8 @@
         `<span class="hn-more"><span class="hn-blurb">${H.blurb}</span>` +
         `<span class="hn-abil">${H.ability.icon} ${H.ability.desc}</span></span>`);
       note.title = (prog
-        ? `${num(prog.into)} of ${num(prog.need)} sea lions toward Level ${prog.next}. Heroes level on sea lions felled while they stand on the field, and each level costs more than the last.`
-        : `Level ${G.HERO_MAX_LEVEL} is the ceiling. Damage still rises with the herd's strength on deeper waves.`) +
+        ? `${num(prog.into)} of ${num(prog.need)} vacuums toward Level ${prog.next}. Heroes level on vacuums felled while they stand on the field, and each level costs more than the last.`
+        : `Level ${G.HERO_MAX_LEVEL} is the ceiling. Damage still rises with the pack's strength on deeper waves.`) +
         (g.heroLevel < H.ability.unlock
           ? ` ${H.ability.name} unlocks at level ${H.ability.unlock}.`
           : ` ${H.ability.name}: fire it from the hero panel or press H.`);
@@ -2371,7 +2371,7 @@
        you are about to buy picked out, and which the game already had. */
     const upgRow = el('div', 'ds-upgs');
     const chosen = t.up.filter((v) => v > 0).length;
-    /* Which path's card was open before this rebuild, if it was this penguin's.
+    /* Which path's card was open before this rebuild, if it was this Bro's.
        Read now, because building the rows is what destroys the element the card
        was anchored to. */
     const reopen = openUpg && openUpg.t === t ? openUpg.pathIdx : null;
@@ -2397,7 +2397,7 @@
          the price have had their share, and a leading glyph there took enough
          off it to clip "Rolling Thunder" to "Rolling Thun…". Line two is
          always a label and an optional value: what you would buy next and what
-         it costs, or why you cannot buy anything. And a path you have fish in
+         it costs, or why you cannot buy anything. And a path you have studs in
          wears a green edge — gold once it is finished — so which two you
          committed to reads at a glance without counting anything.
 
@@ -2426,7 +2426,7 @@
              <span class="dsp-cost" title="${fmt(uCost)}">${num(uCost)}</span></span>
            <span class="dsp-desc">${u.desc}</span>
            ${ladder(path, tier)}`);
-        row.dataset.cost = uCost;   // updateHud re-checks this as fish come in
+        row.dataset.cost = uCost;   // updateHud re-checks this as studs come in
         /* The one purchase that cannot be taken back: buying into a second path
            is what shuts the third. Said on the button that does it, before the
            press, rather than discovered afterwards from a greyed-out row. */
@@ -2456,7 +2456,7 @@
 
       /* On a finger the path card gets a control of its own. Long-press was the
          only way in and nobody found it: nothing on screen says a row can be
-         held, and the row's obvious gesture — a tap — spends fish. So the row
+         held, and the row's obvious gesture — a tap — spends studs. So the row
          and the ⓘ are siblings rather than one inside the other, which keeps
          them separate targets: a tap on the row still buys, and a tap on the ⓘ
          can never be a mis-buy.
@@ -2495,7 +2495,7 @@
 
   /* Selling is destructive, refunds only 70% and has no undo, and it used to be
      a 10px-tall button one pixel beneath the upgrade you were aiming for — that
-     is how penguins got sold by accident. It gets its own row at the bottom of
+     is how Bros got sold by accident. It gets its own row at the bottom of
      the panel now, well clear of anything else, and it asks first.
 
      It used to ask in place: one press turned the button red and said "Sell?",
@@ -2512,9 +2512,9 @@
      answer depends on a colour landing. The X hotkey is still a direct sell,
      because a deliberate keypress is not a mistap. */
   function makeSellButton(t) {
-    /* No fish glyph and no middot on the label. It shares the bottom row with
+    /* No studs glyph and no middot on the label. It shares the bottom row with
        the targeting button in a column about 143px wide, and spelled out in
-       full it clipped to "Sel". The refund is gold, which reads as fish
+       full it clipped to "Sel". The refund is gold, which reads as studs
        everywhere else in the game, and the dialog has the room to say it
        properly. */
     const sell = el('button', 'btn sell-btn', `<kbd>X</kbd> Sell <b>+${num(t.invested * G.SELL_RATE)}</b>`);
@@ -2523,7 +2523,7 @@
   }
 
   /* Named, and the number spelled out in full. "Sell?" next to a figure was the
-     old inline confirm and it told you neither which penguin was about to go
+     old inline confirm and it told you neither which Bro was about to go
      nor that the refund is only seven tenths of what you put in. */
   function confirmSell(t) {
     const g = UI.game;
@@ -2676,7 +2676,7 @@
     const cv = UI.canvas;
 
     /* One pointer path for mouse and finger alike. A mouse hovers freely; a
-       finger only reports while it is down, so an armed penguin is dragged
+       finger only reports while it is down, so an armed Bro is dragged
        into position and placed on lift — you can see the ghost before
        committing, which a blind tap would never give you. */
     const hoverAt = (pos) => {
@@ -2793,7 +2793,7 @@
       }
       if ($('#overlay').style.display === 'flex') return; // don't play the game under a menu
       /* Nor under a question. X in particular: it is the direct sell, and
-         answering "sell this?" by pressing the sell key would sell the penguin
+         answering "sell this?" by pressing the sell key would sell the Bro
          and leave the card still asking about it. */
       if (!$('#confirm').hidden) return;
 
@@ -2808,7 +2808,7 @@
         return;
       }
 
-      // context keys for the selected penguin
+      // context keys for the selected Bro
       if (g.selected) {
         const lk = k.toLowerCase();
         if (lk === 'q') { buyUpgrade(g.selected, 0); return; }
@@ -2825,7 +2825,7 @@
 
     /* The panel stays up until you go somewhere else. Pressing inside it does
        nothing — that is where the upgrade buttons are — and the map is left to
-       its own handler, which already picks a different penguin or clears the
+       its own handler, which already picks a different Bro or clears the
        selection depending on what you hit. Everything else counts as leaving.
        Capture phase so it runs before the thing you pressed re-renders the panel
        out from under this check. */
@@ -2833,7 +2833,7 @@
       const g = UI.game;
       if (!g || !g.selected) return;
       /* #confirm is a child of #stage rather than of the panel, so without it
-         here the press that answers "sell this penguin?" cleared the selection
+         here the press that answers "sell this Bro?" cleared the selection
          and re-rendered the panel first — which closes the dialog and drops the
          callback — and the click that followed landed on a button that no
          longer had anything to do. Pressing Sell did nothing at all.
@@ -2870,9 +2870,9 @@
      Mac that is a 2560x1600 backbuffer, 4.1 million pixels, redrawn every
      frame, to fill a canvas the layout had sized to 596x373. Nine times the
      pixels the display could show. Measured on an EMPTY map with no towers and
-     no sea lions, that alone was 9.0ms of a 16.7ms frame — before drawing a
-     single penguin — which is why the whole game had so little headroom left
-     that dragging a penguin around visibly skipped.
+     no vacuums, that alone was 9.0ms of a 16.7ms frame — before drawing a
+     single Bro — which is why the whole game had so little headroom left
+     that dragging a Bro around visibly skipped.
 
      It is the displayed size times the device ratio now, which is the amount
      that can actually be seen, capped at twice the world size so a 5K panel
@@ -2932,12 +2932,12 @@
      it. It was a straight half each. The selection card used to be 170 of the
      panels' 519 nominal units, and it has moved to the flyout, so the panels
      need about two-thirds of what they did and the tray takes the difference —
-     which is a couple more rows of penguins visible without scrolling.
+     which is a couple more rows of Bros visible without scrolling.
 
      Left at 0.62 deliberately. The blank band under the tray was never this
      split: it was an empty grid track inside the panel box (see #dock-hero's
      grid-row in style.css), and taking height off the tray to paper over it
-     would have cost rows of penguins for nothing. */
+     would have cost rows of Bros for nothing. */
   const TRAY_SHARE = 0.62;
 
   /* The panel group is drawn at PANEL_W and scaled by width alone, and given

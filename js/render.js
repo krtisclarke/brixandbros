@@ -1,4 +1,4 @@
-/* Tundra Defense — canvas rendering: textured terrain, penguins, sea lions, effects */
+/* Brix and Bros — canvas rendering: textured terrain, Bros, vacuums, effects */
 (function () {
   const G = (globalThis.G = globalThis.G || {});
   const TAU = Math.PI * 2;
@@ -57,7 +57,7 @@
   }
 
   /* ---------- sprite sheets ----------
-     A sea lion is forty-odd fills and strokes of vector art, and a late
+     A vacuum is forty-odd fills and strokes of vector art, and a late
      endless wave fields ninety of them at once. Rebuilt from scratch sixty
      times a second, that measured as 26ms of a 33ms frame — the CPU never got
      a moment off, which is exactly what a phone battery notices. Two thirds of
@@ -87,7 +87,7 @@
     if (q !== spriteScale) { spriteScale = q; spriteCache.clear(); spritePixels = 0; }
   }
 
-  /* A board is at most a few dozen penguins and a dozen species of sea lion,
+  /* A board is at most a few dozen Bros and a dozen species of vacuum,
      two sheets apiece — but a hundred waves upgrade through a lot of tier
      combinations, and each one they leave behind is a bitmap nothing will look
      at again. So the sheets in use are kept and the abandoned ones are dropped:
@@ -95,7 +95,7 @@
      front of it exactly the sheets nothing has drawn for the longest.
 
      Budgeted in PIXELS, not in sheets. It was a count, 320, and a count cannot
-     size this: a pip row is 30x10 and a KILLER WHALE is 300x170, and under a
+     size this: a pip row is 30x10 and a MEGAVAC is 300x170, and under a
      count they take one slot each. What made that bite was adding the pip,
      tail, flipper and pile sheets — small ones, but about ninety more entries,
      which pushed a heavy board's working set past 320. Past it, the cache
@@ -217,8 +217,8 @@
     return true;
   }
 
-  /* `flooded` builds the same battlefield with its trails running as water —
-     the orca tide of deep endless. It is a separate cache entry, so the swap
+  /* `flooded` builds the same battlefield with its tracks running as water —
+     the heavy tide of deep endless. It is a separate cache entry, so the swap
      costs one re-render the first time the tide comes in and nothing after. */
   function getTerrain(level, w, flooded) {
     const key = level.id + '@' + w + (flooded ? '@sea' : '');
@@ -229,7 +229,7 @@
          a tier 1 battlefield, 5.6MB on tier 3 — and nothing ever evicted them,
          so playing through a tier without reloading accumulated 40-60MB of
          bitmaps the game would never look at again. Two is what a live battle
-         actually needs: the battlefield, and its flooded twin when the orca tide
+         actually needs: the battlefield, and its flooded twin when the heavy tide
          comes in. Anything beyond that is a level you have left. */
       while (terrCache.size >= 2) terrCache.delete(terrCache.keys().next().value);
       terrCache.set(key, t);
@@ -335,7 +335,7 @@
       c.stroke();
     }
 
-    // sparse ground pebbles
+    // sparse ground bricks
     for (let i = 0; i < 46; i++) {
       const x = rnd() * G.W, y = rnd() * G.H;
       c.fillStyle = `rgba(110,125,140,${0.10 + rnd() * 0.12})`;
@@ -361,10 +361,10 @@
       c.restore();
     }
 
-    // home igloo
+    // home fort
     const pts0 = level.paths[0];
     const end = pts0[pts0.length - 1];
-    drawIgloo(c, Math.min(G.W - 44, Math.max(44, end.x)), Math.min(G.H - 40, Math.max(40, end.y)), 36, true);
+    drawFort(c, Math.min(G.W - 44, Math.max(44, end.x)), Math.min(G.H - 40, Math.max(40, end.y)), 36, true);
 
     // blockers
     for (const b of level.blockers) {
@@ -537,7 +537,7 @@
     c.restore();
   }
 
-  /* The trail as a channel of seawater. Same palette and the same deep→shallow
+  /* The track as a channel of seawater. Same palette and the same deep→shallow
      gradient the pools use (th.deep / th.shore), so a flooded path and a pond
      read as one body of water. Geometry is untouched: identical width, identical
      centreline — only the paint changes, so nothing about placement moves. */
@@ -614,7 +614,7 @@
     c.stroke();
     c.restore();
 
-    // crisp dark contour ring so the trail pops off the snow
+    // crisp dark contour ring so the track pops off the snow
     trace(); c.strokeStyle = shade(th.pathEdge || '#b0a284', -52); c.lineWidth = G.PATH_HALF * 2 + 11; c.stroke();
 
     // raised-edge bevel: dark base peeking below, then border, body, lit core
@@ -663,7 +663,7 @@
       }
     }
 
-    // pebbles + paw prints on the trail
+    // bricks + paw prints on the track
     for (let d = 10; d < total; d += 16) {
       const p = pathPoint(pts, d);
       if (rnd() > 0.6) {
@@ -745,11 +745,11 @@
       place(6, G.PATH_HALF + 42, drawDeadTree, 16, 12);
       place(7, G.PATH_HALF + 32, drawStone, 5, 8);
       place(4, G.PATH_HALF + 32, drawTuft, 4, 4);
-    } else if (kind === 'colony') {
+    } else if (kind === 'workshop') {
       place(4, G.PATH_HALF + 44, drawPine, 15, 12);
       place(2, G.PATH_HALF + 48, drawSnowman, 12, 4);
       place(5, G.PATH_HALF + 34, drawTuft, 5, 4);
-      // torch-lit trail near the home stretch
+      // torch-lit track near the home stretch
       const pts = level.paths[0];
       const total = pathLength(pts);
       for (let i = 0; i < 5; i++) {
@@ -1041,8 +1041,8 @@
     }
   }
 
-  /* ---------- igloo & blockers ---------- */
-  function drawIgloo(ctx, x, y, r, home) {
+  /* ---------- fort & blockers ---------- */
+  function drawFort(ctx, x, y, r, home) {
     ctx.save();
     ctx.translate(x, y);
     ctx.fillStyle = 'rgba(25,42,62,0.16)';
@@ -1066,7 +1066,7 @@
   function drawBlocker(ctx, b) {
     ctx.save();
     ctx.translate(b.x, b.y);
-    if (b.kind === 'igloo') { ctx.restore(); drawIgloo(ctx, b.x, b.y, b.r); return; }
+    if (b.kind === 'fort') { ctx.restore(); drawFort(ctx, b.x, b.y, b.r); return; }
     if (b.kind === 'crystal') {
       ctx.restore();
       drawCrystalShard(ctx, b.x, b.y, b.r * 0.85, mulberry32(b.x * 7 + b.y));
@@ -1195,22 +1195,22 @@
     c.restore();
   }
 
-  /* ================= PENGUIN =================
+  /* ================= BROS =================
      up = one tier count per upgrade path (0-3 each). Upgrades change the look:
      the first path grows the prop (glowing at max), the second adds a
      sash → cape → gold-trimmed cape, and veterans stand a bit taller.
 
      The third path rides on the SECOND path's dressing rather than inventing a
-     third costume. The rule of two means a penguin only ever wears two paths at
+     third costume. The rule of two means a Bro only ever wears two paths at
      once, so what the silhouette needs to say is "how far along", not "which of
      three" — the coloured pips above its head already answer that. */
-  /* The still half of a penguin: the props it wears on its back, its feet, the
+  /* The still half of a Bro: the props it wears on its back, its feet, the
      shaded body and belly, and the gear sash. Two radial gradients and a dozen
      fills, none of which changes between frames — so in a battle it is baked
      into a sprite (see the cache at the top of the file) and blitted. The shop
      icons still draw it the long way; they are painted once, not sixty times a
      second, and they are drawn at sizes the battle never asks for. */
-  function paintPenguinBody(ctx, r, look, tierA, tierB, clsColor) {
+  function paintBroBody(ctx, r, look, tierA, tierB, clsColor) {
     const body = look.tint || '#2b3138';
     const belly = look.belly || '#f4f6f8';
     const ink = shade(body.startsWith('#') ? body : '#2b3138', -70);
@@ -1270,8 +1270,8 @@
 
   /* The hat, and the gold halo a maxed gear path puts around it. shadowBlur is
      the most expensive thing a 2D context can be asked for, and it was being
-     asked for once per capstone penguin per frame; baked, it costs nothing. */
-  function paintPenguinHat(ctx, r, look, tierB) {
+     asked for once per capstone Bro per frame; baked, it costs nothing. */
+  function paintBroHat(ctx, r, look, tierB) {
     if (tierB >= 3) {
       ctx.save();
       ctx.shadowColor = 'rgba(255,209,102,0.85)'; ctx.shadowBlur = r * 0.5;
@@ -1282,7 +1282,7 @@
     }
   }
 
-  function drawPenguin(ctx, x, y, r0, typeId, aim, t, up, cache) {
+  function drawBro(ctx, x, y, r0, typeId, aim, t, up, cache) {
     const look = (typeId && G.LOOKS[typeId]) || {};
     const tierA = up ? (up[0] || 0) : 0;
     const tierB = up ? Math.max(up[1] || 0, up[2] || 0) : 0;
@@ -1332,9 +1332,9 @@
     if (skey) {
       const tall = look.prop === 'periscope' ? r * 1.8 : r * 1.2;
       blitSprite(ctx, sprite('peng|' + skey, [r * 1.15, r * 1.15, tall, r * 1.15],
-        (c) => paintPenguinBody(c, r, look, tierA, tierB, clsColor)));
+        (c) => paintBroBody(c, r, look, tierA, tierB, clsColor)));
     } else {
-      paintPenguinBody(ctx, r, look, tierA, tierB, clsColor);
+      paintBroBody(ctx, r, look, tierA, tierB, clsColor);
     }
 
     const flap = Math.sin(t * 6) * 0.15;
@@ -1375,9 +1375,9 @@
     // its path, and a maxed path glows gold.
     if (skey) {
       blitSprite(ctx, sprite('hat|' + skey, [r * 1.5, r * 1.5, r * 2.4, r * 1.3],
-        (c) => paintPenguinHat(c, r, look, tierB)));
+        (c) => paintBroHat(c, r, look, tierB)));
     } else {
-      paintPenguinHat(ctx, r, look, tierB);
+      paintBroHat(ctx, r, look, tierB);
     }
     const propS = 1 + tierA * 0.13;
     const propR = r * 1.32 * propS;
@@ -1394,7 +1394,7 @@
     ctx.restore();
   }
 
-  /* extra per-role flourishes so each penguin's job is unmistakable;
+  /* extra per-role flourishes so each Bro's job is unmistakable;
      a few of them thicken up as the weapon path (tierA) grows */
   function drawRoleExtras(ctx, r, typeId, t, tierA, tierB) {
     tierA = tierA || 0; tierB = tierB || 0;
@@ -1467,7 +1467,7 @@
         ctx.beginPath(); ctx.moveTo(r * 0.76, -r * 0.64); ctx.lineTo(r * 0.76, -r * 0.36); ctx.stroke();
         break;
       }
-      case 'shadow': // trailing ninja scarf
+      case 'shadow': // tracking ninja scarf
         ctx.fillStyle = 'rgba(192,57,43,0.85)';
         ctx.beginPath();
         ctx.moveTo(-r * 0.4, -r * 0.5);
@@ -1750,7 +1750,7 @@
         }
         ctx.restore();
         break;
-      case 'fish':
+      case 'stud':
         ctx.save(); ctx.translate(r * 0.72, r * 0.05); ctx.rotate(-0.5);
         ctx.fillStyle = '#9fd8e8';
         ctx.beginPath(); ctx.ellipse(0, 0, r * 0.34, r * 0.15, 0, 0, TAU); ctx.fill();
@@ -1803,7 +1803,7 @@
       ctx.beginPath(); ctx.ellipse(0, 7, 22, 5, 0, 0, TAU); ctx.fill();
       ctx.restore();
     }
-    if (tw.type === 'igloo') { drawIgloo(ctx, tw.x, tw.y + 4, 24); }
+    if (tw.type === 'fort') { drawFort(ctx, tw.x, tw.y + 4, 24); }
     else if (tw.type === 'vendor') {
       ctx.save(); ctx.translate(tw.x, tw.y);
       ctx.fillStyle = '#8a5a33'; ctx.fillRect(-24, -4, 48, 18);
@@ -1845,7 +1845,7 @@
       ctx.restore();
     }
 
-    const small = tw.type === 'igloo' || tw.type === 'vendor';
+    const small = tw.type === 'fort' || tw.type === 'vendor';
     const pr = small ? 11 : 15;
     let px = small ? pos.x + 20 : pos.x;
     let py = small ? pos.y + 8 : pos.y;
@@ -1855,7 +1855,7 @@
       px -= Math.cos(tw.aim) * 5.5 * fireF;
       py -= Math.sin(tw.aim) * 5.5 * fireF;
     }
-    drawPenguin(ctx, px, py, pr, tw.type, tw.aim, t + tw.id, tw.up, true);
+    drawBro(ctx, px, py, pr, tw.type, tw.aim, t + tw.id, tw.up, true);
 
     if (tw.type === 'jetpack') {
       ctx.save();
@@ -1875,7 +1875,7 @@
 
     /* Tier pips, one colour per path — gold, cyan, violet. With the rule of two
        there are never more than five, and the two colours present tell you at a
-       glance which pair this penguin committed to without opening its card. */
+       glance which pair this Bro committed to without opening its card. */
     const PIP = ['#ffd166', '#6fd7f5', '#c08cf0'];
     const ups = tw.up || [];
     const total = (ups[0] || 0) + (ups[1] || 0) + (ups[2] || 0);
@@ -1883,8 +1883,8 @@
       const used = ups.filter((v) => v > 0).length;
       const half = ((total - 1) * 8 + 5 * (used - 1)) / 2;
       /* The row is a function of the upgrade spread and nothing else — not the
-         clock, not the aim, not where the penguin stands. By wave 100 nearly
-         every penguin on the board is wearing the full five, which was two
+         clock, not the aim, not where the Bro stands. By wave 100 nearly
+         every Bro on the board is wearing the full five, which was two
          hundred little diamonds a frame, each one a fill and a stroke of its
          own. A board only ever shows a dozen different spreads, so one sheet
          each covers the lot and the row costs a single blit. */
@@ -1925,8 +1925,8 @@
     ctx.closePath(); ctx.fill(); ctx.stroke();
   }
 
-  /* ================= SEA LION ================= */
-  function sealBody(ctx, r) {
+  /* ================= VACUUMS ================= */
+  function vacBody(ctx, r) {
     ctx.beginPath();
     ctx.moveTo(r * 0.6, -r * 0.55);
     ctx.quadraticCurveTo(r * 1.15, 0, r * 0.6, r * 0.55);
@@ -1937,36 +1937,36 @@
   }
 
   /* Everything below is drawn nose-right and belly-down, and the caller turns
-     it down the trail. Which way the animal is FACING is therefore a mirror,
+     it down the track. Which way the animal is FACING is therefore a mirror,
      never a rotation past vertical: rotating a right-facing drawing by 180°
-     puts its belly on the ceiling, and that is what had the whole herd
-     swimming on its back down every leg of the trail that runs right to left.
+     puts its belly on the ceiling, and that is what had the whole pack
+     swimming on its back down every leg of the track that runs right to left.
 
      Mirrored across its own spine instead — nose still leads, belly still
      down. Keyed on the segment's angle rather than the wobbled one: the wobble
      is ±0.07 either side, so on a vertical leg an angle-with-wobble crosses
-     zero eight times a second and the sea lion would strobe. */
+     zero eight times a second and the vacuum would strobe. */
   function facesLeft(ang) { return Math.cos(ang) < 0; }
 
-  /* The still half of a sea lion: body, markings, head, and whatever its
+  /* The still half of a vacuum: body, markings, head, and whatever its
      species wears. Painted once per (type, stealth, freckles) into a sprite and
      blitted after that — see the sprite cache at the top of this file. The
      parts that actually move (tail, flipper, snort, pulses) are not in here;
-     drawSeaLion still draws those by hand every frame. */
-  function paintSeaLion(ctx, type, r, hidden, variant) {
+     drawVac still draws those by hand every frame. */
+  function paintVac(ctx, type, r, hidden, variant) {
     const def = G.ENEMIES[type];
     const col = def.color;
     const boss = !!def.boss;
     ctx.globalAlpha = hidden ? 0.45 : 1;
 
-    // speedster: motion-blur ghost trail
+    // speedster: motion-blur ghost track
     if (type === 'speedster') {
       for (let gi = 2; gi >= 1; gi--) {
         ctx.save();
         ctx.translate(-r * 0.6 * gi, 0);
         ctx.globalAlpha = (hidden ? 0.45 : 1) * (gi === 1 ? 0.16 : 0.08);
         ctx.fillStyle = col;
-        sealBody(ctx, r);
+        vacBody(ctx, r);
         ctx.fill();
         ctx.restore();
       }
@@ -1974,12 +1974,12 @@
 
     // body base
     ctx.fillStyle = col;
-    sealBody(ctx, r);
+    vacBody(ctx, r);
     ctx.fill();
 
     // shading inside the body: dark back, light belly, spots
     ctx.save();
-    sealBody(ctx, r);
+    vacBody(ctx, r);
     ctx.clip();
     ctx.fillStyle = shade(col, -22);
     ctx.globalAlpha = 0.55;
@@ -1994,9 +1994,9 @@
     ctx.globalAlpha = 0.45;
     ctx.beginPath(); ctx.ellipse(r * 0.7, -r * 0.22, r * 0.2, r * 0.1, 0.3, 0, TAU); ctx.fill();
     /* Mottled spots. Seeded off the sprite's freckle variant rather than off
-       the individual animal: a herd of three patterns reads exactly as varied
-       as a herd of ninety did, and it is the difference between three sheets
-       per species and one per sea lion on the field. */
+       the individual animal: a pack of three patterns reads exactly as varied
+       as a pack of ninety did, and it is the difference between three sheets
+       per species and one per vacuum on the field. */
     if (!boss && type !== 'stealth') {
       const rnd = mulberry32(variant * 31013 + def.rank * 977);
       ctx.globalAlpha = 0.4;
@@ -2028,11 +2028,11 @@
     ctx.strokeStyle = shade(col, -58);
     ctx.globalAlpha = hidden ? 0.4 : 0.9;
     ctx.lineWidth = Math.max(1.6, r * 0.13);
-    sealBody(ctx, r);
+    vacBody(ctx, r);
     ctx.stroke();
     ctx.globalAlpha = hidden ? 0.45 : 1;
 
-    // head (ghosted like the body when the sea lion is unrevealed stealth)
+    // head (ghosted like the body when the vacuum is unrevealed stealth)
     const ghost = hidden ? 0.45 : 1;
     ctx.fillStyle = col;
     ctx.beginPath(); ctx.arc(r * 0.75, 0, r * 0.48, 0, TAU); ctx.fill();
@@ -2135,7 +2135,7 @@
         break;
       case 'regen': {
         // the still half: two mossy patches. The rings and the cross pulse, so
-        // they are drawn live in drawSeaLionLive.
+        // they are drawn live in drawVacLive.
         ctx.fillStyle = 'rgba(110,210,140,0.6)';
         ctx.beginPath(); ctx.ellipse(-r * 0.35, -r * 0.3, r * 0.2, r * 0.13, 0.4, 0, TAU); ctx.fill();
         ctx.beginPath(); ctx.ellipse(r * 0.1, -r * 0.42, r * 0.16, r * 0.1, -0.3, 0, TAU); ctx.fill();
@@ -2223,7 +2223,7 @@
      function of the clock. Everything here sits clear of the head and the
      silhouette, so drawing it over the blitted sprite lands the same picture
      the old single pass did. */
-  function drawSeaLionLive(ctx, e, r, t, ghost) {
+  function drawVacLive(ctx, e, r, t, ghost) {
     switch (e.type) {
       case 'bull': {
         // angry snort puffs from the nose
@@ -2275,14 +2275,14 @@
      that is the same shape every time. The wag is a rigid turn about the hip,
      so the turn stays live and only the outline is baked.
 
-     This sheet, paintSealFlipper's and paintOrcaTail's are keyed on the species
+     This sheet, paintVacFlipper's and paintHeavyTail's are keyed on the species
      alone while baking in `r` and `col`, which is only correct because both are
      copied straight off the ENEMIES table when the animal spawns and nothing
-     in the codebase ever writes to them afterwards. Give a sea lion a size that
+     in the codebase ever writes to them afterwards. Give a vacuum a size that
      varies — a giant modifier, a curve that swells them in deep endless — and
      these three sheets go silently wrong, with every animal of the species
      wearing whichever one was baked first. Put the varying thing in the key. */
-  function paintSealTail(ctx, r, col) {
+  function paintVacTail(ctx, r, col) {
     ctx.fillStyle = shade(col, -12);
     ctx.beginPath();
     ctx.moveTo(0, 0);
@@ -2297,8 +2297,8 @@
      and the sheet is keyed on it. The webbing strokes lie on top of the fill,
      and three translucent passes laid on the screen one after another are not
      the same picture as three laid into a sheet that is then faded once — an
-     unrevealed stealth sea lion would have grown darker ribs. */
-  function paintSealFlipper(ctx, r, col, hidden) {
+     unrevealed stealth vacuum would have grown darker ribs. */
+  function paintVacFlipper(ctx, r, col, hidden) {
     ctx.globalAlpha = hidden ? 0.45 : 1;
     ctx.fillStyle = shade(col, -18);
     ctx.beginPath();
@@ -2309,7 +2309,7 @@
     ctx.beginPath(); ctx.moveTo(-r * 0.07, r * 0.12); ctx.lineTo(-r * 0.09, r * 0.48); ctx.stroke();
   }
 
-  function drawSeaLion(ctx, game, e, t) {
+  function drawVac(ctx, game, e, t) {
     const def = G.ENEMIES[e.type];
     const p = G.samplePath(game.paths[e.pathIdx], e.dist);
     const wob = Math.sin(t * 8 + e.wob) * 0.07;
@@ -2350,10 +2350,10 @@
        ground rather than at the animal's. See facesLeft. */
     if (facesLeft(p.ang)) ctx.scale(1, -1);
 
-    // orcas get their own body entirely, then fall through to the shared
+    // heavies get their own body entirely, then fall through to the shared
     // status pips and health bar below
-    if (e.orca) {
-      drawOrcaBody(ctx, e, r, col, t);
+    if (e.heavy) {
+      drawHeavyBody(ctx, e, r, col, t);
       ctx.restore();
       drawEnemyStatus(ctx, game, e, def, r, p, t);
       return;
@@ -2364,16 +2364,16 @@
     ctx.save();
     ctx.translate(-r * 1.02, 0); ctx.rotate(tailWag);
     blitSprite(ctx, sprite('tail|' + e.type, [r * 0.7, r * 0.1, r * 0.5, r * 0.5],
-      (c) => paintSealTail(c, r, col)));
+      (c) => paintVacTail(c, r, col)));
     ctx.restore();
 
     /* The animal itself, in one blit. Three freckle patterns per species is
-       all the variety ninety individually-seeded sea lions ever showed. */
+       all the variety ninety individually-seeded vacuums ever showed. */
     const variant = ((e.wob * 1000) | 0) % 3;
     const key = 'seal|' + e.type + '|' + (hidden ? 'h' : '') + variant;
     ctx.globalAlpha = 1;
     blitSprite(ctx, sprite(key, [r * 2.4, r * 1.7, r * 1.25, r * 1.05],
-      (c) => paintSeaLion(c, e.type, r, hidden, variant)));
+      (c) => paintVac(c, e.type, r, hidden, variant)));
 
     // front flipper — clear of the head, so it can go on over the sprite
     ctx.save();
@@ -2381,20 +2381,20 @@
     ctx.rotate(0.55 + wob * 1.6);
     blitSprite(ctx, sprite('flip|' + e.type + (hidden ? '|h' : ''),
       [r * 0.2 + 2, r * 0.2 + 2, r * 0.25 + 2, r * 0.65 + 2],
-      (c) => paintSealFlipper(c, r, col, hidden)));
+      (c) => paintVacFlipper(c, r, col, hidden)));
     ctx.restore();
     ctx.globalAlpha = ghost;
 
-    drawSeaLionLive(ctx, e, r, t, ghost);
+    drawVacLive(ctx, e, r, t, ghost);
 
     ctx.restore();
     drawEnemyStatus(ctx, game, e, def, r, p, t);
   }
 
   /* slow/stun/poison pips and the health bar — drawn upright, never rotated,
-     shared by the sea lions and the orcas */
+     shared by the vacuums and the heavies */
   function drawEnemyStatus(ctx, game, e, def, r, p, t) {
-    /* An untouched sea lion has nothing to say. Most of a wave is untouched
+    /* An untouched vacuum has nothing to say. Most of a wave is untouched
        most of the time, and this was still opening and closing a context state
        for every one of them, every frame, to draw nothing. */
     if (e.hp >= e.maxHp && e.slowUntil <= game.time && e.stunUntil <= game.time &&
@@ -2416,9 +2416,9 @@
       ctx.fillStyle = 'rgba(180,110,220,0.85)';
       ctx.beginPath(); ctx.arc(r * 0.5, -r * 0.9, 3, 0, TAU); ctx.fill();
     }
-    /* Marked for the whole colony. "+30% damage from every source" is otherwise
+    /* Marked for the whole crew. "+30% damage from every source" is otherwise
        invisible — you buy the capstone and nothing on screen changes — so a
-       marked sea lion wears a target reticle until it wears off. */
+       marked vacuum wears a target reticle until it wears off. */
     if (e.vulnUntil > game.time) {
       ctx.save();
       ctx.strokeStyle = 'rgba(255,190,90,0.9)';
@@ -2433,7 +2433,7 @@
       }
       ctx.restore();
     }
-    // Bleeding around the barb (Leviathan Lance) — bosses only, so it stays rare
+    // Bleeding around the barb (Extractor Lance) — bosses only, so it stays rare
     if (e.bleedUntil > game.time) {
       ctx.fillStyle = `rgba(230,80,80,${0.5 + Math.sin(t * 6) * 0.3})`;
       ctx.beginPath(); ctx.arc(-r * 0.5, -r * 0.9, 3, 0, TAU); ctx.fill();
@@ -2455,18 +2455,18 @@
     ctx.restore();
   }
 
-  /* An orca seen from above: long torpedo body, flukes at the stern, pectoral
+  /* An heavy seen from above: long torpedo body, flukes at the stern, pectoral
      fins swept back, the dorsal blade standing proud of the water, and the
      markings that make the animal unmistakable — white eye ovals at the bow
      and the grey saddle behind the fin. Drawn nose-right, like every other
      creature here, so the caller's rotation carries it down the track.
 
-     Split the same way the sea lions are: the wake, the flukes and the
+     Split the same way the vacuums are: the wake, the flukes and the
      pectorals swim, so they are drawn every frame; the hull and its markings
      are a sprite. Everything that moves is astern of everything that does not,
      which is why the live half can go on first and the blit can finish the
      job in one call. */
-  function paintOrcaBody(ctx, type, r, col) {
+  function paintHeavyBody(ctx, type, r, col) {
     const ink = '#0b1119';
     const belly = '#f4f9ff';
 
@@ -2514,7 +2514,7 @@
     ctx.fill();
     ctx.restore();
 
-    // white eye ovals — the marking that says "orca" instantly
+    // white eye ovals — the marking that says "heavy" instantly
     for (const side of [-1, 1]) {
       ctx.fillStyle = belly;
       ctx.strokeStyle = 'rgba(11,17,25,0.55)';
@@ -2543,7 +2543,7 @@
        with the swim by 0.05 of a radian, which on a blade this size moves its
        tip by a twentieth of the animal's length. Baked upright: nothing on
        screen is measurably different and it keeps the hull to one blit. */
-    const finH = type === 'orca_king' ? 1.15 : type === 'orca_great' ? 0.95 : 0.78;
+    const finH = type === 'heavy_king' ? 1.15 : type === 'heavy_great' ? 0.95 : 0.78;
     ctx.save();
     ctx.translate(-r * 0.06, 0);
     ctx.fillStyle = shade(col, 16);
@@ -2562,8 +2562,8 @@
     ctx.stroke();
     ctx.restore();
 
-    // the KILLER WHALE bares its teeth
-    if (type === 'orca_king') {
+    // the MEGAVAC bares its teeth
+    if (type === 'heavy_king') {
       ctx.fillStyle = belly;
       ctx.strokeStyle = 'rgba(11,17,25,0.6)';
       ctx.lineWidth = Math.max(0.8, r * 0.02);
@@ -2580,13 +2580,13 @@
     }
   }
 
-  /* The wake: a bow spray and a churned trail astern. Two big soft ellipses,
-     and an orca is a big animal — thirty of them in a deep endless wave meant
+  /* The wake: a bow spray and a churned track astern. Two big soft ellipses,
+     and an heavy is a big animal — thirty of them in a deep endless wave meant
      sixty large alpha fills a frame, which measured as the single most
      expensive thing left on the board. The churn used to bob by a sixth of a
      radius with the swim; it is painted at rest instead, and the flukes wag
      over the top of it, which is what actually reads as swimming. */
-  function paintOrcaWake(ctx, r) {
+  function paintHeavyWake(ctx, r) {
     ctx.globalAlpha = 0.5;
     ctx.fillStyle = 'rgba(232,246,255,0.55)';
     ctx.beginPath();
@@ -2598,12 +2598,12 @@
     ctx.fill();
   }
 
-  /* The last piece of the orca still being drawn by hand, and the most
+  /* The last piece of the heavy still being drawn by hand, and the most
      expensive: five quadratics filled and then stroked again, on an animal the
      deep endless tide fields thirty of at once. The wag is a rigid turn about
      the tail stock, so the turn stays live and the outline is baked — which
-     leaves an orca costing three blits and no vector work at all. */
-  function paintOrcaTail(ctx, r, col) {
+     leaves an heavy costing three blits and no vector work at all. */
+  function paintHeavyTail(ctx, r, col) {
     ctx.fillStyle = shade(col, -6);
     ctx.strokeStyle = '#0b1119'; ctx.lineWidth = Math.max(1.4, r * 0.055); ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -2615,22 +2615,22 @@
     ctx.closePath(); ctx.fill(); ctx.stroke();
   }
 
-  function drawOrcaBody(ctx, e, r, col, t) {
+  function drawHeavyBody(ctx, e, r, col, t) {
     const swim = Math.sin(t * 3.4 + e.wob);
 
-    blitSprite(ctx, sprite('orcawake|' + e.type, [r * 2.75, r * 0.1, r * 0.6, r * 0.6],
-      (c) => paintOrcaWake(c, r)));
+    blitSprite(ctx, sprite('heavywake|' + e.type, [r * 2.75, r * 0.1, r * 0.6, r * 0.6],
+      (c) => paintHeavyWake(c, r)));
 
     // tail stock + flukes
     ctx.save();
     ctx.translate(-r * 0.92, 0);
     ctx.rotate(swim * 0.34);
-    blitSprite(ctx, sprite('orcatail|' + e.type, [r * 0.75, r * 0.22, r * 0.6, r * 0.6],
-      (c) => paintOrcaTail(c, r, col)));
+    blitSprite(ctx, sprite('heavytail|' + e.type, [r * 0.75, r * 0.22, r * 0.6, r * 0.6],
+      (c) => paintHeavyTail(c, r, col)));
     ctx.restore();
 
-    blitSprite(ctx, sprite('orca|' + e.type, [r * 1.15, r * 1.2, r * 1.35, r * 0.85],
-      (c) => paintOrcaBody(c, e.type, r, col)));
+    blitSprite(ctx, sprite('heavy|' + e.type, [r * 1.15, r * 1.2, r * 1.35, r * 0.85],
+      (c) => paintHeavyBody(c, e.type, r, col)));
   }
 
   function drawTusks(ctx, r, s) {
@@ -2659,11 +2659,11 @@
   const shotOwners = new Map();
   function drawProjectiles(ctx, game) {
     if (!game.projectiles.length) return;
-    /* Every shot in the air had to be asked which penguin fired it, and the
+    /* Every shot in the air had to be asked which Bro fired it, and the
        answer was a fresh closure and a walk down the whole tower list. A busy
-       board keeps a hundred shots alive over forty penguins, so that was four
+       board keeps a hundred shots alive over forty Bros, so that was four
        thousand comparisons a frame to recover a word that never changes for the
-       life of the shot. One pass over the towers instead. A shot whose penguin
+       life of the shot. One pass over the towers instead. A shot whose Bro
        has been sold mid-flight still finds nothing and still falls back to a
        grey pebble, exactly as before. */
     shotOwners.clear();
@@ -2753,7 +2753,7 @@
         ctx.beginPath(); ctx.arc(fx.x, fx.y, fx.r * (1 - f * 0.5), 0, TAU); ctx.stroke();
         ctx.fillStyle = `rgba(200,230,255,${f * 0.12})`;
         ctx.beginPath(); ctx.arc(fx.x, fx.y, fx.r, 0, TAU); ctx.fill();
-      } else if (fx.kind === 'ray' || fx.kind === 'snipeTrail') {
+      } else if (fx.kind === 'ray' || fx.kind === 'snipeTrack') {
         const beam = fx.kind === 'ray';
         ctx.lineCap = 'round';
         ctx.strokeStyle = beam ? `rgba(255,200,90,${f * 0.3})` : `rgba(200,220,240,${f * 0.3})`;
@@ -2776,7 +2776,7 @@
           ctx.beginPath(); ctx.arc(fx.x + Math.cos(a) * d, fx.y + Math.sin(a) * d, 3.6 * f, 0, TAU); ctx.fill();
         }
       } else if (fx.kind === 'devour') {
-        // a red bloom in the water and a ring of spray where the sea lion was
+        // a red bloom in the water and a ring of spray where the vacuum was
         ctx.fillStyle = `rgba(168,32,38,${f * 0.5})`;
         ctx.beginPath(); ctx.arc(fx.x, fx.y, (1 - f) * (fx.r + 16) + 6, 0, TAU); ctx.fill();
         ctx.fillStyle = `rgba(240,250,255,${f * 0.85})`;
@@ -2811,7 +2811,7 @@
         ctx.fillStyle = `rgba(224,82,82,${f * 0.6})`;
         ctx.beginPath(); ctx.arc(fx.x, fx.y, (1 - f) * 40 + 10, 0, TAU); ctx.fill();
       } else if (fx.kind === 'knock') {
-        /* Knockback. The sea lion jumps backwards down the trail, which on its
+        /* Knockback. The vacuum jumps backwards down the track, which on its
            own reads as a glitch — this is the shove that explains it. */
         if (fx.e && !fx.e.dead) {
           const p = G.samplePath(game.paths[fx.e.pathIdx], fx.e.dist);
@@ -2842,7 +2842,7 @@
   }
 
   /* Ground zones — craters, slicks, wakes, aurora fire, corrupt stains,
-     squalls, quagmires. Drawn under everything, on the trail itself, because
+     squalls, quagmires. Drawn under everything, on the track itself, because
      the whole point is that the ground is doing the work: a patch you cannot
      see is a slow you cannot explain. Each tone is its own hue so a burning
      crater never reads as a chilling one. */
@@ -2938,11 +2938,11 @@
     }
   }
 
-  /* Everything this penguin CANNOT shoot: the wedge of ground each standing
+  /* Everything this Bro CANNOT shoot: the wedge of ground each standing
      obstacle hides from it, clipped to its range. Without this the sight rule
-     is invisible — you build, the penguin refuses to fire, and nothing on
-     screen tells you why. Drawn for the selected penguin and for the
-     placement ghost, so you can see the dead ground before you spend fish. */
+     is invisible — you build, the Bro refuses to fire, and nothing on
+     screen tells you why. Drawn for the selected Bro and for the
+     placement ghost, so you can see the dead ground before you spend studs. */
   function drawSightShadow(ctx, game, x, y, range, tone) {
     if (!game.sightBlockers || !game.sightBlockers.length || !(range > 0) || range >= 5000) return;
     let drew = false;
@@ -3017,18 +3017,18 @@
       if (x > -100) {
         const ok = game.canPlace(game.placingType, x, y);
         /* Effective range, not the raw stat — the ghost was drawing the
-           pre-nerf circle and promising reach the placed penguin wouldn't have. */
+           pre-nerf circle and promising reach the placed Bro wouldn't have. */
         const range = (G.computeEffective(game.placingType, [0, 0, 0]).range || 60);
         ctx.fillStyle = ok ? 'rgba(110,200,130,0.15)' : 'rgba(220,110,110,0.18)';
         ctx.strokeStyle = ok ? 'rgba(110,200,130,0.6)' : 'rgba(220,110,110,0.6)';
         ctx.lineWidth = 2;
         if (range > 0 && range < 5000) {
           ctx.beginPath(); ctx.arc(x, y, range, 0, TAU); ctx.fill(); ctx.stroke();
-          // show the dead ground BEFORE the fish is spent
+          // show the dead ground BEFORE the studs is spent
           if (!G.arcsOverTerrain(def.stats)) drawSightShadow(ctx, game, x, y, range);
         }
         ctx.globalAlpha = 0.75;
-        drawPenguin(ctx, x, y, 15, game.placingType, null, 0);
+        drawBro(ctx, x, y, 15, game.placingType, null, 0);
         ctx.globalAlpha = 1;
         if (!ok) {
           ctx.strokeStyle = '#d04545'; ctx.lineWidth = 3;
@@ -3053,8 +3053,8 @@
 
   /* ---------- main render ---------- */
   let clock = 0;
-  /* Reused between frames instead of two fresh arrays a frame. At ninety sea
-     lions and thirty penguins that is 7,200 throwaway array slots a second
+  /* Reused between frames instead of two fresh arrays a frame. At ninety
+     vacuums and thirty Bros that is 7,200 throwaway array slots a second
      handed to the garbage collector for nothing. */
   const zEnemies = [], zTowers = [];
   function ordered(into, from, key) {
@@ -3067,7 +3067,7 @@
   G.render = function (ctx, game, dt) {
     clock += dt;
     syncSpriteScale(ctx);
-    const terr = getTerrain(game.level, G.W, game.endless && game.wave >= G.ORCA_WAVE);
+    const terr = getTerrain(game.level, G.W, game.endless && game.wave >= G.HEAVY_WAVE);
     ctx.drawImage(terr.canvas, 0, 0, G.W, G.H);
     drawSceneryFX(ctx, game.level, terr.meta, clock);
     drawZones(ctx, game, clock);
@@ -3075,7 +3075,7 @@
     const sorted = ordered(zEnemies, game.enemies, (a, b) => a.dist - b.dist);
     // painter's order: lower towers draw over higher ones for a depth cue
     for (const t of ordered(zTowers, game.towers, (a, b) => a.y - b.y)) drawTowerBody(ctx, game, t, clock);
-    for (const e of sorted) drawSeaLion(ctx, game, e, clock);
+    for (const e of sorted) drawVac(ctx, game, e, clock);
     drawProjectiles(ctx, game);
     drawEffects(ctx, game);
     drawSnowfall(ctx, clock);
@@ -3087,22 +3087,22 @@
     const ctx = canvas.getContext('2d');
     const s = canvas.width;
     ctx.clearRect(0, 0, s, s);
-    if (typeId === 'igloo') {
-      drawIgloo(ctx, s / 2, s / 2 + 6, s * 0.3);
-      drawPenguin(ctx, s * 0.74, s * 0.66, s * 0.15, typeId, null, 0, up);
+    if (typeId === 'fort') {
+      drawFort(ctx, s / 2, s / 2 + 6, s * 0.3);
+      drawBro(ctx, s * 0.74, s * 0.66, s * 0.15, typeId, null, 0, up);
     } else if (typeId === 'vendor') {
       ctx.save(); ctx.translate(s / 2, s / 2);
       ctx.fillStyle = '#8a5a33'; ctx.fillRect(-s * 0.32, 0, s * 0.64, s * 0.22);
       ctx.fillStyle = '#d9534f'; ctx.fillRect(-s * 0.36, -s * 0.14, s * 0.72, s * 0.14);
       ctx.fillStyle = '#f8f9fa'; ctx.fillRect(-s * 0.36, -s * 0.14, s * 0.18, s * 0.14); ctx.fillRect(0, -s * 0.14, s * 0.18, s * 0.14);
       ctx.restore();
-      drawPenguin(ctx, s * 0.72, s * 0.68, s * 0.16, typeId, null, 0, up);
+      drawBro(ctx, s * 0.72, s * 0.68, s * 0.16, typeId, null, 0, up);
     } else if (typeId === 'torpedo' || typeId === 'depth') {
       ctx.fillStyle = typeId === 'torpedo' ? '#5a748c' : '#7a5c3e';
       ctx.beginPath(); ctx.ellipse(s / 2, s * 0.72, s * 0.36, s * 0.13, 0, 0, TAU); ctx.fill();
-      drawPenguin(ctx, s / 2, s / 2, s * 0.27, typeId, null, 0, up);
+      drawBro(ctx, s / 2, s / 2, s * 0.27, typeId, null, 0, up);
     } else {
-      drawPenguin(ctx, s / 2, s / 2 + 2, s * 0.28, typeId, null, 0, up);
+      drawBro(ctx, s / 2, s / 2 + 2, s * 0.28, typeId, null, 0, up);
     }
   };
 
