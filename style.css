@@ -1,0 +1,2433 @@
+/* Tundra Defense — styling */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a111d;
+  --glass: rgba(13, 22, 37, 0.92);
+  --panel2: rgba(255, 255, 255, 0.055);
+  --line: rgba(255, 255, 255, 0.13);
+  --line-strong: rgba(255, 255, 255, 0.22);
+  --text: #f0f6fc;
+  --dim: #aabfd4;
+  --accent: #74dcfb;
+  --good: #57d488;
+  --bad: #e56d77;
+  --gold: #ffd97e;
+  --shadow: 0 10px 32px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
+
+  /* ---- the screen's own furniture ----
+     viewport-fit=cover is what lets the battlefield use the whole phone, and
+     the bargain it makes is that the Dynamic Island, the notch and the home
+     indicator are now INSIDE the viewport rather than outside it. In landscape
+     the island sits on the left or the right depending on which way the phone
+     was turned — so no edge of the screen is safe to pin anything to, and a
+     player who turns their phone the other way should not lose the column that
+     lives down the left.
+
+     Everything in the game is inset by these four numbers: #app is padded by
+     them, which carries the whole battlefield and its floating chrome, and the
+     handful of things that are position:fixed repeat them by hand. Zero on
+     every screen that has nothing sticking into it, which is most of them. */
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;   /* older iOS Safari ignores the unprefixed form */
+  user-select: none;
+  /* touch: no pinch-zoom, no pull-to-refresh, no long-press callout */
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* dvh tracks the real viewport once mobile browser chrome slides away.
+
+   No padding. This element WAS padded by the four insets, so the whole
+   in-battle layout was laid out inside the safe box — which is the correct
+   answer for a document and the wrong one for a game. An iPhone in landscape
+   reports around 59px for the Dynamic Island, and because the battlefield is a
+   block of fixed proportions scaled to fit, every one of those pixels came
+   straight off the map: up to 12% of the battlefield spent keeping a strip of
+   decorative snow out from under a cutout. That is a trade a player notices
+   and a cutout is not.
+
+   The block takes the whole screen again and is POSITIONED around the cutouts
+   instead — see fitCanvas, which sets the four gutters below. What genuinely
+   must never sit under a cutout is the chrome you read and press: the vitals,
+   the selection column, the cancel button, the dock. Those offset themselves
+   by --map-inset-* / --dock-inset-*, which is how far a cutout still reaches
+   into the map or the dock once the block has moved as far away as it can. */
+#app {
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh;
+}
+
+/* Zero-sized and invisible; it exists to be measured. safeArea() in ui.js
+   reads these four paddings back as resolved pixels, which is the only way to
+   get at env() from script. #app carried them until the padding above went. */
+#safe-probe {
+  position: fixed;
+  top: 0; left: 0;
+  width: 0; height: 0;
+  padding: var(--sat) var(--sar) var(--sab) var(--sal);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#stage {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  background:
+    radial-gradient(1100px 600px at 30% -10%, rgba(63, 127, 212, 0.16), transparent 60%),
+    radial-gradient(900px 500px at 90% 110%, rgba(94, 232, 168, 0.07), transparent 55%),
+    var(--bg);
+}
+
+#game {
+  border-radius: 14px;
+  box-shadow: var(--shadow), 0 0 0 1px var(--line);
+  touch-action: none;   /* the canvas handles its own drags */
+}
+
+/* cancel-placement button — only shown while a penguin is armed on touch */
+#btn-cancel-place {
+  display: none;
+  position: absolute;
+  left: 50%;
+  /* Clear of the home indicator. The map runs to the foot of the screen now —
+     that strip is worth more as battlefield than as blank margin — but the
+     bottom of the screen is also where iOS watches for a swipe up, and a
+     button sitting in it is a button that sometimes sends you to the app
+     switcher instead of cancelling a placement. */
+  bottom: calc(12px + var(--map-inset-b, 0px));
+  transform: translateX(-50%);
+  z-index: 6;
+  background: rgba(224, 96, 106, 0.92);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  padding: 9px 20px;
+  font-size: 14px;
+  font-weight: 800;
+  font-family: inherit;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+html.touch #btn-cancel-place.show { display: block; }
+/* Lit while a carried penguin is over it, so letting go there plainly means
+   "put it back" rather than "place it here". The button never sees the pointer
+   itself — the tray slot holds the capture for the whole drag — so this is
+   driven from the drag handler. */
+#btn-cancel-place.hot {
+  background: rgba(240, 120, 128, 1);
+  border-color: #fff;
+  transform: translateX(-50%) scale(1.08);
+  box-shadow: 0 6px 22px rgba(224, 96, 106, 0.6);
+}
+
+/* The line that says what is in your hand. Along the bottom of the map, quiet
+   and out of the way — it replaces a full-height column that used to darken a
+   third of the battlefield to say the same thing. Sits above the cancel button
+   on touch, and takes the cancel button's place on a desktop, where that button
+   is never shown. */
+#place-hint {
+  display: none;
+  position: absolute;
+  /* Centred by auto margins across the FULL width, not by left:50% and a
+     translate. With the text allowed to wrap, left:50% caps the space it can
+     use at half the map — which folded a one-line hint onto three. */
+  left: 0; right: 0;
+  margin: 0 auto;
+  width: fit-content;
+  bottom: calc(12px + var(--map-inset-b, 0px));
+  z-index: 6;
+  max-width: min(640px, 92%);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(12, 20, 33, 0.86);
+  border: 1px solid var(--line-strong);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  color: var(--dim);
+  font-size: 13px; font-weight: 650; line-height: 1.35;
+  /* Wraps rather than ellipses. Truncating a hint drops the end of it, and the
+     end of this one is how to cancel — the single most important word in it. On
+     a narrow map it takes a second line instead. */
+  white-space: normal;
+  text-align: center;
+  pointer-events: none;   /* never in the way of the click it is describing */
+}
+#place-hint.show { display: block; }
+#place-hint kbd { margin: 0 1px; }
+/* the cancel button owns the bottom edge on touch, so the hint sits above it */
+html.touch #place-hint { bottom: calc(58px + var(--map-inset-b, 0px)); }
+@media (max-width: 700px) { #place-hint { font-size: 12px; padding: 6px 11px; } }
+
+/* ---------- "are you sure" ----------
+   Over the map, not over the screen: what is being asked about is one penguin,
+   and blacking out the battlefield to ask would be answering a bigger question
+   than the one on the card. The scrim is only dark enough to say the rest of
+   the board is not listening, and tapping it is the same as Cancel. */
+#confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(6, 11, 19, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+#confirm[hidden] { display: none; }
+.cf-card {
+  width: min(340px, 100%);
+  background: linear-gradient(180deg, rgba(22, 33, 52, 0.99), rgba(13, 21, 34, 0.99));
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+  padding: 16px 16px 14px;
+  text-align: center;
+}
+.cf-card h3 { font-size: 16.5px; font-weight: 800; margin-bottom: 6px; }
+.cf-card p { color: var(--dim); font-size: 13.5px; line-height: 1.45; margin-bottom: 14px; }
+.cf-card p b { color: var(--gold); }
+/* Cancel first and equal in size. The destructive one does not get to be the
+   big obvious button on a card whose whole job is to slow you down — but it is
+   the one wearing the colour, so neither is hunted for. */
+.cf-row { display: flex; gap: 9px; }
+.cf-row .btn { flex: 1 1 0; min-height: 46px; justify-content: center; font-size: 14px; }
+/* A short window in landscape has about 340px of height for everything. */
+@media (max-height: 430px) {
+  .cf-card { padding: 12px 13px 11px; }
+  .cf-card h3 { font-size: 15px; }
+  .cf-card p { font-size: 12.5px; margin-bottom: 10px; }
+  .cf-row .btn { min-height: 42px; }
+}
+
+/* portrait phones */
+#rotate-hint {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--bg);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: calc(30px + var(--sat)) calc(30px + var(--sar)) calc(30px + var(--sab)) calc(30px + var(--sal));
+  gap: 6px;
+}
+#rotate-hint .rot-icon { font-size: 54px; animation: rotHint 2.2s ease-in-out infinite; }
+@keyframes rotHint { 0%, 55% { transform: rotate(0); } 75%, 100% { transform: rotate(-90deg); } }
+#rotate-hint h3 { font-size: 21px; }
+#rotate-hint p { color: var(--dim); font-size: 14px; line-height: 1.5; max-width: 320px; }
+@media (orientation: portrait) and (max-width: 820px) {
+  html.touch #rotate-hint { display: flex; }
+}
+
+/* ---------- floating vitals (top-left) ---------- */
+#hud-stats {
+  position: absolute;
+  top: 14px; left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 5;
+}
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 10px 17px;
+  font-size: 16.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.stat svg { width: 19px; height: 19px; }
+/* the other two carry an inline SVG at 19px; pebbles are an emoji everywhere
+   else in the game, so it is matched to that height rather than redrawn */
+.stat-glyph { font-size: 15px; line-height: 1; }
+.stat.lives { color: #ffa8a8; }
+.stat.cash { color: var(--gold); }
+.stat.pebbles { color: #d9c6a6; }
+.stat.wavebox { color: var(--accent); flex-direction: column; align-items: flex-start; gap: 5px; padding: 8px 17px; }
+#hud-wave { font-size: 15px; line-height: 1; font-weight: 800; }
+#wave-bar {
+  display: block; width: 126px; height: 5px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 3px; overflow: hidden;
+}
+#wave-bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+.stat.lvlname { color: #d6e2ee; font-weight: 700; }
+
+/* ---------- system buttons (top-right) ---------- */
+#hud-sys {
+  position: absolute;
+  top: 14px; right: 66px; /* leaves room for the global fullscreen button */
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+
+/* global fullscreen toggle — always visible, above overlay screens.
+   Hidden on touch devices: phones can't fullscreen a Safari page, and the
+   home-screen app is already fullscreen — it only covered the battlefield. */
+#btn-fs {
+  position: fixed;
+  top: calc(14px + var(--sat)); right: calc(16px + var(--sar));
+  z-index: 30;
+}
+html.touch #btn-fs { display: none; }
+/* Glyphs and key chips inside a button are decoration, never targets. The
+   button itself takes the press, so a child being replaced mid-press cannot
+   swallow the click. setHTML() in ui.js is the real fix for that; this is the
+   belt to its braces, and it costs nothing. */
+.icon-btn svg,
+.btn kbd,
+.btn b,
+.dp-count { pointer-events: none; }
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px; height: 42px;
+  color: var(--text);
+  background: var(--glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s, border-color 0.15s;
+}
+.icon-btn:hover { background: rgba(255, 255, 255, 0.14); border-color: var(--line-strong); }
+.icon-btn:active { transform: scale(0.93); }
+.icon-btn svg { width: 20px; height: 20px; }
+
+/* ---------- banner ---------- */
+#banner {
+  position: absolute;
+  top: 64px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.65);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+#banner.show { animation: bannerFade 2.2s ease forwards; }
+@keyframes bannerFade {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.94); }
+  14% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(4px); }
+}
+
+/* ---------- toasts ---------- */
+/* Along the foot of the screen, centred, newest nearest the bottom.
+   They used to stack down from the top-left corner, which on a phone is three
+   things at once: on top of the vitals you are reading, on top of the
+   selection card — which opens in exactly that corner and is BELOW them in the
+   stack — and, because the strip took pointer events, on top of the
+   battlefield you were trying to tap. A wave clearing while you lined up a
+   penguin ate the tap.
+
+   The foot of the map is the emptiest part of it, and pointer-events:none
+   means the worst a toast can now do is be looked at. */
+#toasts {
+  position: fixed;
+  left: 0; right: 0; bottom: calc(10px + var(--sab));
+  z-index: 50;
+  /* Plain column, so the newest lands nearest the edge and the older ones are
+     pushed up off it — which is also the order they expire in. */
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  max-width: min(560px, 88vw);
+  text-align: center;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--good);
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: all 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.toast.show { opacity: 1; transform: none; }
+.toast.bad { border-left-color: var(--bad); }
+/* the toasts are decoration; the button that cancels a placement is not, and
+   it lives at the same end of the screen */
+#btn-cancel-place { z-index: 60; }
+
+/* ============ COMMAND DOCK ============ */
+#dock { display: none; }              /* only while a battle is on */
+#dock.playing {
+  /* FIXED height, never min-height. The stage is flex:1 above it, so any dock
+     that grows steals map height and the battlefield visibly jumps the moment
+     you click a penguin. The selection card is kept short enough to always fit
+     (upgrade details live in a hover card instead of inside the buttons). */
+  height: 162px;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 12px;
+  padding: 9px 12px;
+  background: linear-gradient(180deg, rgba(18, 28, 45, 0.97), rgba(11, 18, 30, 0.99));
+  border-top: 1px solid var(--line-strong);
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+
+/* The sidebar wrapper is a grouping device for the wide L layout only. Here it
+   dissolves, so its children are flex items of #dock just as they always were,
+   and the order below restores the arrangement the markup used to imply. */
+/* Both are pass-through everywhere except the wide layout, where the four
+   panels have to be one scalable group inside one grid cell. */
+#panel-fit, #sidebar { display: contents; }
+#palette { order: 2; }
+#dock-hero { order: 3; }
+#dock-powers { order: 4; }
+#command { order: 5; }
+
+/* ---- the selected penguin, as a column down the left of the map ----
+   It is position:fixed and outside #sidebar on purpose. Everything in the dock
+   is drawn at 400px and then scaled into the column — about 0.36 on a phone —
+   so no rule applied INSIDE the dock can make a control bigger than a third of
+   what it says. That is how the sell button ended up 10px tall and one pixel
+   under the upgrade button, and how penguins got sold by accident. Out here the
+   panel is drawn at its real size, which is also what buys room for the full
+   upgrade descriptions and retires the hover card for them.
+
+   Left, not right, because the right is where the dock already is; and the map
+   is wide, so a column down one edge covers trail the player is not aiming at. */
+#selpanel {
+  position: fixed;
+  /* left, top, width and height all come from JS — see fitSelPanel, which
+     measures the build tray and the wave controls and lays this into the slot
+     between them. They are deliberately not expressed here: the tray's box is
+     the product of a grid, a container query and a per-battlefield scale, and a
+     second opinion in CSS could only ever disagree with the first. These are
+     the values before script runs, so a card can never open at 0,0. */
+  left: 0;
+  right: auto;
+  top: 0;
+  /* Width comes from JS too. The floor that used to be here — 178px, because a
+     narrower row clipped "Follow-Through" mid-word — is gone with the ⓘ button
+     that made it necessary: that button took 41px out of every row, so without
+     it the tray's own 148px leaves the names more room than 178 ever did. */
+
+  z-index: 45;
+  /* Still translucent, for a different reason than before. Over the battlefield
+     it was so you could watch the sea lions; over the tray it is so the thing
+     underneath reads as a card the upgrade card was laid on top of, rather than
+     a hole punched in the dock. Same numbers, and they were measured against
+     snow, which is a brighter ground than the tray — so the text has more
+     contrast here than the 8.8:1 that was already comfortable. */
+  background: rgba(11, 19, 32, 0.80);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  backdrop-filter: blur(16px) saturate(0.9);
+  -webkit-backdrop-filter: blur(16px) saturate(0.9);
+  padding: 9px 9px;
+  /* One card laid on another. It comes in slightly large and slightly high, as
+     though it were being set down onto the column, and settles.
+
+     220ms, not the 130 this started at. The easing is a hard ease-out, so it
+     front-loads badly: at 130ms the card was 96% settled by the 65ms mark and
+     the whole visible movement lasted about forty. Forty milliseconds is under
+     the threshold at which anyone registers that something moved, so the
+     animation was there in the stylesheet and absent from the game. At 220 the
+     same curve spreads the movement over about a tenth of a second, which
+     reads. Nothing waits for it either way — the card takes presses from the
+     first frame; only opacity and transform are moving.
+
+     There is no matching exit: closing gives the dock straight back, because
+     that is the half a player is impatient for. */
+  animation: upgIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: 50% 0;
+  /* The card is the container its own contents are measured against, so the
+     narrow-column trims below key on the CARD's width rather than the window's
+     — the same trick the build tray already uses for its tiles. */
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  font-size: 13px;
+}
+/* [hidden] must beat display:flex, or the panel is never actually closed */
+@keyframes upgIn {
+  from { opacity: 0; transform: translateY(-10px) scale(1.04); }
+  to   { opacity: 1; transform: none; }
+}
+/* The tray, the hero chip and the boosts step aside. #command — Send Wave, the
+   speed toggle, pause and auto — does NOT, at any size. It is the row you reach
+   for while a card is open rather than after closing one: a wave you want to
+   hold, a speed you want to drop, and above all pause, because stopping to read
+   an upgrade does not stop the battle.
+
+   Listed one by one rather than hiding #panel-fit, which is their shared
+   wrapper: hiding the wrapper takes the wave controls with it, and hiding a
+   parent cannot be undone by a child (visibility inherits, but a hidden
+   ancestor's box is still not painted for a visible descendant — it is, but the
+   scaled #sidebar's own panel background goes with it, and the controls end up
+   floating on the map with no card behind them).
+
+   There is no companion animation on the way out. There was one, on the tray,
+   and it could never have been seen: visibility goes the moment the class does,
+   so it was 130ms of an invisible element scaling. Only the card moves. */
+#app.upg-open #palette,
+#app.upg-open #dock-hero,
+#app.upg-open #dock-powers {
+  visibility: hidden;
+}
+/* Someone who has asked their phone to stop animating things has asked for
+   this too. The swap still happens; it just happens at once. */
+@media (prefers-reduced-motion: reduce) {
+  #selpanel { animation: none; }
+}
+/* A question about this penguin puts its card out of reach until it is
+   answered — see setConfirming in ui.js for why the dialog's own scrim can no
+   longer do this. Dimmed as well as disabled: a card that ignores presses
+   without looking any different reads as the game having frozen. The wash is
+   the same 0.55 the scrim puts over the battlefield, so the two halves of the
+   screen go quiet together. */
+#app.confirming #selpanel {
+  filter: brightness(0.5) saturate(0.8);
+}
+/* The contents, not the card. The card itself has to stay hit-testable or the
+   press lands on the dock behind it, and the tap-outside handler reads that as
+   "you have gone somewhere else", drops the selection and closes the question
+   along with it. Inert children, live surface: a press on the dimmed card does
+   nothing at all, which is what the scrim used to do. */
+#app.confirming #selpanel > * { pointer-events: none; }
+#selpanel[hidden] { display: none; }
+#selpanel::-webkit-scrollbar { width: 5px; }
+#selpanel::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 3px; }
+
+
+/* ---- everything in the column is sized against the column ----
+   The panel runs from under the vitals to the foot of the map, so on a desktop
+   it is about twice the height it is on a phone in landscape — and it used to
+   spend all of that on empty gaps between three small rows. cqh is a percent of
+   the panel's own height, so instead the contents grow into the room: a phone
+   lands on the minimum of every clamp below and looks exactly as it did, and a
+   desktop gets a portrait twice the size and text you can read at a glance
+   while a wave is running.
+
+   Every one is a clamp with a real pixel floor, never a bare cqh. The panel's
+   height is set from JS and there are moments — mid-rotation, entering
+   fullscreen — when that measurement is not there yet, and a bare cqh would
+   round the whole card down to nothing at exactly the wrong time. */
+#selpanel .ds-head canvas {
+  width: clamp(30px, 9.7cqh, 72px);
+  height: clamp(30px, 9.7cqh, 72px);
+}
+/* Allowed to wrap to two lines here, and nowhere else. This column is about
+   143px wide and "Pebble Flinger" ellipsed to "Peb…" — which is the one thing
+   on the card that must always be readable, because it is how you know which
+   penguin you are looking at. */
+#selpanel .ds-name {
+  font-size: clamp(13.5px, 2.55cqh, 18px); line-height: 1.15;
+  white-space: normal; overflow: visible; text-overflow: clip;
+}
+#selpanel .ds-stats {
+  white-space: normal; font-size: clamp(10.5px, 1.9cqh, 13.5px); color: #d3e2f2;
+  margin-top: 0; letter-spacing: -0.3px;
+}
+/* A real target, not a glyph: 34px square is the smallest thing a thumb hits
+   reliably, and this one sits in the corner where a thumb naturally lands. */
+.ds-close {
+  flex: none;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--dim);
+  font-size: 15px;
+  cursor: pointer;
+}
+.ds-close:hover { background: rgba(255, 255, 255, 0.13); color: var(--text); }
+
+/* One row per upgrade path: which path, how far along, what is next, what it
+   costs. Finger-sized, and no wider than the column. What each upgrade DOES is
+   a hover or a long-press away — printing it here is what made the card cover
+   half the screen. */
+.ds-path {
+  display: flex; flex-direction: column; gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: clamp(6px, 1.2cqh, 11px) clamp(7px, 1.3cqh, 10px);
+  min-height: 42px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+  font: inherit; color: var(--text);
+}
+/* A row and its info button, side by side. They are siblings rather than one
+   inside the other so that they are two separate targets — a button nested in a
+   button would make every press on the ⓘ also a press on "buy this upgrade". */
+/* What the next tier actually does, on the row that buys it — but only when the
+   card is tall enough to give it whole lines.
+
+   Hidden by default, and that default is what a phone gets. The card takes the
+   build tray's slot, which on an iPhone is 238px, and that leaves a row about
+   45px: a label, a name that is sometimes two lines, and a price. A description
+   in that is a description with its second line sliced through the middle,
+   which reads as a bug rather than as brevity. Better to show two clean lines
+   than three ragged ones — and on a phone the sentence is still a press-and-
+   hold away, as it always was.
+
+   No height gate on it any more, and that was the whole point of taking the
+   column. It used to appear only above a 360px content box — which is every
+   desktop window and not one phone — so on the device the game is actually
+   played on, what an upgrade did was reachable by nothing but a long-press with
+   nothing on screen to advertise it. A player who cannot read an upgrade cannot
+   plan one, and three tuned lines of layout are worth less than the sentence
+   that says what you are buying.
+
+   Two clamped lines. Every description in the roster fits in two at the card's
+   width; the clamp is there so that one day's longer sentence loses its tail
+   instead of pushing the sell button off the foot of the card. */
+.dsp-desc {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: clamp(10px, 1.7cqh, 12.5px);
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 2px;
+}
+/* A path you cannot buy into has no next tier to describe — the row already
+   says why it is shut, and that is the sentence that matters there. */
+.ds-path.shut .dsp-desc { display: none; }
+/* On a finger it lives in the ⓘ card instead. The column is 325px there — down
+   to the wave controls, which stay — and three rows carrying a sentence each
+   need about 40 more than that. Something had to go, and a sentence one press
+   away behind a button that says it is there beats the same sentence on screen
+   with the row it belongs to scrolled half out of sight. On a mouse there is
+   room for both, and the hover card is the third way in. */
+html.touch .dsp-desc { display: none; }
+.ds-path { position: relative; }
+.ds-path.open { cursor: pointer; }
+.ds-path.open:hover { background: rgba(255, 255, 255, 0.075); }
+.ds-path.can { border-color: rgba(87, 212, 136, 0.7); }
+.ds-path.poor { opacity: 0.62; }
+/* The path the rule of two has closed. Dimmed rather than removed: seeing the
+   road you did not take is the whole point of there being three of them. */
+.ds-path.shut { opacity: 0.45; }
+/* The one purchase that cannot be undone — it shuts the third path. */
+.ds-path.commits { border-color: rgba(212, 175, 55, 0.7); }
+/* A path you have already put fish into. Which two of the three you committed
+   to is the single most useful thing this card can say, and it was being said
+   by tinting a 5px dot. A green edge down the row says it from across the
+   table. Drawn rather than bordered so it cannot shift the row's box, and kept
+   off the flash animation's box-shadow. */
+.ds-path.owned::before {
+  content: '';
+  position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--good);
+}
+/* gold is reserved for a path that is finished, not merely one with fish in it */
+.ds-path.done::before { background: var(--gold); }
+.dsp-head { display: flex; align-items: baseline; gap: 4px; }
+.dsp-name {
+  flex: 0 1 auto; min-width: 0;
+  /* No letter-spacing and 9px: "TRICK SHOT" is the longest path name in the
+     game and it has to fit beside the tally and the price in a 143px column. */
+  font-size: clamp(9px, 1.7cqh, 12px); font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0; color: var(--dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* "1/3", not three small dots. The dots were the only thing on the row that
+   changed when you bought an upgrade, and at 5px across, 22% white against
+   green, they were not a change anyone noticed. A number cannot be missed and
+   it is no wider. */
+.dsp-tally {
+  flex: none; margin-left: auto;
+  font-size: clamp(9px, 1.65cqh, 12px); font-weight: 800;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.2px;
+  padding: 1px 4px; border-radius: 999px;
+  color: var(--dim);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+}
+.dsp-tally.has { color: #93e9b8; background: rgba(87, 212, 136, 0.16); border-color: rgba(87, 212, 136, 0.5); }
+.dsp-tally.max { color: #ffe6a8; background: rgba(255, 217, 126, 0.16); border-color: rgba(255, 217, 126, 0.55); }
+/* ★ mastered · 🔒 shut, riding in the tally rather than in front of the reason
+   on the line below — that line is only about 105px wide once the ⓘ and the
+   price have taken their share, and a glyph there clipped the upgrade's name. */
+.dsp-tally i { font-style: normal; font-size: 0.82em; margin-right: 1px; }
+/* The upgrade you are buying and what it costs, on one line — the price sits
+   at the end of it rather than on the path-name line above, which needs its
+   whole width for "TRICK SHOT" beside the tally. A shut path fills the same
+   line with the reason instead, in the same face and the same place, so the
+   three rows read as three of one thing. */
+.dsp-next {
+  display: flex; align-items: baseline; gap: 4px;
+  font-size: clamp(12px, 2.35cqh, 16.5px); font-weight: 700; line-height: 1.2;
+}
+.ds-path.shut .dsp-up { font-weight: 700; color: var(--dim); font-size: clamp(11px, 2cqh, 14px); }
+.ds-path.done .dsp-up { color: var(--gold); }
+.dsp-up {
+  flex: 1 1 auto; min-width: 0;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden;
+  /* A single long word — "Konglomerate", "Stonebreaker" — is wider than the row
+     on a phone whatever else is done, and without this it was sliced off
+     mid-letter with no sign anything was missing. Broken instead, so the clamp
+     can put an ellipsis on it and the row admits there is more to read. On a
+     desktop card the words fit and this never fires. */
+  overflow-wrap: anywhere;
+}
+.dsp-cost { flex: none; font-size: clamp(11px, 2.05cqh, 14.5px); font-weight: 800; color: var(--gold); letter-spacing: -0.2px; }
+.ds-path kbd { margin-right: 3px; }
+/* one pulse the moment a row crosses from unaffordable to affordable */
+.ds-path.flash { animation: upgFlash 0.55s ease-out; }
+/* Its own row at the bottom, clear of everything, and it asks before it acts —
+   in a dialog now, see #confirm.
+
+   It used to ask in place: one press turned the button red and said "Sell?",
+   a second press sold. The red never arrived on the device the confirmation
+   exists for. iOS leaves :hover stuck on whatever you last tapped, .btn:hover
+   is written after this block and carries the same specificity as .sell-btn.armed,
+   so the later rule won and the armed button kept the ordinary grey fill — with
+   the armed state's near-black text on top of it, which reads as a disabled
+   button rather than an armed one. A player who had just asked to sell a 14,000
+   fish penguin was looking at something that appeared to have refused.
+
+   .btn is also written after the block below, which is why the idle colours are
+   qualified: unqualified they lost the same argument and the button that sells
+   your penguin was the same colour as the button that changes its targeting. */
+.sell-btn.sell-btn {
+  width: 100%;
+  min-height: clamp(42px, 7.4cqh, 54px);
+  margin-top: 2px;
+  justify-content: center;
+  font-size: clamp(13px, 2.3cqh, 15.5px);
+  color: #ff9ba3;
+  border-color: rgba(229, 109, 119, 0.45);
+}
+.sell-btn.sell-btn:hover { background: rgba(224, 96, 106, 0.2); border-color: rgba(229, 109, 119, 0.7); }
+
+/* A short window gives the card less to work with, so the head shrinks. The
+   rows themselves do not: they are three finger targets and a price, which is
+   the least the card can say and still be usable. */
+@media (max-height: 560px) {
+  #selpanel .ds-head canvas { width: 28px; height: 28px; }
+  #selpanel .ds-name { font-size: 12.5px; }
+  #selpanel { gap: 6px; padding: 8px 9px; }
+  /* 5px of side padding, not 7: the ⓘ beside the row takes 25 of the column's
+     128 and the name is what pays for it, so the row gives back what it can. */
+  #selpanel .ds-path { min-height: 40px; padding: 6px 5px; }
+}
+
+.ds-empty { text-align: left; }
+.ds-lvl { font-weight: 800; font-size: 15.5px; margin-bottom: 3px; }
+.dim { color: var(--dim); font-size: 12.5px; line-height: 1.45; font-weight: 550; }
+/* Portrait and name on the top line, stats across the full width beneath them.
+   Side by side in a column this narrow the name and the stat line got 33px
+   each: the name rendered as "Pe…" and the stats were not readable at all. */
+.ds-head {
+  display: grid; flex: none; min-width: 0;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 7px; row-gap: 3px;
+}
+.ds-head canvas { width: 34px; height: 34px; flex: none; grid-row: 1; }
+.ds-title { min-width: 0; grid-row: 1; }
+.ds-head .ds-close { grid-row: 1; }
+.ds-head .ds-stats { grid-column: 1 / -1; grid-row: 2; }
+
+/* ---- a tall column turns the head into a portrait ----
+   Beside the name, the penguin can only ever be as wide as the leftovers — 67px
+   in a 230px column, which is a stamp, not a picture. Stacked, it gets the
+   column's whole width and roughly doubles, with the name reading as its
+   caption. This is what the top of a card about ONE penguin should look like.
+
+   Gated on height, not turned on everywhere, because the head grows by about
+   120px doing this and the three upgrade rows have to come out of the same
+   column. Below 560px — a phone in landscape, a short laptop window — there is
+   no such surplus and the row arrangement is still the right one. */
+@container (min-height: 560px) {
+  .ds-head {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px;
+    text-align: center;
+  }
+  #selpanel .ds-head canvas { width: clamp(56px, 14cqh, 118px); height: clamp(56px, 14cqh, 118px); }
+  .ds-title, .ds-head .ds-stats { width: 100%; }
+  /* Out of the flow: in a centred column it would otherwise push the name off
+     centre, and the corner is where a thumb and a cursor both look for it. */
+  .ds-head .ds-close { position: absolute; top: 0; right: 0; }
+}
+/* Both lines are single-line by decree. The card has a fixed height, so a line
+   that wraps does not just look cramped — it pushes the row below it out
+   through the bottom of the card. Anything too long ellipses instead. */
+.ds-name {
+  font-weight: 800; font-size: 15px; line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ds-stats {
+  font-size: 12.5px; color: #c4d4e4; font-weight: 650; margin-top: 3px;
+  /* Pinned, not "normal": the ☠ and ⚔ glyphs push an auto line-height to 21px
+     for a 12.5px font, and those five wasted pixels are the difference between
+     the card fitting and the card scrolling. */
+  line-height: 1.3;
+  /* the tightening is worth ~7px over a full line, which is what a wide-range
+     hero in deep endless needs — "⚔ 12.4k · ⚡ 0.47/s · ◎ 244 · ☠ 48.2k" */
+  letter-spacing: -0.2px;
+  /* Allowed a second line now it has the card's whole width to itself instead
+     of sharing a row with the name. Two short lines beat one clipped one: at
+     the column's width the range and the kill count were ellipsed away. */
+  white-space: normal; overflow: hidden;
+}
+/* One path row above the next, each the full width of the column. */
+/* The rows take the column's spare height between the head and the actions,
+   sharing it evenly — bigger targets on a tall window, unchanged on a short
+   one — and the bottom row is pinned to the foot by the auto margin. */
+.ds-upgs {
+  display: flex; flex-direction: column; gap: 5px;
+  flex: 1 1 auto; min-height: 0;
+  /* The rows scroll HERE, and this is the one thing standing between a finger
+     and a purchase it did not ask for.
+
+     On a phone the card does not fit its own contents and cannot be made to.
+     Measured at 874x402: the card is the tray's 238px, which is 220px of
+     content once the border and padding are off it, and the parts below it
+     cannot give any of that back — three rows at their 40px floor plus two 6px
+     gaps is 132, the sell row's floor is 38, this column's own two gaps are 12,
+     and the head is 47 even with a one-line name and a one-line stat line.
+     That is 230 wanted against 220 available in the BEST case, and 256 for a
+     penguin whose name takes three lines in a 56px column. The only slack in
+     that list is the size of a finger.
+
+     Without this line the deficit came out of nowhere: .ds-upgs is the only
+     child that can shrink, so it shrank, and its rows — floored at 40px and
+     overflow:visible — carried on drawing outside it. The third one landed on
+     top of the sell button, and .ds-path is position:relative against a plain
+     .btn, so it painted above it AND took its taps. A press on the top of
+     "Sell +270" bought a 270-fish upgrade instead. Nothing overflowed the card
+     itself, so no scrollbar ever appeared to say so.
+
+     Scrolling costs about a third of the third row on a phone, which is the
+     right thing to lose: the head says which penguin this is and the foot sells
+     it, and both stay put and stay honest. No gutter is reserved — iOS and
+     macOS draw this as an overlay while it moves — so the rows keep their full
+     width on every screen that has the room. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+/* The rows GROW into the column's spare height rather than being pushed apart
+   by it. space-between did the second thing: three 94px rows in a 531px column
+   left 249px of nothing between them — 38% of the panel was gap — and the rows
+   themselves stayed the size they are on a phone. Growing them is what gives
+   the type above room to scale up, and what the comment here always claimed
+   was happening. */
+/* Grow into spare height, never shrink below what is written in them. The
+   shrink was there when a row held two lines that could not be lost; now it
+   holds three and the third is a sentence with overflow:hidden on it, so a
+   squeezed row did not look squeezed — it silently dropped the description and
+   went back to looking exactly like the version that had none. Measured at
+   700x360: two of the three rows lost their sentence, on seventeen of the
+   twenty penguins, with no scrollbar to say anything was missing.
+   Content-sized rows overflow honestly instead, and .ds-upgs scrolls. */
+.ds-upgs .ds-prow { flex: 1 0 auto; min-height: 0; display: flex; align-items: stretch; gap: 3px; min-width: 0; }
+.ds-upgs .ds-prow .ds-path { flex: 1 1 auto; min-width: 0; justify-content: center; }
+/* And the sentence itself is not the part that gives. It is the only thing on
+   the row that says what the fish buy. */
+.dsp-desc { flex: none; }
+.ds-actions { margin-top: auto; }
+.btn.upg-mini {
+  flex: 1;
+  min-width: 0;              /* let the two buttons share a narrow card evenly */
+  display: flex; flex-direction: column; align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  height: 52px;              /* fixed: the card must never change the dock height */
+  padding: 4px 7px 4px 24px;
+  position: relative;
+  text-align: left;
+  border-radius: 9px;
+  overflow: hidden;
+}
+.btn.upg-mini kbd { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); }
+.um-name {
+  /* flex:none or the fixed-height button squashes this to a single line and
+     clips the second — "Krill Konglomerate" lost its second word that way. */
+  flex: none;
+  width: 100%;
+  font-size: 12.5px; font-weight: 800; line-height: 1.15;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.um-sub { flex: none; font-size: 11px; color: var(--dim); font-weight: 650; white-space: nowrap; }
+.um-sub b { color: var(--gold); }
+/* green glow = buy it now; red price = keep fishing (mirrors the build bar) */
+.btn.upg-mini.can {
+  border-color: rgba(87, 212, 136, 0.55);
+  background: rgba(87, 212, 136, 0.10);
+  box-shadow: 0 0 10px rgba(87, 212, 136, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+.btn.upg-mini.can:hover { background: rgba(87, 212, 136, 0.17); border-color: var(--good); }
+.btn.upg-mini.poor { opacity: 0.55; }
+.btn.upg-mini.poor .um-sub b { color: var(--bad); }
+.btn.upg-mini.flash { animation: upgFlash 0.55s ease-out; }
+@keyframes upgFlash {
+  0% { box-shadow: 0 0 0 3px var(--good), 0 0 22px rgba(87, 212, 136, 0.65); }
+  100% { box-shadow: 0 0 10px rgba(87, 212, 136, 0.18); }
+}
+.btn.upg-mini.done { opacity: 0.7; }
+/* Never wraps: a second row of buttons is 25px the card does not have. The
+   sell price is the wide one, so it is the one allowed to shrink and ellipse. */
+/* Targeting and sell, side by side on the last row. Sell takes what is left
+   because its label carries the refund; targeting only ever holds one short
+   word and is allowed to stay exactly as wide as that word. */
+.ds-actions { display: flex; gap: 6px; flex: none; flex-wrap: nowrap; align-items: stretch; }
+.ds-actions .ds-target { flex: 0 0 auto; }
+.ds-actions .sell-btn { flex: 1 1 auto; margin-top: 0; min-width: 0; }
+/* #selpanel for specificity — .btn.tiny sets its own padding and font size and
+   was winning. Both buttons on this row grow with the column for the same
+   reason everything above them does: a 42px foot under three 160px rows reads
+   as an afterthought. */
+#selpanel .ds-actions .btn {
+  padding: 7px 11px; line-height: 1.35; white-space: nowrap;
+  font-size: clamp(13px, 2.3cqh, 15.5px);
+  min-height: clamp(42px, 7.4cqh, 54px);
+}
+.ds-actions .btn.danger { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* build palette: one grid of twenty penguins, ten across here — two classes to
+   a row, told apart by the coloured edge under each tile rather than by a box
+   around each five. The grid is the whole layout mechanism: give it a different
+   shaped container and it lays the same twenty out to suit. */
+#palette {
+  flex: 1 1 0;               /* the only panel that grows — slots get the slack */
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+.slot {
+  position: relative;
+  /* No floor of its own. A fixed 42px min-width meant the tray could not shrink
+     to the width the dock had spare, and it spilled out past the dock's edge.
+     The price text is nowrap, so it sets a natural floor (~26px) that keeps a
+     slot readable, and the icon scales with the slot (see .slot canvas). */
+  min-width: 0;
+  max-width: 92px;
+  border: 1px solid var(--line);
+  /* the class, which used to be a box around every five */
+  border-bottom: 2px solid var(--cls, var(--line));
+  border-radius: 9px;
+  padding: 3px 1px;
+  text-align: center;
+  cursor: pointer;
+  /* dragging a penguin out must never become a text selection or browser gesture */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  /* none, not pan-y. Handing the vertical axis to the browser meant the BROWSER
+     decided what the gesture was, and it decides early — a pan starts after
+     about 8px, which on a diagonal pull is reached by the vertical component
+     before the horizontal one has said anything trustworthy. It would begin
+     scrolling and fire pointercancel, and the drag-out was gone. No angle rule
+     can win an argument that is over before it starts.
+     So the tile owns both axes and the tray is scrolled by hand in
+     attachTrayDrag, momentum included. */
+  touch-action: none;
+  transition: transform 0.1s ease, box-shadow 0.15s ease, filter 0.15s;
+}
+/* 34px, not the bitmap's own 38. Two rows of icon + price have to clear the
+   dock's fixed 162px, and at 38 they came out 4px over — the tray then spilled
+   past the dock edge on wide windows. max-width lets it shrink further on
+   narrow ones; the bitmap is square, so height:auto keeps it undistorted. */
+.slot canvas { display: block; margin: 0 auto; width: 34px; max-width: 100%; height: auto; }
+.slot:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--line-strong); }
+.slot:active { transform: translateY(0) scale(0.95); }
+.slot.armed { box-shadow: 0 0 0 2px var(--good), 0 6px 16px rgba(0, 0, 0, 0.4); animation: armedPulse 1.2s ease-in-out infinite; }
+@keyframes armedPulse {
+  50% { box-shadow: 0 0 0 3px rgba(79, 196, 122, 0.55), 0 6px 20px rgba(0, 0, 0, 0.4); }
+}
+.slot.poor { opacity: 0.4; filter: saturate(0.4); }
+.slot.poor .slot-cost { color: var(--bad); }
+.slot-key {
+  position: absolute;
+  top: 3px; left: 4px;
+}
+.slot-cost {
+  display: block;
+  /* Deliberately conservative against the viewport. A slot's width is set by
+     the whole dock's layout, not by the window, so a generous vw factor
+     overshot: at 1251px the tray had only 24px of slot for a four-figure Hard
+     price that wanted 28. The floor is what actually fits the narrowest slot
+     the dock ever hands out. */
+  font-size: clamp(9px, 0.62vw, 12px);
+  font-weight: 800;
+  color: var(--gold);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  font-variant-numeric: tabular-nums;
+  /* A four-figure price used to wrap onto a second line, which made that one
+     row taller than the others and pushed the whole tray past the dock's
+     fixed height. The price stays on one line and shrinks instead. */
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+
+/* command cluster (right) */
+#command {
+  flex: 0 1 212px;           /* fixed share too — spare width belongs to the tray */
+  min-width: 190px;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+}
+#wave-preview {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-height: 18px;
+  /* exactly two chip rows (21px each + the 4px gap). A value between row
+     heights is what sliced the boss chip in half on late waves. */
+  max-height: 46px;
+  overflow: hidden;
+}
+.wp-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 800;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.wp-chip i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; box-shadow: inset 0 -1px 2px rgba(0,0,0,0.4); }
+.wp-chip.boss { color: #ffb3b3; border-color: rgba(229, 109, 119, 0.6); background: rgba(229, 109, 119, 0.16); }
+#send-wave { padding: 11px 10px; font-size: 16px; font-weight: 750; }
+#send-wave kbd { margin-left: 4px; }
+#cmd-row { display: flex; align-items: center; gap: 7px; }
+
+/* ---------- keycaps ---------- */
+kbd {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  font-family: inherit;
+  line-height: 1.55;
+  color: #eef4fa;
+  text-transform: lowercase;
+  vertical-align: middle;
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+  font-family: inherit;
+  letter-spacing: 0.1px;
+}
+.btn:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.28); }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.55; cursor: default; transform: none; }
+.btn.primary {
+  background: linear-gradient(180deg, #3d86d8, #2f62b4);
+  border-color: rgba(130, 190, 255, 0.45);
+  box-shadow: 0 2px 10px rgba(63, 127, 212, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.btn.primary:hover { background: linear-gradient(180deg, #4a94e4, #366fc4); }
+.btn.small { padding: 6px 11px; font-size: 12px; border-radius: 9px; }
+.btn.tiny { padding: 6px 11px; font-size: 13px; border-radius: 8px; }
+.btn.big { display: block; width: 280px; margin: 9px auto; padding: 13px; font-size: 15.5px; border-radius: 12px; }
+/* backup / restore pair on the main menu */
+.menu-io { display: flex; gap: 8px; justify-content: center; margin: 4px auto 6px; }
+
+/* ---------- audio levels (main menu + pause screen) ---------- */
+.audio-panel {
+  width: min(420px, 92vw);
+  margin: 8px auto;
+  padding: 10px 14px 12px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-align: left;
+}
+.audio-panel.is-muted .au-row { opacity: 0.45; }
+.au-title {
+  font-size: 11px; font-weight: 800; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--dim);
+  margin-bottom: 7px;
+}
+.au-row {
+  display: flex; align-items: center; gap: 10px;
+  margin: 5px 0;
+  font-size: 13.5px; font-weight: 650;
+  cursor: pointer;
+}
+.au-row > span { flex: 0 0 62px; color: var(--text); }
+.au-row > b {
+  flex: 0 0 42px; text-align: right;
+  color: var(--gold); font-variant-numeric: tabular-nums; font-size: 12.5px;
+}
+.au-row input[type='range'] {
+  flex: 1 1 auto; min-width: 0;
+  -webkit-appearance: none; appearance: none;
+  height: 5px; border-radius: 3px;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+}
+.au-row input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #0d1625;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.au-row input[type='range']::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 2px solid #0d1625;
+}
+.au-mute { margin-top: 8px; width: 100%; }
+.au-mute.muted { color: var(--bad); border-color: rgba(229, 109, 119, 0.5); }
+.btn.danger { background: rgba(224, 96, 106, 0.14); border-color: rgba(224, 96, 106, 0.4); color: #ff9ba3; }
+.btn.danger:hover { background: rgba(224, 96, 106, 0.26); }
+.btn.danger-ghost { background: transparent; border-color: transparent; color: #d98a8a; }
+.btn.danger-ghost:hover { background: rgba(224, 96, 106, 0.12); border-color: rgba(224, 96, 106, 0.3); }
+.btn.attention { box-shadow: 0 0 0 2px var(--gold); }
+.btn.retry { border-color: rgba(255, 217, 126, 0.5); color: var(--gold); }
+.btn.retry:hover:not(:disabled) { background: rgba(255, 217, 126, 0.12); border-color: var(--gold); }
+.kbd-hint { margin-left: 6px; opacity: 0.8; }
+
+.hud-check { font-size: 13px; font-weight: 700; color: #c4d4e4; display: flex; gap: 7px; align-items: center; cursor: pointer; }
+.switch { position: relative; width: 32px; height: 19px; display: inline-block; }
+.switch input { opacity: 0; width: 100%; height: 100%; position: absolute; cursor: pointer; z-index: 2; margin: 0; }
+.switch .knob {
+  position: absolute; inset: 0;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+.switch .knob::after {
+  content: '';
+  position: absolute; top: 2px; left: 2px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: #cfdae6;
+  transition: transform 0.2s cubic-bezier(0.5, 1.6, 0.4, 1), background 0.2s;
+}
+.switch input:checked + .knob { background: var(--good); border-color: transparent; }
+.switch input:checked + .knob::after { transform: translateX(13px); background: #fff; }
+
+/* ---------- tooltip ---------- */
+#tooltip {
+  display: none;
+  position: fixed;
+  z-index: 60;
+  width: 250px;
+  background: rgba(14, 22, 36, 0.97);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 11px 13px;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  font-size: 12px;
+}
+.tt-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tt-head b { font-size: 13.5px; }
+.tt-cost { color: var(--gold); font-weight: 800; font-variant-numeric: tabular-nums; }
+.tt-cls { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; margin: 2px 0 6px; }
+.tt-desc { color: var(--dim); line-height: 1.45; margin-bottom: 7px; }
+.tt-stats { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 7px; }
+.tt-stats span { color: var(--dim); font-size: 11px; font-weight: 600; }
+
+/* upgrade path laid out in the floating card, so the dock buttons can stay
+   compact and every selection card is the same height */
+.tt-tiers { display: flex; flex-direction: column; gap: 5px; margin-bottom: 7px; }
+.tt-tier {
+  display: flex; gap: 7px; align-items: flex-start;
+  font-size: 11.5px; line-height: 1.35;
+  padding: 4px 6px;
+  border-radius: 7px;
+}
+.tt-tier-dot { flex: none; width: 10px; text-align: center; font-size: 10px; }
+.tt-tier-desc { color: var(--dim); font-weight: 600; }
+/* Bought, and it says so. A tier you own used to differ from one you do not by
+   a 10px dot and a change of opacity, which at arm's length on a phone is not a
+   difference at all — so after your first upgrade the card stopped answering
+   the question it is for. The tick, the word and the missing price are three
+   independent ways to read the same thing, and none of them needs good light. */
+.tt-tier.own { opacity: 0.62; }
+.tt-tier.own .tt-tier-dot { color: var(--good); font-size: 11px; }
+.tt-tier.own b { text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, 0.32); }
+.tt-tier.next {
+  background: rgba(87, 212, 136, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(87, 212, 136, 0.45);
+}
+.tt-tier.next .tt-tier-dot { color: var(--good); }
+.tt-tier.later { opacity: 0.6; }
+.tt-tier.later .tt-tier-dot { color: var(--dim); }
+/* The word beside the name. Small, but it is the only part of the row that
+   cannot be mistaken for anything else. */
+.tt-tag {
+  display: inline-block;
+  font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+  border-radius: 4px;
+  padding: 0 4px;
+  vertical-align: 1px;
+}
+.tt-tag.own { color: var(--good); border: 1px solid rgba(87, 212, 136, 0.4); }
+.tt-tag.next { color: #0d1a14; background: var(--good); }
+/* How far along the path, in the head, so it never has to be counted off the
+   rows below. Gold once every tier is bought. */
+.tt-tally {
+  flex: none;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.3px;
+  color: var(--dim);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-variant-numeric: tabular-nums;
+}
+.tt-tally.has { color: var(--good); border-color: rgba(87, 212, 136, 0.45); }
+.tt-tally.max { color: var(--gold); border-color: rgba(212, 175, 55, 0.5); }
+.tt-stats b { color: var(--text); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.tt-key { color: #6c8299; font-size: 10.5px; border-top: 1px solid var(--line); padding-top: 7px; }
+
+/* ---------- overlay screens ---------- */
+#overlay {
+  position: fixed; inset: 0;
+  /* the menus are centred in the window, so only a cutout can reach them —
+     padding keeps a screen's edge out from under one */
+  padding: var(--sat) var(--sar) var(--sab) var(--sal);
+  background: rgba(6, 10, 17, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.screen {
+  display: none;
+  background: linear-gradient(180deg, rgba(23, 35, 54, 0.97), rgba(14, 22, 36, 0.97));
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  padding: 32px 38px;
+  max-width: 900px;
+  width: calc(100% - 40px);
+  /* #overlay is padded by the safe area and centres this box inside it, so the
+     ceiling has to come off the same budget or a tall menu grows back out
+     under the cutout it was just moved clear of. */
+  max-height: calc(100dvh - 60px - var(--sat) - var(--sab));
+  overflow-y: auto;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.screen.active { display: block; animation: screenIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
+
+/* sticky screen header: the back button stays in reach no matter how far
+   the battlefield list (or the how-to text) has been scrolled.
+   Negative margins must mirror the .screen padding so the bar spans edge to edge. */
+.screen-head {
+  position: sticky;
+  top: -32px;   /* sticky offsets the margin box — cancel the negative margin */
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -32px -38px 18px;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, rgba(23, 35, 54, 0.99), rgba(19, 30, 47, 0.96));
+  border-bottom: 1px solid var(--line);
+}
+.screen-head h2 { flex: 1; margin: 0; font-size: 22px; text-align: center; }
+.screen-head .btn { flex: none; }
+.screen-head .pebble-chip { flex: none; margin: 0; }
+@keyframes screenIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.title-art { font-size: 64px; filter: drop-shadow(0 6px 18px rgba(103, 212, 245, 0.35)); }
+h1 {
+  font-size: 44px;
+  letter-spacing: 0.5px;
+  background: linear-gradient(180deg, #ffffff, #a8d4f0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.subtitle { color: var(--accent); font-weight: 750; font-size: 17px; margin-bottom: 12px; letter-spacing: 0.6px; }
+.blurb { color: var(--dim); line-height: 1.55; max-width: 540px; margin: 0 auto 18px; font-size: 14.5px; }
+.footnote { margin-top: 16px; font-size: 11.5px; color: #5a6d80; }
+h2 { margin-bottom: 18px; font-size: 26px; letter-spacing: 0.3px; }
+
+.cheatsheet {
+  margin: 22px auto 0;
+  max-width: 420px;
+  text-align: left;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cheatsheet div { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.cheatsheet span { color: var(--dim); margin-left: auto; }
+
+/* level select */
+#level-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+.lvl-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+  gap: 12px;
+}
+
+/* tier sections */
+.lvl-section { border-top: 1px solid var(--line); padding-top: 16px; }
+.lvl-section:first-child { border-top: none; padding-top: 0; }
+.lvl-section.locked { opacity: 0.75; }
+.lvl-sec-head { margin-bottom: 12px; }
+.lvl-sec-title {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 20px; font-weight: 800;
+  letter-spacing: 0.3px;
+}
+.lvl-sec-icon { font-size: 21px; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)); }
+.lvl-sec-meta { display: flex; gap: 6px; flex-wrap: wrap; margin: 7px 0 6px; }
+.lvl-sec-blurb { color: var(--dim); font-size: 12.5px; line-height: 1.5; max-width: 720px; }
+/* A column, so the buttons sit on the bottom edge of the card whatever the card
+   above them holds. Cards in a row stretch to the tallest, and one with fewer
+   badges used to leave the gap UNDER its Play button — the button floated in
+   the middle of nothing. The gap goes above the badges now, where it reads as
+   spacing rather than as a card that failed to fill. */
+.level-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.14s ease, box-shadow 0.18s ease, border-color 0.18s;
+}
+.level-card:not(.locked) { cursor: pointer; }
+.level-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.level-card:not(.locked):hover {
+  transform: translateY(-3px);
+  border-color: rgba(103, 212, 245, 0.45);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+}
+.level-card.locked { opacity: 0.55; filter: saturate(0.4); }
+.lvl-thumb { display: block; width: 100%; height: auto; border-bottom: 1px solid var(--line); }
+.lvl-lock {
+  position: absolute; top: 54px; left: 50%; transform: translate(-50%, -50%);
+  font-size: 30px; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
+.lvl-body { padding: 11px 13px 6px; flex: 1 1 auto; display: flex; flex-direction: column; }
+/* two lines reserved: "21. Abyssal Approach" wraps where "23. Leviathan Trench"
+   does not, and a title one line taller than its neighbour's put everything
+   below it out of step with the rest of the row */
+.lvl-row { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; min-height: 38px; }
+.lvl-name { font-weight: 800; font-size: 15.5px; }
+.lvl-stars { color: var(--gold); font-size: 12px; letter-spacing: 1px; white-space: nowrap; }
+.dim-star { color: rgba(255, 255, 255, 0.15); }
+/* Off the dim grey: this is the one line that says what the battlefield is.
+   Three lines reserved, not two — a locked card's reason ("Beat Penguin Village
+   on Easy first.") runs to three at this width, and a card whose text is one
+   line taller than its neighbour's pushes everything below it out of step with
+   the rest of the row. */
+.lvl-tag { font-size: 12.5px; color: #b9cadb; line-height: 1.45; min-height: 54px; margin-top: 4px; }
+/* Directly under the tagline, NOT pushed to the foot of the body. Pushing them
+   down put the slack between the text and the badges, so a card with one row of
+   badges sat them 60px lower than a card with three and the rows across a
+   tier never lined up. Everything is top-aligned now and the buttons are
+   bottom-aligned, so the only thing that varies is one band of space between
+   them. */
+/* two rows' worth reserved, so the band of space under the badges is the same
+   in every card instead of running from 10px to 39 depending on how many a
+   battlefield happens to have earned */
+.lvl-meta { display: flex; gap: 6px; margin: 9px 0 4px; flex-wrap: wrap; min-height: 53px; align-content: flex-start; }
+.badge {
+  font-size: 11.5px; font-weight: 750;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px; padding: 3px 10px; color: #c6d5e4;
+}
+.badge.done { color: var(--good); border-color: rgba(79, 196, 122, 0.55); background: rgba(79, 196, 122, 0.12); }
+.badge.save { color: var(--gold); border-color: rgba(255, 209, 102, 0.5); background: rgba(255, 209, 102, 0.12); }
+.lvl-actions { display: flex; gap: 7px; padding: 0 13px 13px; flex: none; }
+.lvl-actions .btn { flex: 1 1 auto; justify-content: center; }
+
+/* difficulty select */
+#diff-grid { display: flex; gap: 14px; justify-content: center; margin: 6px 0 20px; flex-wrap: wrap; }
+.diff-card {
+  --dc: var(--accent);
+  width: 208px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-bottom: 3px solid var(--dc);
+  border-radius: 16px;
+  padding: 22px 16px 16px;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.14s ease, box-shadow 0.18s ease, border-color 0.18s, background 0.18s;
+}
+.diff-card:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--dc);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+.diff-card:active { transform: translateY(-1px) scale(0.98); }
+.diff-card.easy { --dc: var(--good); }
+.diff-card.medium { --dc: var(--accent); }
+.diff-card.hard { --dc: var(--bad); }
+.diff-icon { font-size: 42px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4)); }
+.diff-name { font-weight: 800; font-size: 19px; margin: 8px 0 10px; color: var(--dc); }
+.diff-done { color: var(--good); font-size: 15px; }
+.diff-card.locked {
+  cursor: default;
+  opacity: 0.6;
+  filter: saturate(0.25);
+  border-bottom-color: var(--line);
+}
+.diff-card.locked:hover { transform: none; background: var(--panel2); border-color: var(--line); box-shadow: none; }
+.diff-card.locked .diff-name { color: var(--dim); }
+.diff-locked-why {
+  color: var(--dim);
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 6px 2px 10px;
+}
+.badge.diff-lock { opacity: 0.65; }
+.badge.diff-open { color: var(--accent); border-color: rgba(116, 220, 251, 0.35); }
+.diff-facts { list-style: none; color: var(--dim); font-size: 13px; line-height: 1.9; font-weight: 600; }
+.diff-facts b { color: var(--text); }
+.diff-reward { color: var(--gold); font-weight: 750; }
+
+/* colony rank chip + progress bar */
+.chip-row { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.rank-chip {
+  display: inline-flex; align-items: center; gap: 9px;
+  background: rgba(116, 220, 251, 0.09);
+  border: 1px solid rgba(116, 220, 251, 0.32);
+  border-radius: 999px;
+  padding: 6px 15px;
+  margin-bottom: 14px;
+  font-size: 14px; font-weight: 750;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.rank-chip.wide { display: flex; width: min(460px, 92%); margin: 0 auto 16px; justify-content: space-between; }
+.rank-bar {
+  display: block;
+  width: 90px; height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rank-chip.wide .rank-bar { flex: 1; max-width: 240px; }
+.rank-bar i {
+  display: block; height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent), #9ff0ff);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+/* main-menu rows: related buttons share a line instead of stacking */
+.menu-row { display: flex; gap: 8px; justify-content: center; width: min(420px, 92vw); margin: 6px auto; }
+.menu-row .btn { flex: 1 1 0; padding: 12px 8px; font-size: 14px; }
+
+/* Penguin Guide */
+#screen-guide { max-width: 980px; }
+.gd-rank {
+  background: rgba(116, 220, 251, 0.09);
+  border: 1px solid rgba(116, 220, 251, 0.3);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  font-size: 13.5px;
+  color: var(--accent);
+}
+.gd-sec { margin-bottom: 22px; text-align: left; }
+.gd-sec-head {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 6px; margin-bottom: 10px;
+}
+.gd-sec-name { font-weight: 800; font-size: 18px; }
+.gd-sec-desc { color: var(--dim); font-size: 13px; }
+.gd-card {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.gd-head { display: flex; gap: 12px; align-items: flex-start; }
+.gd-head canvas { flex: none; width: 44px; height: 44px; }
+.gd-name { font-weight: 800; font-size: 15px; }
+.gd-cost { color: var(--gold); font-weight: 700; font-size: 12px; margin-left: 6px; }
+.gd-lock { color: var(--dim); font-weight: 700; font-size: 12px; margin-left: 6px; }
+.gd-stats { color: var(--accent); font-size: 12px; font-weight: 700; margin: 2px 0; }
+.gd-desc { color: var(--dim); font-size: 12.5px; line-height: 1.5; }
+.gd-paths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+/* The rule of two, stated once at the top of the roster. */
+.gd-rule {
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--gold);
+  border-radius: 8px;
+  padding: 10px 13px;
+  margin-bottom: 14px;
+  font-size: 13px; line-height: 1.55; color: var(--dim);
+}
+.gd-rule b { color: var(--text); }
+.gd-tier.cap { border-top: 1px solid var(--line); padding-top: 5px; margin-top: 2px; }
+/* A capstone is not another +2 damage, and the roster should not read as
+   though it were. One quiet gold tag, everywhere a tier-3 line is printed. */
+.tt-capstone {
+  display: inline-block;
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--gold);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin-right: 3px;
+  vertical-align: 1px;
+}
+.gd-path {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 8px 10px;
+}
+.gd-path-name {
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.gd-tier { font-size: 12px; line-height: 1.45; margin-bottom: 6px; }
+.gd-tier-desc { color: var(--dim); }
+.gd-enemies { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+.gd-enemy {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+.gd-enemy.boss { border-color: rgba(224, 82, 82, 0.45); }
+.gd-dot { flex: none; width: 14px; height: 14px; border-radius: 50%; margin-top: 3px; border: 2px solid rgba(10, 18, 28, 0.5); }
+.gd-ename { font-weight: 800; font-size: 13px; }
+.gd-etraits { color: var(--dim); font-size: 12px; line-height: 1.4; }
+@media (max-width: 640px) { .gd-paths { grid-template-columns: 1fr; } }
+
+/* tower drip: penguins not yet recruited — ghost the penguin, keep the padlock crisp */
+#palette .slot.locked { cursor: default; }
+#palette .slot.locked canvas,
+#palette .slot.locked .slot-cost,
+#palette .slot.locked .slot-key {
+  opacity: 0.3;
+  filter: saturate(0.1);
+}
+#palette .slot.locked:hover { transform: none; }
+.slot-lock {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -58%);
+  font-size: 15px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+  pointer-events: none;
+}
+
+/* Colony Upgrades */
+.cu-pips { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
+.cu-pip {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 217, 126, 0.5);
+  background: transparent;
+}
+.cu-pip.on { background: var(--gold); box-shadow: 0 0 6px rgba(255, 209, 102, 0.5); }
+.cu-now { font-size: 12px; color: var(--good); font-weight: 700; min-height: 18px; margin: 2px 0 4px; }
+
+/* hero picker (difficulty screen) */
+#hero-head {
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--gold);
+  margin: 2px 0 10px;
+}
+/* A grid, not a wrapping row of fixed-width cards. With nine champions the old
+   208px card gave three per row and a picker taller than the screen; auto-fit
+   packs five across a full-width panel and folds down cleanly on narrow ones. */
+#hero-row, .hero-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(152px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.hero-card {
+  min-width: 0;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-bottom: 3px solid rgba(255, 209, 102, 0.45);
+  border-radius: 14px;
+  padding: 12px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.14s ease, box-shadow 0.18s ease, border-color 0.18s, background 0.18s;
+}
+.hero-card:hover { transform: translateY(-3px); border-color: var(--gold); background: rgba(255, 255, 255, 0.09); }
+.hero-card.sel {
+  border-color: var(--gold);
+  background: rgba(255, 209, 102, 0.1);
+  box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.5), 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+.hero-card.locked { cursor: default; }
+.hero-card.locked:hover { transform: none; }
+.hero-card.locked canvas { filter: grayscale(0.85) brightness(0.75); }
+.hero-card canvas { width: 48px; height: 48px; flex: none; }
+.hc-name { font-weight: 800; font-size: 14px; color: var(--gold); margin: 3px 0 2px; line-height: 1.2; }
+/* the blurbs run to two or three lines at this width; a shared floor keeps the
+   cards in a row the same height without capping the longest one */
+.hc-blurb { font-size: 11.5px; color: var(--dim); line-height: 1.4; min-height: 48px; }
+.hc-abil { font-size: 11.5px; font-weight: 700; margin: 5px 0; line-height: 1.3; }
+.hc-state { font-size: 11px; color: var(--dim); margin-top: 4px; }
+.hero-card .btn { margin-top: auto; width: 100%; }
+.hero-card.sel .hc-state { color: var(--good); font-weight: 700; }
+
+/* hero panel (in the dock) */
+#dock-hero {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--panel2);
+  border: 1px solid rgba(255, 209, 102, 0.35);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+.hero-chip {
+  position: relative;
+  width: 54px; height: 54px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 209, 102, 0.08);
+  border: 1px solid rgba(255, 209, 102, 0.4);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.15s, background 0.15s;
+}
+.hero-chip:hover { background: rgba(255, 209, 102, 0.16); transform: translateY(-2px); }
+.hero-chip.armed { outline: 2px solid var(--gold); }
+.hero-chip.poor { opacity: 0.55; filter: saturate(0.4); }
+.hero-chip canvas { width: 40px; height: 40px; }
+.hero-lv {
+  position: absolute;
+  bottom: -7px; left: 50%; transform: translateX(-50%);
+  white-space: nowrap;
+  background: #223349;
+  border: 1px solid rgba(255, 217, 126, 0.45);
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 10px; font-weight: 800;
+  line-height: 1.6;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+.hero-abil { min-width: 96px; max-width: 132px; }
+/* Once the hero is on the ice, the panel IS the ability: the portrait beside it
+   was a control that could not do anything — a hero places once, so its only
+   remaining gesture was a drag that had to be refused. */
+.btn.hero-power {
+  flex: 1 1 auto;
+  min-width: 0; max-width: none; width: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 2px;
+  padding: 8px 8px;
+  text-align: center;
+  line-height: 1.2;
+}
+.hp-icon { font-size: 22px; line-height: 1.25; }
+.hp-name { font-size: 12px; font-weight: 800; color: var(--gold); }
+.hp-state {
+  font-size: 10.5px; font-weight: 650; color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.btn.hero-power:disabled { opacity: 0.62; }
+.btn.hero-power.ready .hp-state { color: var(--good); }
+.hero-abil.ready {
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 0 10px rgba(255, 209, 102, 0.35);
+  animation: heroPulse 1.6s ease-in-out infinite;
+}
+@keyframes heroPulse {
+  50% { box-shadow: 0 0 18px rgba(255, 209, 102, 0.6); }
+}
+/* no vertical padding: with the XP bar in it this block was the one pixel that
+   armed the card's scrollbar */
+/* It takes the column's spare height rather than leaving it below the sell
+   button, for the same reason the upgrade rows do. */
+.ds-hero-note {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column;
+  font-size: clamp(11.5px, 2.05cqh, 14px); color: var(--dim); line-height: 1.4; padding: 0 2px;
+}
+.ds-hero-note b { color: var(--gold); }
+/* Each line is exactly one line. See the note in renderDockSel: this block sits
+   between the head and the action row inside a card of fixed height. */
+.hn-line { display: block; flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* What the champion is for and what the ability does — the wordy half, shown
+   only where there is height to spend on it. Same gate as the tier ladder. */
+.hn-more { display: none; }
+@container (min-height: 430px) {
+  /* Top-aligned, not centred. Centred, the prose floated away from the rule
+     that introduces it and left a gap above AND below — two holes instead of
+     one. It sits under its own hairline and the slack collects once, at the
+     foot of the card, where it reads as the card's bottom margin. */
+  .hn-more {
+    display: flex; flex-direction: column; justify-content: flex-start; gap: 9px;
+    flex: 1 1 auto; min-height: 0;
+    font-size: clamp(11.5px, 2.4cqh, 16px); line-height: 1.45;
+    margin-top: 7px; padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .hn-abil { color: #d3e2f2; }
+}
+/* progress to the hero's next level — inline, so it costs the dock no height */
+.hero-xp {
+  display: block; width: 100%; height: 4px; margin: 3px 0 2px;
+  background: rgba(255, 255, 255, 0.14); border-radius: 3px; overflow: hidden;
+}
+.hero-xp i { display: block; height: 100%; background: var(--gold); border-radius: 3px; transition: width 0.3s ease; }
+/* the vendor's place in the pecking order, inline on the stat line */
+.ds-rank { color: var(--gold); }
+.hero-tag { color: var(--gold); font-size: 12px; }
+
+/* pebbles */
+.pebble-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255, 217, 126, 0.1);
+  border: 1px solid rgba(255, 217, 126, 0.35);
+  border-radius: 999px;
+  padding: 6px 15px;
+  margin-bottom: 14px;
+  font-size: 14px; font-weight: 750;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* boost inventory panel (in the dock) */
+#dock-powers {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+.dp-label {
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--dim);
+}
+.dp-grid { display: grid; grid-template-columns: repeat(3, 46px); gap: 7px; }
+.dp-btn {
+  position: relative;
+  width: 46px; height: 46px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 20px;
+  transition: transform 0.1s, border-color 0.15s, background 0.15s, filter 0.15s;
+}
+.dp-btn:hover { background: rgba(255, 255, 255, 0.14); border-color: var(--accent); transform: translateY(-2px); }
+.dp-btn:active { transform: scale(0.93); }
+.dp-btn.empty { opacity: 0.35; filter: saturate(0.2); }
+.dp-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+.dp-count {
+  position: absolute;
+  top: -6px; right: -6px;
+  min-width: 16px;
+  background: #223349;
+  border: 1px solid rgba(255, 217, 126, 0.45);
+  border-radius: 999px;
+  padding: 0 4px;
+  font-size: 10px; font-weight: 800;
+  line-height: 1.5;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.dp-btn.empty .dp-count { color: var(--dim); border-color: var(--line); }
+
+/* boost shop */
+#shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+.shop-card {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.shop-icon { font-size: 30px; }
+.shop-name { font-weight: 800; font-size: 15px; }
+.shop-desc { color: var(--dim); font-size: 12.5px; line-height: 1.45; flex: 1; }
+.shop-row { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.shop-owned { font-weight: 800; font-size: 14px; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+/* how to play */
+.howto { text-align: left; line-height: 1.6; font-size: 13.5px; color: var(--text); max-width: 660px; margin: 0 auto; }
+.howto p { margin-bottom: 11px; }
+.howto b { color: #fff; }
+.howto kbd { text-transform: none; }
+.keys-line { text-align: center; color: var(--dim); }
+
+/* narrow windows: the dock wraps — palette gets its own full-width row */
+/* Narrow windows: the dock wraps to exactly TWO rows — the tray on top, the
+   panels beneath — at a FIXED height. It used to be `height: auto`, and the
+   bottom row overflowed the available width by a few pixels, so it silently
+   wrapped a third time and the dock swallowed 461px of a 936px window. Every
+   panel on the bottom row now flexes, which guarantees two rows at any width
+   in this range and keeps the battlefield a constant size. */
+
+/* ============ WIDE LAYOUT: the map, and one column beside it ============
+   One arrangement at every window size, and it is a block of fixed proportions
+   rather than a set of pieces that rearrange: the map, and to its right a
+   column whose top half is the build tray and whose bottom half is the four
+   panels. Nothing ever moves to a different place. Only the block's size
+   changes, and the block is centred in whatever window it is given.
+
+   The block's shape is bounded — between 16:9 and 19.5:9 for a 16:10
+   battlefield, which is the same thing as saying the column is 11% to 36% of
+   the map's width. It is written that way round because the battlefields are
+   not all one shape: tier 3 is already 1.74:1, and a literal 16:9 block would
+   leave it a 51px column where tier 1 got 199. Tying the column to the map
+   instead keeps it the same width on every battlefield, which is the point.
+
+   A window inside that band is filled exactly. A window narrower than the band
+   (a full-screen 16:10 laptop) gets an even margin above and below; wider than
+   it (a window dragged out long and thin) gets one either side. Either way the
+   remainder is a frame around the block, not a hole inside it.
+
+   #app becomes a four-track grid in each direction — a gutter, the map, the
+   column, a gutter — so the block sits on both axes without anything being
+   positioned by hand. #dock dissolves so its panels can be placed directly. All
+   the measurements come from fitCanvas.
+
+   The gutters are set in pixels rather than left at 1fr, which is what centred
+   the block. Centring is the wrong answer on a screen with something sticking
+   into one edge: half the margin ends up on the empty side doing nothing while
+   the Dynamic Island sits on the battlefield. fitCanvas spends the margin on
+   whichever edges have a cutout first and splits what is left over evenly, so
+   an ordinary window still gets an even frame and a phone gets the block pushed
+   clear. They fall back to 1fr so the layout still centres if script has not
+   run yet. */
+/* This is the only in-level layout there is. It is not behind a media query:
+   there is no window size at which the pieces move somewhere else. A window
+   the block does not match gets a margin, never a different arrangement. */
+  #app {
+    display: grid;
+    grid-template-columns: var(--gut-l, 1fr) var(--mapw, 1fr) var(--sidew, 0px) var(--gut-r, 1fr);
+    grid-template-rows: var(--gut-t, 1fr) var(--trayh, 1fr) var(--panelsh, 1fr) var(--gut-b, 1fr);
+  }
+  /* Exactly the map's box, not the full window height. Everything that floats
+     over the battlefield — the vitals, the system buttons, the banner, the
+     cancel button — is positioned against this, so on a window taller than the
+     block they belong to the map rather than drifting up into the margin. */
+  #stage { grid-column: 2; grid-row: 2 / span 2; padding: 0; }
+  #dock.playing { display: contents; }
+  /* and they scale with the block for the same reason the panels do: the whole
+     thing has to look like one drawing at any size.
+
+     The margins carry --map-inset-*, which is whatever a cutout still reaches
+     into the map after the block has moved as far off it as the leftover
+     margin allowed. Usually zero. When it is not, the lives and fish counters
+     step in far enough to stay readable rather than disappearing behind an
+     island the player cannot move. */
+  #hud-stats { top: 0; left: 0; transform: scale(var(--uiscale, 1)); transform-origin: top left; margin: calc(14px + var(--map-inset-t, 0px)) 0 0 calc(16px + var(--map-inset-l, 0px)); }
+  #hud-sys { top: 0; right: 0; transform: scale(var(--uiscale, 1)); transform-origin: top right; margin: calc(14px + var(--map-inset-t, 0px)) 16px 0 0; }
+  #banner { transform: translateX(-50%) scale(var(--uiscale, 1)); }
+
+  /* Build tray: the top half of the column, two penguins across, scrolling for
+     the rest. Two across is fixed on purpose — the tiles grow and shrink with
+     the column instead of the count changing, so the tray looks the same shape
+     at every window size. */
+  #palette {
+    grid-column: 3; grid-row: 2;
+    min-width: 0; min-height: 0;
+    /* The tray is the container everything inside is measured against, so the
+       tiles and their contents are one drawing that scales with the column
+       rather than fixed furniture rattling around in a growing box. */
+    container-type: inline-size;
+    grid-template-columns: repeat(3, 1fr);
+    /* The row height is the tile's shape worked out in the open — three columns
+       of (column width less margin, padding, borders and two gaps), at 27:20.
+       An auto row cannot do it: the tile's height comes from its width, so the
+       row and the tile end up defining each other and the row collapses to
+       12px, which is what had them overlapping. */
+    grid-auto-rows: calc((var(--sidew, 400px) - 38px) / 3.75);
+    align-content: start;
+    /* No cutout allowance. The tray briefly stepped in from the right edge to
+       stay clear of a Dynamic Island held that way round, and it cost 49px of a
+       170px column on the widest battlefield — three tiles across, so the tiles
+       and their prices visibly shrank. The island is assumed to be on the LEFT
+       (see fitCanvas): a player who turns the phone the other way and finds the
+       pill over the end of this column will turn it back, and that is a cheaper
+       thing to ask than smaller tiles for everyone forever. */
+    margin: 0 0 4px 8px;
+    padding: 8px;
+    background: linear-gradient(180deg, rgba(18, 28, 45, 0.97), rgba(11, 18, 30, 0.99));
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    gap: 6px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  #palette::-webkit-scrollbar { display: none; }
+
+  /* A penguin tile. It keeps one shape at every size — 27:20, near the
+     proportion the narrow column happened to produce — instead of stretching
+     into a letterbox when the column is wide, which left the icon marooned in
+     the middle of a lot of nothing.
+
+     Everything inside is measured in cqw, a percentage of the tile's own width,
+     so the tile is one drawing scaled rather than a box with fixed furniture
+     rattling around in it. At the nominal 400px column a tile is 187 wide and
+     these work out to a 52px icon, 14px price and 11px key — the sizes they
+     were designed at. */
+  /* The penguin IS the tile: the icon takes the whole height and the price and
+     the key ride over it in the corners, rather than the icon being a thumbnail
+     with a caption underneath. The tile went from 27:20 to 5:4 for the same
+     reason — the icon is square, so a wider tile is just margin either side of
+     it. That trades one row of the tray for a penguin two and a half times the
+     size it was. */
+  #palette .slot {
+    max-width: none;
+    min-height: 0;
+    display: block;
+    overflow: hidden;
+    padding: 0;
+    /* Enough class colour to sort the tray at a glance, not so much that the
+       penguin has to fight it: a wash from the top, over the dark panel. */
+    background:
+      linear-gradient(170deg,
+        color-mix(in srgb, var(--cls) 30%, transparent),
+        color-mix(in srgb, var(--cls) 9%, transparent) 62%,
+        transparent),
+      rgba(9, 15, 26, 0.72);
+    border: 1px solid color-mix(in srgb, var(--cls) 40%, transparent);
+    border-bottom: 3px solid color-mix(in srgb, var(--cls) 78%, transparent);
+    border-radius: 3.2cqw;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  /* All against the tray's width, which is what cqw means here. Written as a
+     share of the tile — 30% for the icon, 11% for the price, 8% for the key —
+     and divided by the 0.32 of the tray one tile of three occupies, so the
+     tile's internal proportions survive a change to the column count. The text
+     takes a larger share of a tile than it did at two across, because a third
+     of a column is a smaller tile and the price still has to be read. */
+  #palette .slot canvas {
+    display: block; height: 100%; width: auto; margin: 0 auto;
+  }
+  /* the price as a small card in the corner, dark enough to stay readable over
+     whatever part of the penguin ends up behind it */
+  #palette .slot-cost {
+    position: absolute; left: 1.1cqw; bottom: 1.1cqw;
+    /* big enough to read on a laptop — 13px where it was 9. It covers a corner
+       of the penguin, which is the trade that was asked for. */
+    font-size: 4.8cqw; line-height: 1; letter-spacing: -0.2px;
+    color: var(--gold); font-weight: 800;
+    background: rgba(6, 11, 20, 0.86);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 1.2cqw;
+    padding: 0.8cqw 1.4cqw;
+  }
+  #palette .slot-key {
+    position: absolute; top: 1.1cqw; left: 1.1cqw; transform: none;
+    font-size: 3.3cqw; line-height: 1; padding: 0.6cqw 1.2cqw; border-radius: 1.2cqw;
+    background: rgba(6, 11, 20, 0.7); border-color: transparent; color: var(--text);
+  }
+  #palette .slot-lock {
+    position: absolute; right: 1.4cqw; top: 50%; transform: translateY(-50%);
+    font-size: 4.6cqw;
+  }
+  #palette .slot:hover { transform: translateY(-2px); }
+  /* A locked penguin should read as locked at a glance rather than as a
+     slightly dimmer coloured tile: it loses the class colour entirely. */
+  #palette .slot.locked {
+    opacity: 1; filter: none;
+    background: rgba(255, 255, 255, 0.028);
+    border-color: var(--line);
+    border-bottom-color: var(--line);
+  }
+  #palette .slot.locked canvas { opacity: 0.2; filter: grayscale(1); }
+  #palette .slot.locked .slot-cost { color: var(--dim); opacity: 0.55; }
+  #palette .slot.poor { opacity: 1; filter: none; }
+  #palette .slot.poor canvas { opacity: 0.5; }
+  #palette .slot.poor .slot-cost { color: var(--bad); }
+
+  /* The four panels: the bottom half of the column, and they never scroll.
+     They are laid out once at a nominal 260px wide and then scaled to whatever
+     the half actually is — so the arrangement inside them is identical at every
+     window size, which no amount of reflowing can promise. --pscale is the
+     smaller of the two fits, so the group is contained rather than cropped, and
+     it is centred in the half. */
+  #panel-fit {
+    grid-column: 3; grid-row: 3;
+    min-width: 0; min-height: 0;
+    /* The bottom margin only, and it is the home indicator rather than the
+       island: the block runs to the foot of the screen, so without this the
+       wave controls sit in the strip iOS watches for a swipe up and Send Wave
+       occasionally sends you to the app switcher. Nothing is taken off the
+       right — see #palette. fitPanels subtracts the same number before working
+       out the group's scale, so the group shrinks to fit the margin rather than
+       being clipped by it. */
+    margin: 4px 0 var(--map-inset-b, 0px) 8px;
+    display: grid;
+    /* start, not centre: the group is scaled from its top-left corner and sized
+       to fill this box exactly, so centring the unscaled box first threw it
+       54px out of line with the tray above it */
+    place-content: start;
+    overflow: hidden;
+  }
+  /* Two columns, because a single stack left the width unused and the height
+     short: the card runs across the top, the hero and the boosts sit side by
+     side under it, and the wave controls run across the bottom. */
+  #sidebar {
+    width: var(--panelw, 400px);
+    height: var(--panelh, auto);
+    transform: scale(var(--pscale, 1));
+    transform-origin: top left;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: min-content;
+    gap: 10px;
+    padding: 10px;
+    background: linear-gradient(180deg, rgba(18, 28, 45, 0.97), rgba(11, 18, 30, 0.99));
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+  }
+  #sidebar > * { max-width: none; min-width: 0; }
+  #command { grid-column: 1 / -1; }
+  #sidebar.no-hero #dock-powers { grid-column: 1 / -1; }
+  /* The middle row takes whatever the half has spare, so the group always
+     reaches the bottom of its box instead of floating in it — and gives it
+     back first when the wave controls need more, which is the whole reason
+     they are usable on a phone. It keeps a floor so it cannot vanish. */
+  /* One row-group fewer now the selection card has left: the hero and boosts
+     take what is going, and the wave controls sit under them. */
+  #sidebar { grid-template-rows: minmax(92px, 1fr) auto; }
+  #dock-hero, #dock-powers { min-height: 0; }
+  /* Sections, not four separate panels: one faint fill and a hairline each, so
+     they group without four competing borders and four sets of padding. */
+  #sidebar > * {
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 9px;
+  }
+  #command { background: none; border: 0; padding: 0; }
+  /* The selection card used to live here, as a fixed 170px row that was on
+     screen whether or not it had anything to say. It is a flyout on the left
+     now, so this row is gone entirely and the height it was holding goes to the
+     build tray instead — the tray is the thing a player touches most, and more
+     tiles visible is less scrolling to do at all. */
+
+  /* Two lines allowed for both: "Commander Beak · ★ Lv 20" is the longest thing
+     the card ever shows, and the nominal width does not have to widen to keep
+     it on one row. */
+  #sidebar .ds-stats,
+  #sidebar .ds-name {
+    white-space: normal;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  /* These two sit in the row that absorbs whatever the half has spare, so their
+     CONTENTS have to take it — otherwise it shows as a band of nothing under a
+     54px chip and a 46px grid of boosts, which is where most of the empty space
+     in this panel was. The chip and the boost buttons grow into it instead. */
+  /* Row 1, not row 2. The selection card used to be the first track and the
+     commit that moved it to a flyout dropped the track from the template but
+     left these two on grid-row 2 — so the ONLY flexible track, minmax(92px,
+     1fr), had nothing in it and quietly took every spare pixel. That empty band
+     was the blank space above the HERO and BOOSTS labels. Measured: the panels
+     went from 47.9 to 84.4 physical pixels, +76%, with the box itself unmoved. */
+  #dock-hero, #dock-powers {
+    grid-row: 1;
+    display: flex; flex-direction: column; align-items: stretch;
+    gap: 7px;
+  }
+  #dock-hero .dp-label, #dock-powers .dp-label { flex: none; text-align: center; }
+  /* The chip takes the height the box has spare and stays square, so the hero
+     is a portrait rather than a 54px stamp with a band of nothing under it. */
+  #dock-hero .hero-chip {
+    flex: 1 1 auto; width: auto; height: auto;
+    min-height: 0; max-height: none; max-width: 100%;
+    align-self: center; aspect-ratio: 1;
+  }
+  #dock-hero .hero-chip canvas { width: 88%; height: auto; }
+  #dock-hero .hero-abil { flex: none; min-width: 0; max-width: none; width: 100%; }
+  /* With no portrait beside it the power takes the whole panel. The dock is
+     drawn at 400px and scaled down, so these are nominal units — they land at
+     roughly half these numbers on a phone. */
+  #dock-hero .btn.hero-power { flex: 1 1 auto; height: 100%; gap: 4px; }
+  #dock-hero .hp-icon { font-size: 40px; }
+  #dock-hero .hp-name { font-size: 16px; }
+  #dock-hero .hp-state { font-size: 13px; }
+  /* Two across and three down, not three and two. The box is taller than it is
+     wide, so a 3x2 grid of squares is limited by width and leaves the height
+     unused — 46px buttons under 125px of nothing. Turned on its side the same
+     six buttons are limited by height instead and come out half again as big. */
+  /* Two across at a fixed size and scrolling, not sharing the height: this row
+     is the one that gives way when the wave controls want more, and buttons
+     that shrink with it end up as unhittable dots. They keep their size and the
+     box scrolls for the rest. Two across rather than three because the button
+     is then 78 wide rather than 50, which is 28px on a phone rather than 18. */
+  /* This box scrolls UP AND DOWN only. It used to drift sideways as well, which
+     was never intended: `overflow-y: auto` on its own promotes the other axis
+     from visible to auto, and the count badges hung 6px outside their button's
+     top right corner, so there was exactly 6px of sideways travel to find.
+     Pinning the other axis is the fix. Padding is NOT — these buttons are a
+     fixed square (aspect-ratio on a fixed row height), so narrowing the content
+     box does not narrow them, it just pushes them out of it and makes the
+     overflow worse. The badge moves inside the button instead, below. */
+  #dock-powers .dp-grid {
+    flex: 1 1 auto; min-height: 0;
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: 78px;
+    align-content: start;
+    gap: 7px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+  }
+  #dock-powers .dp-grid::-webkit-scrollbar { display: none; }
+  /* Same treatment as the penguin tiles: the icon fills the button rather than
+     sitting in the middle of it. The button is its own container so the glyph
+     can be a share of it — 62% — and grows with the panel. */
+  #dock-powers .dp-btn {
+    width: auto; height: 100%; aspect-ratio: 1;
+    justify-self: center; max-width: 100%;
+    container-type: inline-size;
+    padding: 0;
+  }
+  /* 1.25, not 1: an emoji's ink is taller than its em box, so at line-height 1
+     the glyph spilled 3px out of its own line — visible as a clipped icon on a
+     small block. The extra leading contains it and the glyph is unchanged. */
+  #dock-powers .dp-btn .dp-icon { font-size: 62cqw; line-height: 1.25; }
+  /* Inside the button's corner, not hanging off it. Out there the badge was
+     both the reason the row could drift sideways and the thing that got
+     clipped: there is no scrolling above the top edge, so the first row's
+     counts were simply cut in half. */
+  #dock-powers .dp-count {
+    font-size: 17cqw; min-width: 0; padding: 0 6cqw;
+    top: 2cqw; right: 2cqw;
+  }
+  /* Send Wave does not need the whole width — the speed, pause and auto
+     controls ride beside it instead of costing another row underneath. */
+  /* Sized for a finger, not for the desktop it looks generous on. Everything
+     here is scaled down by the block, and on a phone in landscape that factor
+     is about a third — at the sizes these were, Send Wave came out 16px tall
+     and the speed and pause buttons 10. The row below states what these are in
+     nominal units; on a phone they land at 28-30px. */
+  #command {
+    grid-row: 2;
+    display: grid; grid-template-columns: 1fr auto; gap: 8px;
+    align-items: stretch;
+  }
+  /* The type fills these rather than sitting in the middle of them: at 96px
+     tall a 20px glyph left most of the button empty. Send Wave stacks its
+     shortcut under the label, and the auto switch stacks over its word, so both
+     use the height instead of running out of width. */
+  #command #send-wave {
+    min-height: 96px; font-size: 26px; line-height: 1.05;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  }
+  #command #send-wave kbd { font-size: 13px; }
+  #command #cmd-row { gap: 8px; align-items: stretch; }
+  #command #cmd-row .btn.tiny { min-width: 64px; font-size: 34px; padding: 6px 10px; }
+  /* min-width because a transform does not widen the layout box: the switch is
+     drawn 1.7x but still measures its original 32px, so without this the word
+     under it set the column and both spilled out of the row by 6px. */
+  #command .hud-check {
+    flex-direction: column; gap: 7px; font-size: 19px; justify-content: center;
+    min-width: 60px;
+  }
+  #command .hud-check .switch { transform: scale(1.7); transform-origin: center; }
+  #command #wave-preview {
+    grid-column: 1 / -1;
+    max-height: none;
+    align-content: flex-start;
+    padding: 0;
+  }
+  #command #send-wave { grid-column: 1; margin: 0; }
+  #command #cmd-row { grid-column: 2; flex: none; }
+
+
+/* ============================================================
+   PHONE IN LANDSCAPE — the layout above is unchanged here; a phone just
+   needs its chrome smaller. Everything that used to move the dock to the
+   side or the bottom on a short screen is gone: there is one arrangement,
+   and a screen it does not match gets a margin.
+   ============================================================ */
+@media (orientation: landscape) and (max-height: 499px) {
+  /* slimmer vitals so they steal less of the battlefield */
+  #hud-stats { top: 8px; left: 10px; gap: 4px; }
+  .stat { padding: 5px 11px; font-size: 13px; gap: 6px; }
+  .stat svg { width: 15px; height: 15px; }
+  #hud-wave { font-size: 12px; }
+  #wave-bar { width: 84px; height: 4px; }
+  .stat.lvlname { display: none; }
+  #hud-sys { top: 8px; right: 48px; gap: 4px; }
+  .icon-btn { width: 34px; height: 34px; }
+  .icon-btn svg { width: 17px; height: 17px; }
+  #btn-fs { top: 8px; right: 10px; }
+  html.touch #hud-sys { right: 10px; }   /* no fullscreen button to clear */
+  #banner { top: 44px; font-size: 20px; }
+  .toast { font-size: 12.5px; padding: 7px 12px; }
+
+  /* menus have to fit a 390px-tall screen */
+  .screen { padding: 16px 18px; max-height: calc(100dvh - 20px - var(--sat) - var(--sab)); border-radius: 14px; }
+  .screen-head { top: -16px; margin: -16px -18px 12px; padding: 8px 10px; gap: 8px; }
+  .screen-head h2 { font-size: 17px; }
+  .screen-head .pebble-chip { padding: 4px 10px; font-size: 12px; }
+  .title-art { font-size: 34px; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 20px; margin-bottom: 10px; }
+  .subtitle { font-size: 14px; margin-bottom: 6px; }
+  .blurb { font-size: 12.5px; margin-bottom: 10px; }
+  .btn.big { width: 100%; max-width: 340px; padding: 10px; font-size: 14px; margin: 6px auto; }
+  .footnote, .cheatsheet { display: none; }
+  #level-grid { gap: 16px; }
+  .lvl-cards { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 9px; }
+  .lvl-thumb { }
+  .lvl-body { padding: 8px 10px 3px; }
+  .lvl-name { font-size: 13px; }
+  /* the same reservations as the full-size card, restated at this font: two
+     lines of title and three of tagline. Left at their old values these
+     overrode the ones above and the rows went ragged again down here. */
+  .lvl-row { min-height: 32px; }
+  .lvl-tag { font-size: 11px; min-height: 48px; }
+  .lvl-meta { min-height: 48px; }
+  .diff-card { width: 168px; padding: 14px 10px 12px; }
+  .diff-icon { font-size: 30px; }
+  .diff-name { font-size: 16px; margin: 5px 0 7px; }
+  .diff-facts { font-size: 11.5px; line-height: 1.65; }
+  .howto { font-size: 12px; }
+  .howto p { margin-bottom: 7px; }
+}
+
+/* very short screens (phones in landscape): the front menu must fit unscrolled */
+@media (orientation: landscape) and (max-height: 440px) {
+  #screen-menu .title-art,
+  #screen-menu .blurb { display: none; }
+  #screen-menu .subtitle { margin-bottom: 8px; }
+  #screen-menu h1 { font-size: 25px; }
+  .btn.big { padding: 9px; font-size: 13.5px; margin: 5px auto; }
+  .pebble-chip { padding: 5px 12px; font-size: 13px; margin-bottom: 9px; }
+  #diff-grid { gap: 9px; margin: 4px 0 12px; }
+  .diff-card { width: 152px; padding: 11px 9px 10px; }
+  .diff-icon { font-size: 25px; }
+  .diff-name { font-size: 14.5px; margin: 4px 0 5px; }
+  .diff-facts { font-size: 11px; line-height: 1.55; }
+  .lvl-sec-title { font-size: 16px; }
+  .lvl-sec-blurb { display: none; }
+}
+
+/* ---- the ⓘ on each upgrade row, on touch only ----
+   What an upgrade does has to be reachable by pressing something that looks
+   like it can be pressed. Long-press was the only route and nobody found it:
+   there is nothing on screen advertising that a row can be held, and the row's
+   obvious gesture spends fish. A full-height strip down the edge of the row, so
+   the target is the row's whole height rather than the size of the glyph in it.
+
+   22px, not the 36 this was before. It comes out of a column that is about
+   148px wide — 128 of content — and every pixel it takes comes off the upgrade
+   name beside it. At 36 the name had 72px and broke "Contact" across two lines;
+   the old 178px width floor existed to pay for exactly that, and the column
+   does not have 178 to give. At 22, with the row's side padding cut to 5, the
+   name line gets 96 and the only words that still break are the ones that break
+   at any width on a phone — "Konglomerate", "Stonebreaker" — which is what the
+   clamp and its ellipsis are for.
+
+   Hidden on a mouse. Hover already opens the same card there and a third
+   control on every row would be furniture in a column short of room. */
+.ds-info { display: none; }
+html.touch .ds-info {
+  display: flex; align-items: center; justify-content: center;
+  flex: none;
+  width: 22px;
+  /* Its own colour, and not one already spoken for: gold is a price and green
+     is "you can afford this", so the ⓘ borrows the accent blue instead and
+     reads as a control rather than as another number on the row. */
+  color: var(--accent);
+  background: rgba(116, 220, 251, 0.09);
+  border: 1px solid rgba(116, 220, 251, 0.34);
+  border-radius: 8px;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+html.touch .ds-info:active { background: rgba(116, 220, 251, 0.24); }
+/* A closed path is still worth reading about — seeing the road you did not take
+   is the whole point of there being three of them — so the button stays, dimmed
+   to match the row it belongs to. */
+html.touch .ds-path.shut + .ds-info { opacity: 0.5; }
+/* There is no keyboard to press, so the letter is 24px of a 143px row spent on
+   a hint that cannot be acted on. Reclaimed, which is most of what the ⓘ costs.
+   The dock does the same thing for the same reason. Whole panel, not just the
+   rows: the hero card's sell button is the one place a stray keycap survived,
+   because it sits outside the .ds-actions row the narrow-card rule covers. */
+html.touch #selpanel kbd { display: none; }
+
+/* bigger touch targets wherever the input is a finger */
+html.touch .btn { padding: 10px 15px; }
+html.touch .btn.tiny { padding: 9px 12px; }
+html.touch .btn.small { padding: 9px 13px; }
+/* there is no keyboard to hint at, so reclaim the space in-game */
+html.touch #dock kbd,
+html.touch #tooltip .tt-key kbd { display: none; }
+html.touch .btn.upg-mini { padding-left: 8px; }
+
+/* scrollbars */
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.13); border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* A narrow card cannot spend width on hints. Under 200px the keyboard letters
+   on the bottom row go — they are a mouse affordance, and a card this narrow is
+   a phone — and the two buttons tighten so "Sell · +196" fits beside the
+   targeting mode instead of being clipped to "Sel". The path rows keep their
+   letters: those are the controls the card exists for. */
+/* #selpanel on each of these for the same reason as above — they have to beat
+   the ID-qualified sizing on .ds-actions .btn, not just .btn.tiny. */
+@container (max-width: 200px) {
+  .ds-actions kbd { display: none; }
+  #selpanel .ds-actions .btn { font-size: 11px; padding: 7px 6px; min-height: 38px; }
+}
+
+/* The tier ladder under each row: where this path goes, names only. Hidden by
+   default and shown only when the column is tall enough to spend the space —
+   the card is its own size container, so this keys on the CARD's height and
+   not the window's. */
+.dsp-tiers { display: none; }
+@container (min-height: 430px) {
+  .dsp-tiers {
+    display: flex; flex-direction: column; gap: clamp(1px, 0.35cqh, 3px);
+    margin-top: clamp(3px, 0.8cqh, 6px); padding-top: clamp(3px, 0.8cqh, 6px);
+    border-top: 1px solid var(--line);
+  }
+  .dsp-tier {
+    display: flex; gap: 4px; align-items: baseline;
+    font-size: clamp(9.5px, 1.8cqh, 12.5px);
+    font-weight: 650; line-height: 1.4; color: var(--dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .dsp-tier i { flex: none; width: 7px; font-style: normal; text-align: center; }
+  .dsp-tier.own { color: var(--good); opacity: 0.75; }
+  .dsp-tier.next { color: var(--text); }
+  .ds-path.shut .dsp-tiers { display: none; }
+}
+
+/* While a carried penguin is over the tray it came from: letting go here puts
+   it back. Driven from the drag handler, which is the only thing that can see
+   the pointer during a drag. */
+#palette.returning {
+  outline: 2px solid rgba(229, 109, 119, 0.75);
+  outline-offset: -2px;
+  background-image: linear-gradient(180deg, rgba(229, 109, 119, 0.14), rgba(229, 109, 119, 0.05));
+}
