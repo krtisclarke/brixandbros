@@ -1,8 +1,8 @@
-# 🐧 Brix and Bros — Bros vs. Vacuums
+# 🧱 Brix and Bros — Bros vs. Vacuums
 
-A tower defense game. The vacuum packs are marching on the Bro
-workshop — recruit Bro defenders, hold the line across **30 battlefields** in **three
-campaign tiers** and **three difficulties**, and keep every last build safe.
+A tower defense game. The vacuums are rolling in on the workshop — recruit Bros,
+hold the line across **30 battlefields** in **three campaign tiers** and **three
+difficulties**, and keep every last build safe.
 
 Runs in any modern browser on **Mac and PC** — no install, no internet, no dependencies.
 Also playable on a **phone or tablet held sideways**: the controls become a side dock with
@@ -10,17 +10,17 @@ a drag-to-place touch scheme, and you can add it to your home screen as a full-s
 
 ### Play it anywhere
 
-**https://krtisclarke.github.io/brix-and-bros/** — the hosted copy, kept current with
+**https://krtisclarke.github.io/brixandbros/** — the hosted copy, kept current with
 this repo. On a phone, open it once and **Share → Add to Home Screen** (iPhone) or
 **⋮ → Add to Home screen** (Android): you get a full-screen app with its own icon, and
 after that first visit it keeps working **offline** — no computer, no internet.
 
 ### Playing on a phone
 
-Hold the phone **sideways** (portrait shows a rotate prompt). Tap a Bro to pick it
-up, drag on the map to aim the ghost, lift your finger to place. Long-press any Bro
-or boost for its stats. The controls live in a side dock so the battlefield gets the
-whole screen height.
+Hold the phone **sideways** (portrait shows a rotate prompt). Tap a Bro to pick it up,
+drag on the board to aim the ghost, lift your finger to place. Long-press any Bro or
+boost for its stats. The controls live in a side dock so the battlefield gets the whole
+screen height.
 
 ## How to run
 
@@ -39,97 +39,93 @@ Both use Node or Python if you have them, and fall back to opening `index.html` 
 
 ### Three difficulties — pick one when you start a battle
 
-| | Waves | Tower prices | Lives | Victory reward | Retry cost |
+| | Waves | Bro prices | Lives | Victory reward | Retry cost |
 |---|---|---|---|---|---|
-| 🐣 **Easy** | 30 | 15% cheaper | +25% | 100 🧱 | 40 🧱 |
-| 🐧 **Medium** | 40 | standard | standard | 250 🧱 | 75 🧱 |
-| 🦭 **Hard** | 50 | 15% pricier | −20% | 500 🧱 | 150 🧱 |
+| 🟩 **Easy** | 30 | 15% cheaper | +25% | 100 🧱 | 40 🧱 |
+| 🟨 **Medium** | 40 | standard | standard | 250 🧱 | 75 🧱 |
+| 🟥 **Hard** | 50 | 15% pricier | −20% | 500 🧱 | 150 🧱 |
 
-Every campaign ends on a boss wave: the Carpet Cleaner pair (30), the Floor Buffer (40), or the
-Emperor / Leviathan (50). Beating a level on any difficulty unlocks the next battlefield.
+Every campaign ends on a boss wave: the Carpet Cleaner pair (30), the Floor Buffer (40),
+or The Extractor / Central Unit (50). Beating a battlefield on any difficulty unlocks the
+next one.
 
-**Second Chance:** if the workshop falls, spend bricks to retry — lives fully restored, the
-field cleared, and the wave that beat you replays with your towers and studs intact.
+**Second Chance:** if the build falls, spend bricks to retry — lives fully restored, the
+board cleared, and the wave that beat you replays with your Bros and studs intact.
 
-**🔁 The Endless Shift:** beat the final boss and the victory screen offers **Keep Going** —
-the waves continue past the campaign, tougher every wave, with a boss court every 10th,
-until the workshop falls. Your win and its bricks are already banked; every 10th endless
-wave survived pays a bonus (25 / 50 / 100 🧱 by difficulty), every 100th pays **ten times
-that** (250 / 500 / 1,000 🧱), and each battlefield remembers your record wave on the
-level select.
+### 🔁 The Endless Shift — keep going past the campaign
 
-#### 🐋 The Tide Comes In — heavies from wave 71
+Beat the final boss and the victory screen offers **Keep Going** — the waves continue past
+the campaign, tougher every wave, with a boss court every 10th, until the build falls.
+Your win and its bricks are already banked; every 10th endless wave survived pays a bonus
+(25 / 50 / 100 🧱 by difficulty), every 100th pays **ten times that** (250 / 500 / 1,000
+🧱), and each battlefield remembers your record wave on the level select.
 
-At Endless wave 71 the tracks **flood**: every track on the battlefield turns to open
-water and the apex predators arrive. Heavies never split — one patient slab of muscle
-instead of a bag of smaller problems — and they carry heavy armour. They also hunt the
-packs: **any ordinary vacuum that swims into an heavy is swallowed whole**, which heals
-it. You get nothing for a devoured vacuum — no studs, no XP — so a fat pack in front of
-an heavy is a meal you're serving. Clear the chaff fast, or feed them.
+#### The big machines arrive — wet/dry vacs from wave 71
 
-Healing is capped at 60% of an heavy's own maximum however rich the water, so feeding
+At Endless wave 71 the board comes apart and the shop machinery rolls in. Heavies never
+split — one patient slab of steel instead of a bag of smaller problems — and they carry
+heavy armour. They also hoover the pack: **any ordinary vacuum that rolls into a heavy is
+swallowed whole**, which refills it. You get nothing for a swallowed vacuum — no studs, no
+XP — so a fat pack in front of a heavy is a meal you're serving. Clear the small stuff
+fast, or feed them.
+
+Refilling is capped at 60% of a heavy's own maximum however rich the pickings, so feeding
 buys them time and never immortality.
 
-**Deep endless gets faster, not just fatter.** Past wave 50 the packs pick up speed
-(to ×1.7) and shrug off more and more of your chill (to 60% resistance), because piling
-health onto slow-moving vacuums made late waves long rather than hard — by wave 130
-every enemy had spawned within 70 seconds and the remaining four minutes were spent
-chipping at a handful of pinned survivors. Waves now resolve in about two minutes at any
-depth, and failure is sharp: the pack either dies or reaches the fort. None of this
-touches the 30/40/50-wave campaign, which plays exactly as before.
+**Deep endless gets faster, not just fatter.** Past wave 50 the pack picks up speed (to
+×1.7) and shrugs off more and more of your clog (to 60% resistance), because piling health
+onto slow-moving vacuums made late waves long rather than hard. Waves now resolve in about
+two minutes at any depth, and failure is sharp: the pack either dies or reaches the Home
+Build. None of this touches the 30/40/50-wave campaign, which plays exactly as before.
 
-**Letting one reach the fort is the loss condition**, not a setback — an heavy through
-the door costs more lives than any vacuum in the game:
+**Letting one reach the Home Build is the loss condition**, not a setback — a heavy through
+the door costs more lives than any ordinary vacuum in the game:
 
-| Waves | Hunter | HP | Armour | Lives if it leaks |
+| Waves | Machine | HP | Armour | Lives if it leaks |
 |---|---|---|---|---|
-| 71–80 | Young Heavy | 1,200 | 3 | **100** |
-| 81–90 | Bull Heavy | 3,600 | 4 | **180** |
-| 91–99 | Great Heavy | 9,000 | 5 | **300** |
-| **100** | **MEGAVAC** | **190,000** | **8** | **1,000** |
+| 71–80 | Wet/Dry Vac | 1,200 | 3 | **100** |
+| 81–90 | Industrial Wet/Dry | 3,600 | 4 | **180** |
+| 91–99 | Turbine Extractor | 9,000 | 5 | **300** |
+| **100** | **THE MEGAVAC** | **190,000** | **8** | **1,000** |
 
-For scale, an Central Unit costs 250 and Easy starts you with 190 lives — two Young
-Heavies through the door and the run is over.
+For scale, a Central Unit costs 250 and Easy starts you with 190 lives — two Wet/Dry Vacs
+through the door and the run is over.
 
-The MEGAVAC is the largest creature in the game and it guards the century jackpot.
-It is a genuine wall, sized against a **moving** target — a MEGAVAC swims through the whole
-kill zone, so an eighteen-tower maxed board lands about 1,283 damage a second on it, not
-the ~895 a dummy pinned in one spot suggests. That is roughly 169,000 across its
-132-second swim. Measured: an eighteen-tower board **loses** the MEGAVAC through the door,
-while a twenty-five-tower board kills it at the halfway mark. Landing the century takes a
-real late-game defence, your hero and your boosts.
+THE MEGAVAC is the largest machine in the game and it guards the century jackpot. It is a
+genuine wall, sized against a **moving** target — it rolls through the whole kill zone, so
+an eighteen-Bro maxed board lands about 1,283 damage a second on it, not the ~895 a dummy
+pinned in one spot suggests. That is roughly 169,000 across its 132-second run. Measured:
+an eighteen-Bro board **loses** it through the door, while a twenty-five-Bro board kills it
+at the halfway mark. Landing the century takes a real late-game defence, your hero and your
+boosts.
 
-Waves 101+ keep the Great Heavies coming, with another MEGAVAC every century.
-Flooding is cosmetic: build spots, path geometry and water-only Bros are completely
-unchanged.
+Waves 101+ keep the Turbine Extractors coming, with another MEGAVAC every century.
 
 ### Two currencies: studs & bricks
 
-**🔩 Studs** is match money: pops and wave clears pay it, and it recruits and upgrades
-Bros. It resets every battle.
+**🔩 Studs** are match money: pops and wave clears pay them, and they recruit and upgrade
+Bros. They reset every battle.
 
-Winning a battle earns **🧱 bricks** — a permanent currency stored with your profile.
-Spend them in the **Boost Shop** (main menu, or from the difficulty screen) *before* a match.
+Winning a battle earns **🧱 bricks** — a permanent currency stored with your profile. Spend
+them in the **Boost Shop** (main menu, or from the difficulty screen) *before* a match.
 Boosts you own appear in the command dock during battle — one click fires them:
 
 | Boost | Cost | Effect |
 |---|---|---|
-| 🔩 Studs Feast | 15 | +600 🔩 studs, instantly |
-| 🧊 Ice Spikes | 20 | a 40-spike wall (10 dmg each) near the exit of every track |
-| 🥁 War Frenzy | 25 | every Bro attacks 50% faster for 15s |
-| ❄️ Big Freeze | 30 | every vacuum frozen for 4s (bosses 1.5s) |
+| 🔩 Stud Dump | 15 | +600 🔩 studs, instantly |
+| 🧱 Brick Trap | 20 | 40 loose bricks (10 dmg each) scattered near the exit of every track |
+| 🥁 Rally Drum | 25 | every Bro attacks 50% faster for 15s |
+| ⚡ Power Cut | 30 | every vacuum unplugged for 4s (bosses 1.5s) |
 | 💖 Second Wind | 40 | +25 lives |
-| 🏔️ Avalanche | 50 | 60 damage to everything on the field, ignoring armor |
+| 🪣 Tip the Tub | 50 | 60 damage to everything on the board, ignoring armor |
 
 ### Heroes — one champion fights beside you
 
-Pick a hero on the challenge screen before a battle. In battle they place like a tower
-(a stud price, one per battle), then **level up on their own** — on vacuums felled while
-they stand on the field, each level costing more than the last, to level 20 — and their
-damage **scales with the pack itself**: as tough as the sea
-lions are, the hero hits proportionally, from the home shores to the Frozen Abyss to the
-deep Endless Shift. At level 3 the signature ability unlocks — free to fire (press **H**),
-recharging over time.
+Pick a hero on the challenge screen before a battle. In battle they place like a Bro (a
+stud price, one per battle), then **level up on their own** — on vacuums broken while they
+stand on the board, each level costing more than the last, to level 20 — and their damage
+**scales with the pack itself**. At level 3 the signature ability unlocks — free to fire
+(press **H**), recharging over time.
 
 Nine champions, each built around a job the others don't do. Prices are not guesswork:
 every hero was run through 18 identical battles — six battlefield/difficulty pairings ×
@@ -139,193 +135,164 @@ hero costs is what it measured.
 
 | Hero | Recruited | Style | Ability |
 |---|---|---|---|
-| ⚔️ **Captain Flint** | free | heavy single-target damage | 🏔️ Avalanche Charge — smashes the whole field |
-| 💣 **Major Marlow** | 2,500 🧱 | lobs over ridges and forts; wide blast | 💣 Depth Barrage — six charges walked down the track |
-| 🌨️ **Scout Tilly** | 2,750 🧱 | shreds swarms, sees stealth | 🌨️ Snow Flurry — buries everything near her |
-| 🧪 **Warden Kell** | 4,000 🧱 | strips casing, poisons the wound | 🧪 Corrosion — −3 armour on the field, and burning |
+| ⚔️ **Captain Flint** | free | heavy single-target damage | 🧱 Brick Slam — smashes the whole board |
+| 💣 **Major Marlow** | 2,500 🧱 | lobs over walls and builds; wide blast | 💣 Shell Barrage — six shells walked down the track |
+| 🌪️ **Scout Tilly** | 2,750 🧱 | shreds swarms, sees stealth | 🌪️ Grit Storm — buries everything near her |
+| 🧪 **Warden Kell** | 4,000 🧱 | strips casing, poisons the wound | 🧪 Corrosion — −3 armour on the board, and burning |
 | 🔩 **Trader Fen** | 4,500 🧱 | every kill the workshop makes pays more | 🔩 Stud Haul — a lump of studs, bigger on deep waves |
-| 📯 **Foreman Bolt** | 5,000 🧱 | nearby Bros fight harder & faster | 📯 War Cry — everyone attacks 50% faster for 8s |
-| 🌌 **Prism Sage** | 6,250 🧱 | steady armour-piercing beam | 🌌 Aurora Veil — the field slowed hard and scorched; boss-sized ones marked instead |
-| 🎯 **Gunner Rook** | 7,500 🧱 | reaches the whole map; +60% vs bosses | 🎯 Harpoon Volley — through the eight biggest |
-| ❄️ **Elder Gritt** | 7,500 🧱 | slows whole packs, deeper each level | ❄️ Cold Snap — freezes every vacuum for 2.5s, and softens boss-sized ones |
+| 📯 **Foreman Bolt** | 5,000 🧱 | nearby Bros fight harder & faster | 📯 Rally Horn — everyone attacks 50% faster for 8s |
+| 🌌 **Prism Sage** | 6,250 🧱 | steady armour-piercing beam | 🌌 Prism Veil — the board clogged hard and scorched |
+| 🎯 **Gunner Rook** | 7,500 🧱 | reaches the whole board; +60% vs bosses | 🎯 Laser Volley — through the eight biggest |
+| 🔧 **Elder Gritt** | 7,500 🧱 | clogs whole packs, deeper each level | 🔧 Deep Jam — jams every vacuum for 2.5s |
 
 Every damage ability also takes a **share of a boss's own health** on top of its flat
-number — 3% for Harpoon Volley down to 0.8% for Snow Flurry, capped at 12% of the animal
-across the whole cast. Ordinary vacuums are unaffected: the flat damage already kills
-them several times over. Without it, an ability that scales at 1.05 a wave was landing two
-tenths of one per cent on a wave-100 MEGAVAC, which is a hit nobody could see.
+number — 3% for Laser Volley down to 0.8% for Grit Storm, capped at 12% of the machine
+across the whole cast. Ordinary vacuums are unaffected: the flat damage already kills them
+several times over.
 
-Heroes are permanent once recruited. One caveat on the measurements: the scripted defence
-spreads its towers for coverage rather than clustering them, so it puts barely any of them
-inside Foreman Bolt's circle — an aura hero is worth more in human hands than the
-numbers above credit.
+Heroes are permanent once recruited.
 
 ### 🏛️ Workshop Upgrades — bricks that work forever
 
-The permanent half of the pebble economy (main menu or challenge screen). Six upgrades,
-three tiers each — starting studs, starting lives, bigger bounties, cheaper towers,
-discounted Second Chances, richer wave rewards. Bought once, active in every battle
-from then on.
+The permanent half of the brick economy (main menu or challenge screen). Six upgrades,
+three tiers each — starting studs, starting lives, bigger bounties, cheaper Bros,
+discounted Second Chances, richer wave rewards. Bought once, active in every battle from
+then on.
 
-### Your Bros — 20 towers, 4 classes, each with 3 upgrade paths × 3 tiers
+### Your Bros — 20 defenders, 4 classes, each with 3 upgrade paths × 3 tiers
 
-**Three paths, choose two.** Every Bro has three upgrade paths, and studs may go into
-only **two** of them — buying into a second path shuts the third for the rest of the
-battle. One of your two may run all the way to its **capstone** (tier 3); the other stops
-at tier 2. That is the same five purchases a Bro has always supported, so no price
-moves: what changes is that each Bro now has six real builds (which pair, then which
-of the pair caps) instead of two.
+**Three paths, choose two.** Every Bro has three upgrade paths, and studs may go into only
+**two** of them — buying into a second path shuts the third for the rest of the battle. One
+of your two may run all the way to its **capstone** (tier 3); the other stops at tier 2.
+That is the same five purchases a Bro has always supported, so no price moves: what changes
+is that each Bro has six real builds (which pair, then which of the pair caps) instead of
+two.
 
 Tiers 1 and 2 sharpen the numbers. **Every capstone changes how the Bro plays** —
-ricochets, freeze meters, icy wakes, drift mines, strafing dives, anchored storms, ice
-decoys, corrupted ground, an alarm dome. Cheap purchases stay easy to judge mid-wave;
-the identity-defining decision sits at the top, where it is saved up for.
+ricochets, seizure meters, grease trails, drift mines, strafing dives, anchored storms,
+brick decoys, corrupted ground, an alarm dome.
 
-Every Bro's card shows its **☠ kill count**, and the victory screen names the
-battle's top defender.
+Every Bro's card shows its **☠ kill count**, and the victory screen names the battle's top
+defender.
 
 ### Builder rank — every vacuum is 1 XP
 
-The workshop starts with five Bros (Pebble Flinger, Snowball Roller, Harpoon Sniper,
-Aurora Mage, Parts Trader) — one or two from each class. **Every vacuum destroyed earns
-1 XP**, splits included, so a Carpet Cleaner is worth 17 and a Floor Buffer 52. **Each rank
-gained recruits exactly one more Bro**, weakest first, and the legendary Sun Priest
-last at rank 16:
+The workshop starts with five Bros (Brick Slinger, Boulder Knight, Laser Sniper, Spark
+Mage, Parts Trader) — one or two from each class. **Every vacuum destroyed earns 1 XP**,
+splits included, so a Carpet Cleaner is worth 17 and a Floor Buffer 52. **Each rank gained
+recruits exactly one more Bro**, weakest first, and the legendary Sun Priest last at rank
+16:
 
 | Rank | Recruit | Rank | Recruit | Rank | Recruit |
 |---|---|---|---|---|---|
-| 2 | Slush Thrower | 7 | Sonar Station | 12 | Jetpack Bro |
-| 3 | Ice Shard Gunner | 8 | Shadow Diver | 13 | Blizzard Caller |
-| 4 | Torpedo Sub 🌊 | 9 | Frost Witch | 14 | Artillery Emperor |
-| 5 | Glacier Cannon | 10 | Ice Wall Builder | 15 | Fort Fortress |
-| 6 | Depth Charge Boat 🌊 | 11 | War Drummer | 16 | Sun Priest |
+| 2 | Glue Slinger | 7 | Radar Mast | 12 | Jetpack Trooper |
+| 3 | Sword Spinner | 8 | Shadow Ninja | 13 | Storm Caller |
+| 4 | Deep Rover 💧 | 9 | Hex Witch | 14 | Mech Cannon |
+| 5 | Catapult | 10 | Wall Builder | 15 | Brick Fort |
+| 6 | Hover Skiff 💧 | 11 | War Drummer | 16 | Sun Priest |
 
-Rank 2 arrives about six waves into your very first battle, and rank 16 lands as you
-finish the Frostlands — a first Easy campaign yields roughly 2,100 vacuums, and all
-ten of them about 30,900. Harder difficulties field more vacuums per battle, so they
-rank up faster. Lost battles still count every vacuum they felled. Existing profiles
-are seeded at the rank their wins had already earned.
-
-| Class | Towers |
+| Class | Bros |
 |---|---|
-| ❄ **Frostline** — frontline damage | Pebble Flinger, Snowball Roller, Ice Shard Gunner, Glacier Cannon, Slush Thrower |
-| ⚓ **Navy** — military hardware | Harpoon Sniper, Torpedo Sub 🌊, Depth Charge Boat 🌊, Jetpack Bro, Artillery Emperor |
-| 🔮 **Mystic** — aurora magic | Aurora Mage, Frost Witch, Blizzard Caller, Shadow Diver, Sun Priest |
-| 🛠 **Support** — economy & buffs | Parts Trader, Fort Fortress, Sonar Station, War Drummer, Ice Wall Builder |
+| ⚔ **Knights** — frontline damage | Brick Slinger, Boulder Knight, Sword Spinner, Catapult, Glue Slinger |
+| 🚀 **Space** — hardware & vehicles | Laser Sniper, Deep Rover 💧, Hover Skiff 💧, Jetpack Trooper, Mech Cannon |
+| 🔮 **Wizards** — spellwork | Spark Mage, Hex Witch, Storm Caller, Shadow Ninja, Sun Priest |
+| 🛠 **Crew** — economy & buffs | Parts Trader, Brick Fort, Radar Mast, War Drummer, Wall Builder |
 
-🌊 = must be placed on water. Studs go into only two of a Bro's three paths, and only one of those two can reach its capstone — choose wisely.
+💧 = must be placed in a pool.
 
-### The vacuums — 13 types that split when destroyed
+### The vacuums — 13 machines that break apart
 
-Pup → Juvenile → Adult → Bull … bigger vacuums break apart into smaller ones, so a wave is
-never over until the last pup is down. Watch for:
+Dust Buster → Stick Vac → Upright → Heavy Upright … bigger machines break into smaller
+ones, so a wave is never over until the last handheld is down. Watch for:
 
-- **Speedster** — twice as fast as anything else
-- **Stealth** — invisible without detection (Shadow Diver sees them innately; many towers can learn to)
-- **Armored** — flat damage reduction; shred it (Frost Witch) or pierce it (Harpoon, Sun Priest)
-- **Regenerator** — heals while it swims
-- **Brute** — a wall of casing that splits into two Bulls
-- **Boss class:** the **Carpet Cleaner** (wave 20), the **Floor Buffer** (wave 40), the **Emperor Vacuum**
-  (wave 50) — and on the last four battlefields, the **Central Unit**.
+- **Robo-Vac** — twice as fast as anything else
+- **Silent Runner** — invisible without detection (Shadow Ninja sees them innately; many
+  Bros can learn to)
+- **Steel Canister** — flat damage reduction; shred it (Hex Witch) or pierce it (Laser
+  Sniper, Sun Priest)
+- **Cyclone** — empties itself and keeps going
+- **Shop Vac** — a wall of steel that splits into two Heavy Uprights
+- **Boss class:** the **Carpet Cleaner** (wave 20), the **Floor Buffer** (wave 40), **The
+  Extractor** (wave 50) — and on the last four battlefields, the **Central Unit**
 
-Vacuums get tougher on every level (up to 2.6× HP on The Last Workshop) and mix into
-nastier combinations as the campaign goes on.
+Vacuums get tougher on every battlefield (up to 2.6× HP on City Hall) and mix into nastier
+combinations as the campaign goes on.
 
 ### The three campaign tiers
 
 The 30 battlefields are grouped into tiers on the level select. Each tier is a fresh
-difficulty ramp on a **physically larger, more tangled map** — and every tier starts
-tougher than the one before it finished, so even Easy in the Deep Tundra outbites
-anything in the Frostlands.
+difficulty ramp on a **physically larger, more tangled board** — and every tier starts
+tougher than the one before it finished.
 
-| Tier | Battlefields | Map size | Vacuum HP | Bounties |
+| Tier | Battlefields | Board size | Vacuum HP | Bounties |
 |---|---|---|---|---|
-| ❄ **The Frostlands** | 1–10 | 1280 × 800 | 1.0× → 2.6× | 1× |
-| 🌨 **The Deep Tundra** | 11–20 | 1440 × 860 | 2.8× → 4.6× | 1.5× |
-| 🌑 **The Frozen Abyss** | 21–30 | 1600 × 920 | 5.0× → 8.6× | 2.3× |
+| 🏙 **Brick City** | 1–10 | 1280 × 800 | 1.0× → 2.6× | 1× |
+| 🚀 **Star Port** | 11–20 | 1440 × 860 | 2.8× → 4.6× | 1.5× |
+| 🏰 **Castle Realm** | 21–30 | 1600 × 920 | 5.0× → 8.6× | 2.3× |
 
-Tracks get longer with the tiers too — from a 2,240px stroll on Icy Shores to the
-9,180px six-lane crawl of the Black Ice Labyrinth. Beat any battlefield on any
-difficulty to unlock the next.
+Tracks get longer with the tiers too — from a 2,240px stroll on Starter Plate to the
+9,180px six-lane crawl of The Labyrinth.
 
 ### The 30 battlefields
 
-1. **Icy Shores** ★ — a gentle S-curve to learn on
-2. **Glacier Pass** ★ — long switchbacks
-3. **Frozen River** ★★ — the track crosses a river; subs and boats shine
-4. **Iceberg Alley** ★★ — two entrances merge mid-map
-5. **Bro Village** ★★★ — the track wraps around the village
-6. **Crystal Caves** ★★★ — a tight serpentine with **no water at all**
-7. **Aurora Ridge** ★★★★ — the track splits around a mountain lake
-8. **Shipwreck Bay** ★★★★ — drowned coastline, navy country
-9. **Blizzard Peak** ★★★★★ — brutally short path, every shot counts
-10. **The Last Workshop** ★★★★★ — two independent tracks, the final stand
+**Brick City** — 1. Starter Plate ★ · 2. Main Street ★ · 3. Canal Street ★★ ·
+4. Two-Gate Junction ★★ · 5. The Old Quarter ★★★ · 6. The Subway ★★★ ·
+7. Fountain Square ★★★★ · 8. The Docks ★★★★ · 9. Rooftop Run ★★★★★ · 10. City Hall ★★★★★
 
-**The Deep Tundra** — 11. Windswept Flats ★ · 12. Hollow Fjord ★ · 13. Twin Cataracts ★★ ·
-14. Splintered Shelf ★★★ · 15. The Rookery ★★ · 16. Nightfall Basin ★★★ ·
-17. Sable Glacier ★★★★ · 18. Drifting Floes ★★★★ · 19. Stormwall Ridge ★★★★★ ·
-20. The Long Dark ★★★★★
+**Star Port** — 11. Landing Apron ★ · 12. Coolant Channels ★ · 13. Twin Coolant Runs ★★ ·
+14. Cargo Deck ★★★ · 15. The Hangars ★★ · 16. Dark Side Basin ★★★ · 17. The Fuel Yards ★★★★ ·
+18. The Tank Farm ★★★★ · 19. Ion Storm Ridge ★★★★★ · 20. Deep Space Dock ★★★★★
 
-**The Frozen Abyss** — 21. Abyssal Approach ★ · 22. Shattered Causeway ★ ·
-23. Leviathan Trench ★★ · 24. Obsidian Maze ★★ · 25. Aurora Cathedral ★★★ ·
-26. The Maelstrom ★★★ · 27. Riven Icefall ★★★★ · 28. Black Ice Labyrinth ★★★★ ·
-29. Throne of Winter ★★★★★ · 30. World's End ★★★★★
+**Castle Realm** — 21. The Approach ★ · 22. Broken Causeway ★ · 23. The Moat ★★ ·
+24. Black Keep Maze ★★ · 25. The Great Hall ★★★ · 26. The Millrace ★★★ ·
+27. Broken Aqueduct ★★★★ · 28. The Labyrinth ★★★★ · 29. The Throne Room ★★★★★ ·
+30. The Last Wall ★★★★★
 
 ### Unlocking
 
 **Each difficulty is its own campaign.** Battlefield 1 is open on all three from the start;
 after that you advance one battlefield at a time on the difficulty you're playing, and
-clearing an entire tier of ten opens the next tier **on that difficulty**:
-
-```
-Easy:    Frostlands 1-10  →  Deep Tundra 11-20  →  Frozen Abyss 21-30
-Medium:  Frostlands 1-10  →  Deep Tundra 11-20  →  Frozen Abyss 21-30
-Hard:    Frostlands 1-10  →  Deep Tundra 11-20  →  Frozen Abyss 21-30
-```
-
-A win counts for every **easier** difficulty too — clear the Frostlands on Hard and the
-Deep Tundra opens on Easy and Medium as well, so nobody has to replay a campaign they've
-already proven. The level-select tier headers show how far along each difficulty you are,
-and locked difficulties on the challenge screen tell you exactly what's still in the way.
+clearing an entire tier of ten opens the next tier **on that difficulty**. A win counts for
+every **easier** difficulty too.
 
 ### How the star ratings are set
 
-Stars are **measured, not guessed**. A map's real difficulty is the *tower-seconds* it
-affords you — how long a vacuum is under fire (track length ÷ speed) multiplied by how
-many buildable spots can reach an average point of its route — weighed against how tough
-the pack is and how many independent routes you must cover at once.
+Stars are **measured, not guessed**. A board's real difficulty is the *Bro-seconds* it
+affords you — how long a vacuum is under fire (track length ÷ speed) multiplied by how many
+buildable spots can reach an average point of its route — weighed against how tough the
+pack is and how many independent routes you must cover at once.
 
 The counter-intuitive part: a long, tightly-folded serpentine is **generous**, not cruel.
-One tower covers several lanes at once and the enemy walks past your guns for a minute and
-a half. The genuinely hard maps are the *short* ones (Blizzard Peak, Aurora Ridge, World's
-End) and the ones that **split** into routes you cannot defend with the same guns.
+One Bro covers several lanes at once and the enemy rolls past your guns for a minute and a
+half. The genuinely hard boards are the *short* ones (Rooftop Run, Fountain Square, The
+Last Wall) and the ones that **split** into routes you cannot defend with the same guns.
 
 ### Music
 
-Each battlefield plays a Game Boy-style chiptune loop (a cheery march early on, a darker
-theme mid-campaign, a driving track for the finale) — and the tempo climbs **+1% with every
-wave**, so wave 50 hits about 1.6× the speed of wave 1. The 🔊 button mutes music and
-sound effects together.
+Each battlefield plays a chiptune loop, and the tempo climbs **+1% with every wave**, so
+wave 50 hits about 1.6× the speed of wave 1. The 🔊 button mutes music and sound effects
+together.
 
 ### Saving
 
 - The game **autosaves after every wave**.
-- The **💾 Save** button saves **mid-wave** — even with vacuums on the field — and the level
+- The **💾 Save** button saves **mid-wave** — even with vacuums on the board — and the level
   screen shows a **Continue** button to pick up exactly where you left off.
-- Progress is stored in your browser (localStorage). *Reset Progress* on the main menu wipes it.
-- **💾 Back Up Progress** (main menu) writes everything — bricks, unlocks, saved games — to one
-  file you keep. On iPhone/iPad it opens the share sheet (**Save to Files**; pick an iCloud Drive
-  folder and it follows you to your other devices). **📂 Load Backup** restores it anywhere,
-  including a different browser or computer.
+- Progress is stored in your browser (localStorage). *Reset Progress* on the main menu
+  wipes it.
+- **💾 Back Up Progress** (main menu) writes everything — bricks, unlocks, saved games — to
+  one file you keep. **📂 Load Backup** restores it anywhere, including a different browser
+  or computer.
 
 ### Controls
 
-The interface is a bottom command dock built for keyboard + mouse: build palette in the middle
-(laid out like your keyboard), selection card on the left, wave controls on the right.
+The interface is a bottom command dock built for keyboard + mouse: build palette in the
+middle (laid out like your keyboard), selection card on the left, wave controls on the
+right.
 
 | Input | Action |
 |---|---|
-| **1–5** / **Q–T** / **A–G** / **Z–B** | Build a Frostline / Navy / Mystic / Support Bro (or click its slot), then click the map. Hold **Shift** to place several |
+| **1–5** / **Q–T** / **A–G** / **Z–B** | Build a Knight / Space / Wizard / Crew Bro (or click its slot), then click the board. Hold **Shift** to place several |
 | Click a placed Bro | Its card appears bottom-left |
 | **Q** / **W** / **E** (selected) | Buy upgrade path 1 / 2 / 3 |
 | **T** (selected) | Cycle targeting: first / last / strong / close |
@@ -339,38 +306,32 @@ The interface is a bottom command dock built for keyboard + mouse: build palette
 
 ### Tips
 
-- **The ground beside the track is the real resource.** Boulders, cracked ice and glacier
-  ridges can't be built on, and there are progressively more of them as the campaign goes
-  on — Icy Shores is nearly open, World's End is a maze. Scout where you *can* stand
+- **The plate beside the track is the real resource.** Brick walls, prised-up plates and
+  builds can't be built on, and there are progressively more of them as the campaign goes
+  on — Starter Plate is nearly open, The Last Wall is a maze. Scout where you *can* stand
   before you commit your studs.
-- Slush Throwers and Snowball Rollers make everything else hit more often — slow is damage.
-- **Aura towers don't stack much.** Each extra source of the same buff counts for half the
+- Glue Slingers and Boulder Knights make everything else hit more often — clog is damage.
+- **Aura Bros don't stack much.** Each extra source of the same buff counts for half the
   one before it, and every buff has a ceiling (damage ×2, attack speed ×2, range ×1.45).
-  One excellent Fort or War Drummer gets a cluster most of the way there; a wall of them
-  adds almost nothing. Build the second one to cover different ground, not more power.
-- Build a Parts Trader or two before wave 10 — but only a couple. Each extra vendor earns
-  30% less than the one before it, so a third and fourth barely pay for themselves. Its
-  three paths pay three different ways: **Market** is flat reliable income, **Finance**
-  pays off your kills, your board and your savings, and **Supply Chain** makes everything
-  else on the board cheaper.
-- **Stealth detection is a choice now, not a freebie.** Nine Bros used to buy "sees
-  stealth" as tier-1 filler; now each class has exactly one cheap answer — Frostline's
-  **Keen Eyes** (🔩90, the cheapest upgrade in the game), Navy's **Night Scope** and
-  **Thermal Visor**, the Shadow Diver born with it for Mystic, and Support's
-  **Watchtower** plus the Sonar Station itself. Skip them all and wave 14 will hurt.
+- Build a Parts Trader or two before wave 10 — but only a couple. Each extra trader earns
+  30% less than the one before it.
+- **Stealth detection is a choice, not a freebie.** Each class has exactly one cheap answer
+  — the Knights' **Keen Eyes** (🔩90, the cheapest upgrade in the game), Space's **Night
+  Optics** and **Thermal Visor**, the Shadow Ninja born with it for Wizards, and Crew's
+  **Watchtower** plus the Radar Mast itself. Skip them all and wave 14 will hurt.
 - Have detection online before wave 14, and armor-shred before wave 16.
-- Save a Harpoon Sniper with the **Extractor Lance** upgrade for boss waves.
-- Ice Walls placed near the exit catch whatever slips through.
+- Save a Laser Sniper with the **Extractor Lance** upgrade for boss waves.
+- Walls placed near the exit catch whatever slips through.
 
 ## Files
 
 ```
 index.html        the game (open this)
 style.css         UI styling
-js/data.js        towers, upgrades, enemies, 30 levels across 3 tiers
-js/waves.js       wave generation (up to 50 waves × 30 levels)
+js/data.js        Bros, upgrades, vacuums, 30 battlefields across 3 tiers
+js/waves.js       wave generation (up to 50 waves × 30 battlefields)
 js/engine.js      simulation: combat, targeting, saves
-js/render.js      canvas art: maps, Bros, vacuums
+js/render.js      canvas art: baseplates, Bros, vacuums
 js/ui.js          menus, shop, HUD, persistence, sound
 js/main.js        boot
 serve.js          tiny local web server used by the launchers
