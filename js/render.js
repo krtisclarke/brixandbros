@@ -2091,7 +2091,7 @@
        They overlap a little when packed tight, which is the price of being
        able to see what you built. */
     const small = tw.type === 'fort' || tw.type === 'vendor';
-    const pr = small ? 23 : 32;
+    const pr = small ? 20 : 28;
     let px = small ? pos.x + 20 : pos.x;
     let py = small ? pos.y + 8 : pos.y;
     // recoil kick: jump back from the shot, spring back over ~0.16s
@@ -2171,31 +2171,37 @@
   }
 
   /* ================= VACUUMS =================
-     Seen from ABOVE, nose-right. This is the second attempt: the first drew
-     them in profile, standing on a ground line, and it never worked. The board
-     is a building plate seen from overhead, the Bros are seen from the front,
-     and a vacuum standing in side view on top of that was reading as a box on a
-     stick. Overhead is also simply how you look at a vacuum cleaner — you are
-     above it, pushing it — so the shape everyone recognises is the wide flat
-     head leading, the body behind it, and the handle trailing back.
+     Third attempt, and the lesson from the second is in the proportions.
 
-     The layout, in radii, nose-right:
+     Attempt one was a profile drawing, which fought a board seen from above.
+     Attempt two moved overhead but kept a big rounded body as the main mass,
+     hung a dark wedge off the front for the head and put a round lamp in the
+     middle of the body — the result read as a radiator with a dial on it.
 
-        x = +1.30  ── the front lip of the floor head
-        x = +0.55  ── where the head meets the body
-        x = -0.80  ── the back of the body
-        x = -1.90  ── the end of the handle
-        |y| = 0.95 ── the corners of the floor head, the widest part
+     What actually makes a vacuum recognisable from above is one thing: THE
+     FLOOR HEAD IS THE WIDEST PART OF THE MACHINE, and it is a flat slab, not a
+     bulge. Everything here is arranged to say that. The head is more than twice
+     the width of the body and only a third as deep, its suction slot runs the
+     full width of its leading edge, and the body sits small and central behind
+     it on a short neck. The silhouette is a T.
 
-     Every machine is that same set of parts at different proportions, because
-     at twenty pixels a silhouette is all the player gets and four recognisable
-     parts survive being small where a bespoke drawing per species does not. */
+     Layout, in radii, nose-right:
+
+        x = +1.22 ─┐ front lip of the floor head, suction slot along it
+        x = +0.62 ─┘ back of the head            |y| up to 1.05 — the widest point
+        x = +0.42 ─┐ front of the body
+        x = -0.62 ─┘ back of the body            |y| up to 0.52
+        x = -1.70    the grip on the end of the handle
+
+     The light lives on the front lip where a real one does, not in the middle
+     of the body — and it still does the job of a face, because the front lip is
+     where the eye goes first. */
   const VAC_FORM = {
     pup:         { form: 'hand' },
     juvenile:    { form: 'stick' },
     adult:       { form: 'upright' },
     speedster:   { form: 'robo' },
-    bull:        { form: 'upright', bulk: 1.16, vents: true },
+    bull:        { form: 'upright', bulk: 1.14, vents: true },
     stealth:     { form: 'upright', quiet: true },
     armored:     { form: 'can',     plated: true },
     regen:       { form: 'can',     cyclone: true },
@@ -2206,26 +2212,40 @@
     leviathan:   { form: 'drum',    pipes: true },
   };
 
+  /* The proportions each form uses. headHW is the number that matters: it is
+     what makes the machine read, and it is always well clear of bodyHW. */
+  function vacGeom(spec) {
+    const f = (spec && spec.form) || 'upright';
+    const b = (spec && spec.bulk) || 1;
+    const g = {
+      hand:    { headHW: 0.62, headX0: 0.30, headX1: 0.86, bodyHW: 0.34, bodyX0: -0.46, bodyX1: 0.26, handle: -0.86, round: 0.16 },
+      stick:   { headHW: 0.78, headX0: 0.56, headX1: 1.10, bodyHW: 0.30, bodyX0: -0.52, bodyX1: 0.40, handle: -1.86, round: 0.14 },
+      upright: { headHW: 1.05, headX0: 0.62, headX1: 1.22, bodyHW: 0.52, bodyX0: -0.62, bodyX1: 0.42, handle: -1.70, round: 0.18 },
+      can:     { headHW: 0.92, headX0: 0.66, headX1: 1.20, bodyHW: 0.64, bodyX0: -0.78, bodyX1: 0.34, handle: -1.55, round: 0.30 },
+      drum:    { headHW: 1.16, headX0: 0.66, headX1: 1.26, bodyHW: 0.80, bodyX0: -0.86, bodyX1: 0.40, handle: -1.35, round: 0.42 },
+      robo:    { headHW: 0, headX0: 0, headX1: 0, bodyHW: 0.94, bodyX0: -0.98, bodyX1: 0.98, handle: 0, round: 0.94 },
+    }[f];
+    return { f, headHW: g.headHW * b, headX0: g.headX0, headX1: g.headX1,
+             bodyHW: g.bodyHW * b, bodyX0: g.bodyX0 * b, bodyX1: g.bodyX1,
+             handle: g.handle, round: g.round };
+  }
+
   /* The body shell — the one shape the fill, the shading clip and the cartoon
      outline all share, so they can never drift apart. */
   function vacBody(ctx, r, spec) {
-    const f = (spec && spec.form) || 'upright';
-    const b = (spec && spec.bulk) || 1;
-    if (f === 'robo') {                        // a disc, and nothing else
+    const G2 = vacGeom(spec);
+    if (G2.f === 'robo') {
       ctx.beginPath();
-      ctx.ellipse(0, 0, r * 1.0, r * 0.92, 0, 0, TAU);
+      ctx.ellipse(0, 0, r * 0.98, r * 0.94, 0, 0, TAU);
       return;
     }
-    const back = f === 'hand' ? -0.50 : f === 'stick' ? -0.62 : -0.80 * b;
-    const front = 0.58;
-    const half = (f === 'hand' ? 0.42 : f === 'stick' ? 0.40 : f === 'drum' ? 0.78 : 0.62) * b;
-    const rad = r * (f === 'drum' ? 0.34 : 0.20);
+    const rad = r * G2.round;
     ctx.beginPath();
-    ctx.moveTo(r * back + rad, -r * half);
-    ctx.arcTo(r * front, -r * half, r * front, r * half, rad);
-    ctx.arcTo(r * front, r * half, r * back, r * half, rad);
-    ctx.arcTo(r * back, r * half, r * back, -r * half, rad);
-    ctx.arcTo(r * back, -r * half, r * front, -r * half, rad);
+    ctx.moveTo(r * G2.bodyX0 + rad, -r * G2.bodyHW);
+    ctx.arcTo(r * G2.bodyX1, -r * G2.bodyHW, r * G2.bodyX1, r * G2.bodyHW, rad);
+    ctx.arcTo(r * G2.bodyX1, r * G2.bodyHW, r * G2.bodyX0, r * G2.bodyHW, rad);
+    ctx.arcTo(r * G2.bodyX0, r * G2.bodyHW, r * G2.bodyX0, -r * G2.bodyHW, rad);
+    ctx.arcTo(r * G2.bodyX0, -r * G2.bodyHW, r * G2.bodyX1, -r * G2.bodyHW, rad);
     ctx.closePath();
   }
 
@@ -2247,11 +2267,10 @@
     const col = def.color;
     const boss = !!def.boss;
     const spec = VAC_FORM[type] || { form: 'upright' };
-    const f = spec.form;
-    const bulk = spec.bulk || 1;
+    const G2 = vacGeom(spec);
+    const f = G2.f;
     const ink = shade(col, -60);
-    const lw = Math.max(1.4, r * 0.10);
-    const half = (f === 'hand' ? 0.42 : f === 'stick' ? 0.40 : f === 'drum' ? 0.78 : 0.62) * bulk;
+    const lw = Math.max(1.4, r * 0.09);
     ctx.globalAlpha = hidden ? 0.45 : 1;
 
     // Robo-Vac: afterimages, because it is twice as fast as anything else and
@@ -2267,59 +2286,87 @@
       }
     }
 
-    /* ---- the handle, trailing back behind the body ---- */
+    /* ---- the handle, straight back, thin ---- */
     if (f !== 'robo' && f !== 'hand') {
-      const len = f === 'stick' ? -1.95 : f === 'drum' ? -1.35 : -1.72;
-      ctx.strokeStyle = shade(col, -40);
-      ctx.lineWidth = Math.max(2, r * (f === 'stick' ? 0.15 : 0.20));
-      ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-r * 0.5, 0); ctx.lineTo(r * len, 0); ctx.stroke();
-      // the grip: a bar across the end, which is what makes it a handle and not
-      // a stick, and reads at any size because it is perpendicular
+      ctx.strokeStyle = shade(col, -34);
+      ctx.lineWidth = Math.max(1.8, r * (f === 'stick' ? 0.11 : 0.14));
+      ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.moveTo(r * (G2.bodyX0 + 0.1), 0); ctx.lineTo(r * G2.handle, 0); ctx.stroke();
+      // the grip: a bar across the end. Perpendicular, so it survives being
+      // twelve pixels wide, and it is what makes the line a handle.
       ctx.strokeStyle = '#2b3138';
-      ctx.lineWidth = Math.max(2.4, r * 0.19);
+      ctx.lineWidth = Math.max(2.4, r * 0.17);
+      ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(r * len, -r * 0.42); ctx.lineTo(r * len, r * 0.42);
+      ctx.moveTo(r * G2.handle, -r * 0.34); ctx.lineTo(r * G2.handle, r * 0.34);
       ctx.stroke();
-      ctx.strokeStyle = shade(col, -40);
     }
     if (f === 'hand') {                        // a handheld: a stubby grip
       ctx.strokeStyle = '#2b3138'; ctx.lineWidth = Math.max(2, r * 0.20); ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-r * 0.40, 0); ctx.lineTo(-r * 0.92, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(r * G2.bodyX0, 0); ctx.lineTo(r * (G2.handle), 0); ctx.stroke();
     }
 
-    /* ---- the floor head, wide and out in front ----
-       This is the part that says "vacuum" more than anything else on the
-       machine: wider than the body, flat across the front, with the suction
-       slot showing along its leading edge. */
+    /* ---- the floor head ----
+       The widest thing on the machine and the reason it reads. Drawn first so
+       the body sits on top of it, which is also how they are actually built. */
     if (f !== 'robo') {
-      const hw = half * (f === 'hand' ? 1.10 : 1.42);      // wider than the body
-      const nose = f === 'hand' ? 1.02 : f === 'drum' ? 1.34 : 1.26;
-      ctx.fillStyle = shade(col, -20);
-      ctx.beginPath();
-      ctx.moveTo(r * 0.42, -r * half * 0.9);
-      ctx.lineTo(r * (nose - 0.14), -r * hw);
-      ctx.lineTo(r * nose, -r * hw * 0.86);
-      ctx.lineTo(r * nose, r * hw * 0.86);
-      ctx.lineTo(r * (nose - 0.14), r * hw);
-      ctx.lineTo(r * 0.42, r * half * 0.9);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = ink; ctx.lineWidth = lw * 0.85; ctx.stroke();
-      // the intake slot along the front lip
-      ctx.fillStyle = '#12161c';
-      ctx.beginPath();
-      ctx.moveTo(r * (nose - 0.16), -r * hw * 0.80);
-      ctx.lineTo(r * (nose - 0.02), -r * hw * 0.74);
-      ctx.lineTo(r * (nose - 0.02), r * hw * 0.74);
-      ctx.lineTo(r * (nose - 0.16), r * hw * 0.80);
-      ctx.closePath(); ctx.fill();
-      // wheels, one at each back corner of the head
-      ctx.fillStyle = '#2b3138';
+      const hw = G2.headHW, x0 = G2.headX0, x1 = G2.headX1;
+
+      // the short neck joining head to body
+      ctx.fillStyle = shade(col, -26);
+      ctx.fillRect(r * (x0 - 0.26), -r * G2.bodyHW * 0.55, r * 0.30, r * G2.bodyHW * 1.10);
+
+      // wheels at the back corners, sticking out past the head
+      ctx.fillStyle = '#23282f';
       for (const s of [-1, 1]) {
-        ctx.beginPath();
-        ctx.ellipse(r * 0.52, s * r * hw * 0.82, r * 0.13, r * 0.09, 0, 0, TAU);
-        ctx.fill();
+        rounded(ctx, r * (x0 - 0.04), s * r * hw - (s > 0 ? 0 : r * 0.20), r * 0.22, r * 0.20, r * 0.06);
       }
+
+      // the slab itself: rounded at the back, square across the front
+      ctx.fillStyle = shade(col, -14);
+      ctx.beginPath();
+      ctx.moveTo(r * (x0 + 0.10), -r * hw);
+      ctx.lineTo(r * (x1 - 0.06), -r * hw);
+      ctx.quadraticCurveTo(r * x1, -r * hw, r * x1, -r * hw * 0.86);
+      ctx.lineTo(r * x1, r * hw * 0.86);
+      ctx.quadraticCurveTo(r * x1, r * hw, r * (x1 - 0.06), r * hw);
+      ctx.lineTo(r * (x0 + 0.10), r * hw);
+      ctx.quadraticCurveTo(r * x0, r * hw, r * x0, r * hw * 0.7);
+      ctx.lineTo(r * x0, -r * hw * 0.7);
+      ctx.quadraticCurveTo(r * x0, -r * hw, r * (x0 + 0.10), -r * hw);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
+
+      // lit along its back edge, shaded along the front — a flat slab, lit from
+      // the top-left like everything else on the board
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(r * x0, -r * hw, r * (x1 - x0), r * hw * 2);
+      ctx.clip();
+      ctx.fillStyle = 'rgba(255,255,255,0.20)';
+      ctx.fillRect(r * x0, -r * hw, r * 0.16, r * hw * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.16)';
+      ctx.fillRect(r * (x1 - 0.20), -r * hw, r * 0.20, r * hw * 2);
+      ctx.restore();
+
+      /* The suction slot, the full width of the leading edge. This is the
+         single most identifying mark on the machine and the mechanic the game
+         runs on — the mouth that swallows things. */
+      ctx.fillStyle = '#0f1319';
+      rounded(ctx, r * (x1 - 0.20), -r * hw * 0.80, r * 0.15, r * hw * 1.60, r * 0.05);
+      ctx.fillStyle = 'rgba(150,200,235,0.20)';
+      rounded(ctx, r * (x1 - 0.185), -r * hw * 0.74, r * 0.05, r * hw * 1.48, r * 0.03);
+
+      // the headlight, on the front lip where a real one is
+      const lightY = -r * hw * 0.52;
+      const lr = r * (boss ? 0.13 : 0.10);
+      ctx.fillStyle = 'rgba(255,240,180,0.35)';
+      ctx.beginPath(); ctx.arc(r * (x1 - 0.32), lightY, lr * 2.0, 0, TAU); ctx.fill();
+      ctx.fillStyle = spec.quiet ? '#6ec8e8' : boss ? '#ff6a4a' : '#ffe08a';
+      ctx.beginPath(); ctx.arc(r * (x1 - 0.32), lightY, lr, 0, TAU); ctx.fill();
+      ctx.strokeStyle = ink; ctx.lineWidth = Math.max(0.9, r * 0.035);
+      ctx.beginPath(); ctx.arc(r * (x1 - 0.32), lightY, lr, 0, TAU); ctx.stroke();
     }
 
     /* ---- the body ---- */
@@ -2328,15 +2375,11 @@
 
     ctx.save();
     vacBody(ctx, r, spec); ctx.clip();
-    // moulded plastic, lit from the top-left like everything else on the board
     ctx.globalAlpha = 0.9;
-    ctx.fillStyle = shade(col, 44);
-    ctx.beginPath(); ctx.ellipse(-r * 0.15, -r * half * 0.62, r * 0.75, r * half * 0.42, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = shade(col, 46);
+    ctx.beginPath(); ctx.ellipse(-r * 0.15, -r * G2.bodyHW * 0.66, r * 0.62, r * G2.bodyHW * 0.40, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = shade(col, -30);
-    ctx.beginPath(); ctx.ellipse(r * 0.05, r * half * 0.70, r * 0.85, r * half * 0.44, 0, 0, TAU); ctx.fill();
-    ctx.globalAlpha = 0.32;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.ellipse(-r * 0.22, -r * half * 0.48, r * 0.42, r * half * 0.16, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 0.05, r * G2.bodyHW * 0.72, r * 0.70, r * G2.bodyHW * 0.42, 0, 0, TAU); ctx.fill();
     ctx.globalAlpha = 1;
 
     /* Scuffs, seeded off the sprite's wear pattern rather than the individual
@@ -2344,33 +2387,31 @@
        difference between three sheets per species and one per vacuum. */
     if (!boss) {
       const rnd = mulberry32(variant * 31013 + def.rank * 977);
-      ctx.globalAlpha = 0.20;
+      ctx.globalAlpha = 0.18;
       ctx.fillStyle = shade(col, -50);
-      const n = 3 + (rnd() * 3 | 0);
-      for (let i = 0; i < n; i++) {
+      for (let i = 0, n = 3 + (rnd() * 3 | 0); i < n; i++) {
         ctx.beginPath();
-        ctx.ellipse((rnd() * 2 - 1) * r * 0.5, (rnd() * 2 - 1) * r * half * 0.6,
-          r * (0.05 + rnd() * 0.07), r * (0.03 + rnd() * 0.04), rnd() * 3, 0, TAU);
+        ctx.ellipse((rnd() * 2 - 1) * r * 0.4, (rnd() * 2 - 1) * r * G2.bodyHW * 0.6,
+          r * (0.04 + rnd() * 0.06), r * (0.03 + rnd() * 0.03), rnd() * 3, 0, TAU);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
     }
 
-    /* ---- the dust window ----
-       Every machine has one, and the bricks it has already swallowed are
-       visible rattling around inside. On the big ones it is full. */
+    /* The dust window, with the bricks it has already swallowed visible inside.
+       It sits along the body rather than across it, so it reads as a bag rather
+       than as a panel bolted on. */
     if (f !== 'robo') {
-      const ww = r * 0.62, wh = r * half * 1.05;
-      ctx.fillStyle = 'rgba(228,240,248,0.5)';
-      rounded(ctx, -r * 0.42, -wh / 2, ww, wh, r * 0.08);
+      const ww = r * (G2.bodyX1 - G2.bodyX0) * 0.62, wh = r * G2.bodyHW * 0.92;
+      ctx.fillStyle = 'rgba(230,242,250,0.42)';
+      rounded(ctx, r * G2.bodyX0 + r * 0.14, -wh / 2, ww, wh, r * 0.07);
       const rnd2 = mulberry32(def.rank * 7717 + variant * 131);
-      const bits = 2 + (def.rank > 8 ? 2 : 0);
-      for (let i = 0; i < bits; i++) {
+      for (let i = 0, bits = 2 + (def.rank > 8 ? 2 : 0); i < bits; i++) {
         ctx.save();
-        ctx.globalAlpha = 0.8;
-        ctx.translate(-r * 0.36 + rnd2() * (ww - r * 0.18), (rnd2() - 0.5) * wh * 0.7);
+        ctx.globalAlpha = 0.85;
+        ctx.translate(r * G2.bodyX0 + r * 0.24 + rnd2() * (ww - r * 0.22), (rnd2() - 0.5) * wh * 0.62);
         ctx.rotate(rnd2() * 3);
-        brickBit(ctx, 0, 0, r * 0.20, r * 0.15, LOAD_COLS[(rnd2() * 3) | 0]);
+        brickBit(ctx, 0, 0, r * 0.19, r * 0.14, LOAD_COLS[(rnd2() * 3) | 0]);
         ctx.restore();
       }
       ctx.globalAlpha = 1;
@@ -2380,133 +2421,113 @@
     // bold cartoon outline, the same weight the Bros wear
     ctx.strokeStyle = ink;
     ctx.globalAlpha = hidden ? 0.4 : 0.9;
-    ctx.lineWidth = Math.max(1.6, r * 0.12);
+    ctx.lineWidth = Math.max(1.6, r * 0.11);
     vacBody(ctx, r, spec); ctx.stroke();
     ctx.globalAlpha = hidden ? 0.45 : 1;
-
-    /* ---- the motor housing, and the light that is also the face ----
-       One glowing lamp on the front of the body. It is the whole reason a box
-       on wheels reads as something coming for you rather than as scenery. */
-    if (f !== 'robo') {
-      ctx.fillStyle = shade(col, -46);
-      rounded(ctx, -r * 0.12, -r * half * 0.36, r * 0.52, r * half * 0.72, r * 0.08);
-      ctx.strokeStyle = 'rgba(10,16,24,0.5)'; ctx.lineWidth = Math.max(0.8, r * 0.035);
-      for (let i = 0; i < 4; i++) {
-        ctx.beginPath();
-        ctx.moveTo(-r * 0.06 + i * r * 0.11, -r * half * 0.28);
-        ctx.lineTo(-r * 0.06 + i * r * 0.11, r * half * 0.28);
-        ctx.stroke();
-      }
-    }
-    const eyeX = f === 'robo' ? 0.62 : 0.44;
-    const eyeR = r * (boss ? 0.17 : 0.13);
-    ctx.fillStyle = 'rgba(255,240,180,0.35)';
-    ctx.beginPath(); ctx.arc(r * eyeX, 0, eyeR * 1.9, 0, TAU); ctx.fill();
-    ctx.fillStyle = spec.quiet ? '#6ec8e8' : boss ? '#ff6a4a' : '#ffe08a';
-    ctx.beginPath(); ctx.arc(r * eyeX, 0, eyeR, 0, TAU); ctx.fill();
-    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, r * 0.045);
-    ctx.beginPath(); ctx.arc(r * eyeX, 0, eyeR, 0, TAU); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.beginPath(); ctx.arc(r * eyeX - eyeR * 0.3, -eyeR * 0.35, eyeR * 0.28, 0, TAU); ctx.fill();
 
     /* ---- the one detail that tells this species from the last ---- */
     if (spec.vents) {                          // Heavy Upright: cooling slots
       ctx.fillStyle = shade(col, -52);
-      for (let i = 0; i < 4; i++) ctx.fillRect(-r * (0.72 - i * 0.11), -r * half * 0.62, r * 0.05, r * half * 1.24);
+      for (let i = 0; i < 3; i++) {
+        ctx.fillRect(r * (G2.bodyX0 + 0.06 + i * 0.10), -r * G2.bodyHW * 0.46, r * 0.045, r * G2.bodyHW * 0.92);
+      }
     }
     if (spec.quiet) {                          // Silent Runner: foam shroud
       ctx.fillStyle = 'rgba(200,214,228,0.5)';
-      rounded(ctx, -r * 0.78, -r * half * 1.02, r * 1.30, r * half * 0.30, r * 0.08);
-      rounded(ctx, -r * 0.78, r * half * 0.72, r * 1.30, r * half * 0.30, r * 0.08);
+      rounded(ctx, r * (G2.bodyX0 - 0.02), -r * G2.bodyHW * 1.14, r * (G2.bodyX1 - G2.bodyX0), r * G2.bodyHW * 0.36, r * 0.07);
+      rounded(ctx, r * (G2.bodyX0 - 0.02), r * G2.bodyHW * 0.78, r * (G2.bodyX1 - G2.bodyX0), r * G2.bodyHW * 0.36, r * 0.07);
     }
     if (spec.plated) {                         // Steel Canister: riveted plate
       ctx.fillStyle = '#a9b3bd';
-      rounded(ctx, -r * 0.72, -r * half * 0.72, r * 1.16, r * half * 1.44, r * 0.10);
-      ctx.strokeStyle = '#6f7a86'; ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.rect(-r * 0.72, -r * half * 0.72, r * 1.16, r * half * 1.44); ctx.stroke();
+      rounded(ctx, r * (G2.bodyX0 + 0.08), -r * G2.bodyHW * 0.66, r * (G2.bodyX1 - G2.bodyX0 - 0.20), r * G2.bodyHW * 1.32, r * 0.09);
+      ctx.strokeStyle = '#6f7a86'; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.rect(r * (G2.bodyX0 + 0.08), -r * G2.bodyHW * 0.66, r * (G2.bodyX1 - G2.bodyX0 - 0.20), r * G2.bodyHW * 1.32); ctx.stroke();
       ctx.fillStyle = '#5d6873';
-      for (const sy of [-0.5, 0.5]) for (let i = 0; i < 4; i++) {
-        ctx.beginPath(); ctx.arc(r * (-0.58 + i * 0.30), sy * r * half * 1.02, r * 0.045, 0, TAU); ctx.fill();
+      for (const sy of [-0.46, 0.46]) for (let i = 0; i < 3; i++) {
+        ctx.beginPath(); ctx.arc(r * (G2.bodyX0 + 0.22 + i * 0.28), sy * r * G2.bodyHW, r * 0.042, 0, TAU); ctx.fill();
       }
     }
     if (spec.cyclone) {                        // Cyclone: the bin that empties itself
       ctx.save();
-      ctx.strokeStyle = 'rgba(120,235,160,0.9)'; ctx.lineWidth = Math.max(1.2, r * 0.07);
+      ctx.strokeStyle = 'rgba(120,235,160,0.9)'; ctx.lineWidth = Math.max(1.2, r * 0.06);
       ctx.beginPath();
-      for (let i = 0; i <= 26; i++) {
-        const a = i * 0.42, rad = r * 0.05 + i * r * 0.011;
-        const px = -r * 0.12 + Math.cos(a) * rad, py = Math.sin(a) * rad;
+      for (let i = 0; i <= 24; i++) {
+        const a = i * 0.42, rad = r * 0.04 + i * r * 0.010;
+        const px = -r * 0.16 + Math.cos(a) * rad, py = Math.sin(a) * rad;
         i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
       }
       ctx.stroke();
       ctx.restore();
     }
     if (spec.tank) {                           // Carpet Cleaner: solution tank
-      ctx.fillStyle = 'rgba(150,225,240,0.72)';
-      rounded(ctx, -r * 0.66, -r * half * 0.52, r * 0.62, r * half * 1.04, r * 0.10);
+      ctx.fillStyle = 'rgba(150,225,240,0.7)';
+      rounded(ctx, r * (G2.bodyX0 + 0.06), -r * G2.bodyHW * 0.5, r * 0.46, r * G2.bodyHW, r * 0.09);
       ctx.strokeStyle = shade(col, -46); ctx.lineWidth = lw * 0.7;
-      ctx.beginPath(); ctx.rect(-r * 0.66, -r * half * 0.52, r * 0.62, r * half * 1.04); ctx.stroke();
+      ctx.beginPath(); ctx.rect(r * (G2.bodyX0 + 0.06), -r * G2.bodyHW * 0.5, r * 0.46, r * G2.bodyHW); ctx.stroke();
     }
     if (spec.pad) {                            // Floor Buffer: the spinning pad
       ctx.fillStyle = '#d8dee4';
-      ctx.beginPath(); ctx.arc(r * 0.30, 0, r * 0.72, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(r * 0.92, 0, r * 0.92, 0, TAU); ctx.fill();
       ctx.strokeStyle = '#8b98a5'; ctx.lineWidth = 1.6; ctx.stroke();
       ctx.strokeStyle = 'rgba(120,136,152,0.7)'; ctx.lineWidth = 1.2;
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * TAU;
         ctx.beginPath();
-        ctx.moveTo(r * 0.30 + Math.cos(a) * r * 0.22, Math.sin(a) * r * 0.22);
-        ctx.lineTo(r * 0.30 + Math.cos(a) * r * 0.66, Math.sin(a) * r * 0.66);
+        ctx.moveTo(r * 0.92 + Math.cos(a) * r * 0.3, Math.sin(a) * r * 0.3);
+        ctx.lineTo(r * 0.92 + Math.cos(a) * r * 0.84, Math.sin(a) * r * 0.84);
         ctx.stroke();
       }
     }
     if (spec.stack) {                          // The Extractor: exhaust stacks
-      ctx.fillStyle = '#4a5560';
-      for (const sy of [-0.55, 0, 0.55]) {
-        ctx.beginPath(); ctx.arc(-r * 0.46, sy * r * half, r * 0.14, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#20262e';
-        ctx.beginPath(); ctx.arc(-r * 0.46, sy * r * half, r * 0.07, 0, TAU); ctx.fill();
+      for (const sy of [-0.5, 0, 0.5]) {
         ctx.fillStyle = '#4a5560';
+        ctx.beginPath(); ctx.arc(r * (G2.bodyX0 + 0.20), sy * r * G2.bodyHW, r * 0.12, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#20262e';
+        ctx.beginPath(); ctx.arc(r * (G2.bodyX0 + 0.20), sy * r * G2.bodyHW, r * 0.06, 0, TAU); ctx.fill();
       }
     }
     if (spec.pipes) {                          // Central Unit: plumbed into the wall
-      ctx.strokeStyle = '#8b98a5'; ctx.lineWidth = Math.max(2, r * 0.16); ctx.lineCap = 'round';
+      ctx.strokeStyle = '#8b98a5'; ctx.lineWidth = Math.max(2, r * 0.15); ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(-r * 0.60, -r * half * 0.5);
-      ctx.quadraticCurveTo(-r * 1.30, -r * 0.9, -r * 1.80, -r * 0.4);
+      ctx.moveTo(r * (G2.bodyX0 + 0.1), -r * G2.bodyHW * 0.5);
+      ctx.quadraticCurveTo(-r * 1.35, -r * 0.9, -r * 1.85, -r * 0.35);
       ctx.stroke();
-      ctx.strokeStyle = '#5d6873'; ctx.lineWidth = Math.max(1, r * 0.05);
+      ctx.strokeStyle = '#5d6873'; ctx.lineWidth = Math.max(1, r * 0.045);
       for (let i = 0; i < 4; i++) {
-        const px = -r * (0.80 + i * 0.26), py = -r * (0.68 + Math.sin(i) * 0.06);
-        ctx.beginPath(); ctx.moveTo(px, py - r * 0.11); ctx.lineTo(px, py + r * 0.11); ctx.stroke();
+        const px = -r * (0.85 + i * 0.26), py = -r * (0.70 + Math.sin(i) * 0.06);
+        ctx.beginPath(); ctx.moveTo(px, py - r * 0.10); ctx.lineTo(px, py + r * 0.10); ctx.stroke();
       }
     }
-    if (f === 'robo') {                        // Robo-Vac: bumper and sensor turret
+    if (f === 'robo') {                        // Robo-Vac: bumper, brush, sensor
       ctx.strokeStyle = shade(col, -52); ctx.lineWidth = Math.max(1.6, r * 0.10);
-      ctx.beginPath(); ctx.arc(0, 0, r * 0.78, -1.2, 1.2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.80, -1.25, 1.25); ctx.stroke();
+      ctx.fillStyle = '#12161c';
+      rounded(ctx, r * 0.52, -r * 0.44, r * 0.14, r * 0.88, r * 0.05);
       ctx.fillStyle = '#2b3138';
-      ctx.beginPath(); ctx.arc(-r * 0.18, 0, r * 0.22, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(-r * 0.18, 0, r * 0.24, 0, TAU); ctx.fill();
       ctx.fillStyle = '#5d6873';
-      ctx.beginPath(); ctx.arc(-r * 0.18, 0, r * 0.10, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(-r * 0.18, 0, r * 0.11, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ffe08a';
+      ctx.beginPath(); ctx.arc(r * 0.62, -r * 0.30, r * 0.09, 0, TAU); ctx.fill();
     }
 
     /* Bosses and heavies wear the same yellow-and-black hazard tape, because
        "this one is different" has to be one signal the player learns once, not
-       four they learn separately. Down the flanks, where nothing else sits. */
-    if (boss) {
+       four they learn separately. Along the floor head, where it is widest. */
+    if (boss && f !== 'robo') {
       ctx.save();
-      vacBody(ctx, r, spec); ctx.clip();
+      ctx.beginPath();
+      ctx.rect(r * G2.headX0, -r * G2.headHW, r * (G2.headX1 - G2.headX0), r * G2.headHW * 2);
+      ctx.clip();
       ctx.globalAlpha = 0.9;
-      for (let i = -5; i <= 5; i++) {
+      for (let i = -7; i <= 7; i++) {
         ctx.fillStyle = i % 2 ? '#1c1f24' : '#f2c14e';
-        for (const s of [-1, 1]) {
-          ctx.beginPath();
-          ctx.moveTo(r * (i * 0.20), s * r * half * 0.62);
-          ctx.lineTo(r * (0.10 + i * 0.20), s * r * half * 0.62);
-          ctx.lineTo(r * (i * 0.20), s * r * half * 1.1);
-          ctx.lineTo(r * (-0.10 + i * 0.20), s * r * half * 1.1);
-          ctx.closePath(); ctx.fill();
-        }
+        ctx.beginPath();
+        ctx.moveTo(r * G2.headX0, r * (i * 0.22) * G2.headHW);
+        ctx.lineTo(r * (G2.headX0 + 0.18), r * (i * 0.22) * G2.headHW);
+        ctx.lineTo(r * (G2.headX0 + 0.18), r * (i * 0.22 + 0.11) * G2.headHW);
+        ctx.lineTo(r * G2.headX0, r * (i * 0.22 + 0.11) * G2.headHW);
+        ctx.closePath(); ctx.fill();
       }
       ctx.restore();
     }
@@ -3451,7 +3472,7 @@
           if (!G.arcsOverTerrain(def.stats)) drawSightShadow(ctx, game, x, y, range);
         }
         ctx.globalAlpha = 0.75;
-        drawBro(ctx, x, y, 32, game.placingType, null, 0);
+        drawBro(ctx, x, y, 28, game.placingType, null, 0);
         ctx.globalAlpha = 1;
         if (!ok) {
           ctx.strokeStyle = '#d04545'; ctx.lineWidth = 3;
