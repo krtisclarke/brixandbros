@@ -501,26 +501,25 @@
   }
 
 
-  /* A raft of loose plates floating in a pool. Was an ice floe; the shape is
-     the useful part — an irregular flat thing breaking up an expanse of blue —
-     so it keeps the outline and becomes a clump of plates instead. */
+  /* Bricks that fell in the pool. This was an ice floe, then a raft of pale
+     plates that still read as one — white angular shapes on blue is an iceberg
+     whatever the code calls it. So they are small, they are primary-coloured,
+     they sit at scattered angles, and each one carries its two studs: at any
+     size the thing your eye picks up is "brick", not "ice". */
   function drawFloe(c, x, y, r, rnd) {
     c.save();
     c.translate(x, y);
-    c.rotate(rnd() * TAU);
-    const cols = ['#f2f4f6', '#c8d2dc', '#e8b93c'];
-    for (let i = 0; i < 3; i++) {
-      const w = r * (0.9 - i * 0.16), h = r * 0.42;
-      const ox = (rnd() - 0.5) * r * 0.5, oy = (rnd() - 0.5) * r * 0.4;
-      const col = cols[(rnd() * cols.length) | 0];
-      c.fillStyle = 'rgba(14,40,66,0.28)';
-      c.fillRect(ox - w / 2 + 2, oy - h / 2 + 3, w, h);
-      c.fillStyle = col;
-      c.fillRect(ox - w / 2, oy - h / 2, w, h);
-      c.fillStyle = 'rgba(255,255,255,0.4)';
-      c.fillRect(ox - w / 2, oy - h / 2, w, h * 0.3);
-      c.strokeStyle = 'rgba(20,40,64,0.5)'; c.lineWidth = 1;
-      c.strokeRect(ox - w / 2, oy - h / 2, w, h);
+    const cols = ['#c8443c', '#3f7fd4', '#e8b93c', '#3fae6a'];
+    const n = 2 + ((rnd() * 2) | 0);
+    for (let i = 0; i < n; i++) {
+      c.save();
+      c.translate((rnd() - 0.5) * r * 1.4, (rnd() - 0.5) * r * 1.1);
+      c.rotate(rnd() * TAU);
+      const w = r * 0.62, h = r * 0.44;
+      c.fillStyle = 'rgba(10,32,56,0.30)';
+      c.fillRect(-w / 2 + r * 0.06, -h / 2 + r * 0.08, w, h);
+      brickBit(c, 0, 0, w, h, cols[(rnd() * cols.length) | 0]);
+      c.restore();
     }
     c.restore();
   }
@@ -2172,20 +2171,31 @@
   }
 
   /* ================= VACUUMS =================
-     Drawn in profile, nose-right, wheels on the ground at y = +0.75r. Every
-     machine is the same four parts in different proportions — housing, floor
-     head, handle, wheels — because at twenty pixels a silhouette is all the
-     player gets, and four recognisable parts survive being small where a
-     bespoke drawing per species does not.
+     Seen from ABOVE, nose-right. This is the second attempt: the first drew
+     them in profile, standing on a ground line, and it never worked. The board
+     is a building plate seen from overhead, the Bros are seen from the front,
+     and a vacuum standing in side view on top of that was reading as a box on a
+     stick. Overhead is also simply how you look at a vacuum cleaner — you are
+     above it, pushing it — so the shape everyone recognises is the wide flat
+     head leading, the body behind it, and the handle trailing back.
 
-     `form` picks the proportions; the flags below it add the one detail that
-     tells this species apart from the one before it in the ladder. */
+     The layout, in radii, nose-right:
+
+        x = +1.30  ── the front lip of the floor head
+        x = +0.55  ── where the head meets the body
+        x = -0.80  ── the back of the body
+        x = -1.90  ── the end of the handle
+        |y| = 0.95 ── the corners of the floor head, the widest part
+
+     Every machine is that same set of parts at different proportions, because
+     at twenty pixels a silhouette is all the player gets and four recognisable
+     parts survive being small where a bespoke drawing per species does not. */
   const VAC_FORM = {
     pup:         { form: 'hand' },
     juvenile:    { form: 'stick' },
     adult:       { form: 'upright' },
     speedster:   { form: 'robo' },
-    bull:        { form: 'upright', bulk: 1.14, vents: true },
+    bull:        { form: 'upright', bulk: 1.16, vents: true },
     stealth:     { form: 'upright', quiet: true },
     armored:     { form: 'can',     plated: true },
     regen:       { form: 'can',     cyclone: true },
@@ -2195,60 +2205,57 @@
     emperor:     { form: 'can',     stack: true },
     leviathan:   { form: 'drum',    pipes: true },
   };
-  const GROUND = 0.75;
 
-  /* The housing outline — the one shape the fill, the shading clip and the
-     cartoon outline all share, so they can never drift apart. */
+  /* The body shell — the one shape the fill, the shading clip and the cartoon
+     outline all share, so they can never drift apart. */
   function vacBody(ctx, r, spec) {
     const f = (spec && spec.form) || 'upright';
     const b = (spec && spec.bulk) || 1;
-    if (f === 'robo') {                       // a low disc, no housing to speak of
+    if (f === 'robo') {                        // a disc, and nothing else
       ctx.beginPath();
-      ctx.ellipse(0, r * 0.34, r * 1.02, r * 0.40, 0, 0, TAU);
+      ctx.ellipse(0, 0, r * 1.0, r * 0.92, 0, 0, TAU);
       return;
     }
-    const left = f === 'hand' ? -0.62 : f === 'stick' ? -0.72 : -0.95 * b;
-    const right = f === 'hand' ? 0.52 : 0.58;
-    const top = f === 'hand' ? -0.30 : f === 'stick' ? -0.34 : -0.58 * b;
-    const bot = GROUND - 0.12;
-    const rad = r * (f === 'drum' ? 0.30 : 0.16);
+    const back = f === 'hand' ? -0.50 : f === 'stick' ? -0.62 : -0.80 * b;
+    const front = 0.58;
+    const half = (f === 'hand' ? 0.42 : f === 'stick' ? 0.40 : f === 'drum' ? 0.78 : 0.62) * b;
+    const rad = r * (f === 'drum' ? 0.34 : 0.20);
     ctx.beginPath();
-    ctx.moveTo(r * left + rad, r * top);
-    ctx.arcTo(r * right, r * top, r * right, r * bot, rad);
-    ctx.arcTo(r * right, r * bot, r * left, r * bot, rad);
-    ctx.arcTo(r * left, r * bot, r * left, r * top, rad);
-    ctx.arcTo(r * left, r * top, r * right, r * top, rad);
+    ctx.moveTo(r * back + rad, -r * half);
+    ctx.arcTo(r * front, -r * half, r * front, r * half, rad);
+    ctx.arcTo(r * front, r * half, r * back, r * half, rad);
+    ctx.arcTo(r * back, r * half, r * back, -r * half, rad);
+    ctx.arcTo(r * back, -r * half, r * front, -r * half, rad);
     ctx.closePath();
   }
 
-  /* Everything below is drawn nose-right and wheels-down, and the caller turns
-     it down the track. Which way the machine is FACING is therefore a mirror,
-     never a rotation past vertical: rotating a right-facing drawing by 180°
-     puts its wheels in the air, and that is what had the whole pack driving
-     upside down on every leg of the track that runs right to left.
-
-     Mirrored across its own axis instead — nose still leads, wheels still
-     down. Keyed on the segment's angle rather than the wobbled one: the wobble
-     is ±0.07 either side, so on a vertical leg an angle-with-wobble crosses
-     zero eight times a second and the machine would strobe. */
+  /* Everything is drawn nose-right, and the caller turns it down the track.
+     Which way the machine is FACING is therefore a mirror, never a rotation
+     past vertical: rotating a right-facing drawing by 180° puts it upside
+     down, and that is what had the whole pack driving on its roof on every leg
+     of the track that runs right to left. Keyed on the segment's angle rather
+     than the wobbled one, because the wobble is ±0.07 either side and on a
+     vertical leg an angle-with-wobble crosses zero eight times a second. */
   function facesLeft(ang) { return Math.cos(ang) < 0; }
 
   /* The still half of a vacuum — which is nearly all of it, and deliberately:
      these are machines rolling down a track, not animals, so there is no gait
-     to animate. Only the brush roll turns (drawVacLive). Painted once per
-     (type, stealth, wear pattern) into a sprite and blitted after that. */
+     to animate. Only the brush roll turns. Painted once per (type, stealth,
+     wear pattern) into a sprite and blitted after that. */
   function paintVac(ctx, type, r, hidden, variant) {
     const def = G.ENEMIES[type];
     const col = def.color;
     const boss = !!def.boss;
     const spec = VAC_FORM[type] || { form: 'upright' };
     const f = spec.form;
-    const ink = shade(col, -58);
-    const lw = Math.max(1.4, r * 0.11);
+    const bulk = spec.bulk || 1;
+    const ink = shade(col, -60);
+    const lw = Math.max(1.4, r * 0.10);
+    const half = (f === 'hand' ? 0.42 : f === 'stick' ? 0.40 : f === 'drum' ? 0.78 : 0.62) * bulk;
     ctx.globalAlpha = hidden ? 0.45 : 1;
 
-    // Robo-Vac: a blurred pair of afterimages, because it is twice as fast as
-    // anything else on the board and that has to be legible before it arrives
+    // Robo-Vac: afterimages, because it is twice as fast as anything else and
+    // that has to be legible before it arrives
     if (f === 'robo') {
       for (let gi = 2; gi >= 1; gi--) {
         ctx.save();
@@ -2260,232 +2267,250 @@
       }
     }
 
-    /* ---- handle ---- */
-    if (f === 'upright' || f === 'stick') {
-      const hx = f === 'stick' ? -0.60 : -0.72;
-      const topY = f === 'stick' ? -1.55 : -1.25;
-      ctx.strokeStyle = shade(col, -34);
-      ctx.lineWidth = Math.max(1.6, r * (f === 'stick' ? 0.11 : 0.15));
+    /* ---- the handle, trailing back behind the body ---- */
+    if (f !== 'robo' && f !== 'hand') {
+      const len = f === 'stick' ? -1.95 : f === 'drum' ? -1.35 : -1.72;
+      ctx.strokeStyle = shade(col, -40);
+      ctx.lineWidth = Math.max(2, r * (f === 'stick' ? 0.15 : 0.20));
       ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-r * 0.5, 0); ctx.lineTo(r * len, 0); ctx.stroke();
+      // the grip: a bar across the end, which is what makes it a handle and not
+      // a stick, and reads at any size because it is perpendicular
+      ctx.strokeStyle = '#2b3138';
+      ctx.lineWidth = Math.max(2.4, r * 0.19);
       ctx.beginPath();
-      ctx.moveTo(r * hx, r * -0.30);
-      ctx.lineTo(r * (hx - 0.30), r * topY);
+      ctx.moveTo(r * len, -r * 0.42); ctx.lineTo(r * len, r * 0.42);
       ctx.stroke();
-      // grip
-      ctx.strokeStyle = '#2b3138'; ctx.lineWidth = Math.max(2, r * 0.16);
-      ctx.beginPath();
-      ctx.moveTo(r * (hx - 0.30), r * topY);
-      ctx.lineTo(r * (hx - 0.02), r * (topY + 0.16));
-      ctx.stroke();
+      ctx.strokeStyle = shade(col, -40);
     }
-    if (f === 'hand') {                      // a handheld's finger loop
-      ctx.strokeStyle = '#2b3138'; ctx.lineWidth = Math.max(1.6, r * 0.13);
-      ctx.beginPath(); ctx.arc(-r * 0.30, -r * 0.42, r * 0.26, Math.PI * 0.9, Math.PI * 2.1); ctx.stroke();
+    if (f === 'hand') {                        // a handheld: a stubby grip
+      ctx.strokeStyle = '#2b3138'; ctx.lineWidth = Math.max(2, r * 0.20); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-r * 0.40, 0); ctx.lineTo(-r * 0.92, 0); ctx.stroke();
     }
 
-    /* ---- floor head, out in front ---- */
+    /* ---- the floor head, wide and out in front ----
+       This is the part that says "vacuum" more than anything else on the
+       machine: wider than the body, flat across the front, with the suction
+       slot showing along its leading edge. */
     if (f !== 'robo') {
+      const hw = half * (f === 'hand' ? 1.10 : 1.42);      // wider than the body
       const nose = f === 'hand' ? 1.02 : f === 'drum' ? 1.34 : 1.26;
-      ctx.fillStyle = shade(col, -26);
+      ctx.fillStyle = shade(col, -20);
       ctx.beginPath();
-      ctx.moveTo(r * 0.42, r * (GROUND - 0.42));
-      ctx.lineTo(r * nose, r * (GROUND - 0.26));
-      ctx.lineTo(r * nose, r * GROUND);
-      ctx.lineTo(r * 0.42, r * GROUND);
+      ctx.moveTo(r * 0.42, -r * half * 0.9);
+      ctx.lineTo(r * (nose - 0.14), -r * hw);
+      ctx.lineTo(r * nose, -r * hw * 0.86);
+      ctx.lineTo(r * nose, r * hw * 0.86);
+      ctx.lineTo(r * (nose - 0.14), r * hw);
+      ctx.lineTo(r * 0.42, r * half * 0.9);
       ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = ink; ctx.lineWidth = lw * 0.8; ctx.stroke();
-      // suction slot along the underside
-      ctx.fillStyle = '#15181d';
-      ctx.fillRect(r * 0.5, r * (GROUND - 0.09), r * (nose - 0.58), r * 0.08);
+      ctx.strokeStyle = ink; ctx.lineWidth = lw * 0.85; ctx.stroke();
+      // the intake slot along the front lip
+      ctx.fillStyle = '#12161c';
+      ctx.beginPath();
+      ctx.moveTo(r * (nose - 0.16), -r * hw * 0.80);
+      ctx.lineTo(r * (nose - 0.02), -r * hw * 0.74);
+      ctx.lineTo(r * (nose - 0.02), r * hw * 0.74);
+      ctx.lineTo(r * (nose - 0.16), r * hw * 0.80);
+      ctx.closePath(); ctx.fill();
+      // wheels, one at each back corner of the head
+      ctx.fillStyle = '#2b3138';
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(r * 0.52, s * r * hw * 0.82, r * 0.13, r * 0.09, 0, 0, TAU);
+        ctx.fill();
+      }
     }
 
-    /* ---- housing ---- */
+    /* ---- the body ---- */
     ctx.fillStyle = col;
     vacBody(ctx, r, spec); ctx.fill();
 
     ctx.save();
     vacBody(ctx, r, spec); ctx.clip();
-    // moulded plastic: light off the top-left face, shadow down the bottom-right
-    ctx.globalAlpha = 0.85;
-    ctx.fillStyle = shade(col, 40);
-    ctx.beginPath(); ctx.ellipse(-r * 0.25, -r * 0.40, r * 0.85, r * 0.26, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = shade(col, -28);
-    ctx.beginPath(); ctx.ellipse(r * 0.15, r * 0.62, r * 0.95, r * 0.30, 0, 0, TAU); ctx.fill();
-    ctx.globalAlpha = 0.30;
+    // moulded plastic, lit from the top-left like everything else on the board
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = shade(col, 44);
+    ctx.beginPath(); ctx.ellipse(-r * 0.15, -r * half * 0.62, r * 0.75, r * half * 0.42, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = shade(col, -30);
+    ctx.beginPath(); ctx.ellipse(r * 0.05, r * half * 0.70, r * 0.85, r * half * 0.44, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 0.32;
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.ellipse(-r * 0.30, -r * 0.30, r * 0.42, r * 0.09, -0.12, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-r * 0.22, -r * half * 0.48, r * 0.42, r * half * 0.16, 0, 0, TAU); ctx.fill();
     ctx.globalAlpha = 1;
 
-    /* Scuffs. Seeded off the sprite's wear pattern rather than off the
-       individual machine: a pack of three patterns reads exactly as varied as
-       a pack of ninety did, and it is the difference between three sheets per
-       species and one per vacuum on the field. */
+    /* Scuffs, seeded off the sprite's wear pattern rather than the individual
+       machine: three patterns read as varied as ninety did, and it is the
+       difference between three sheets per species and one per vacuum. */
     if (!boss) {
       const rnd = mulberry32(variant * 31013 + def.rank * 977);
-      ctx.globalAlpha = 0.22;
-      ctx.fillStyle = shade(col, -45);
+      ctx.globalAlpha = 0.20;
+      ctx.fillStyle = shade(col, -50);
       const n = 3 + (rnd() * 3 | 0);
       for (let i = 0; i < n; i++) {
         ctx.beginPath();
-        ctx.ellipse((rnd() * 2 - 1) * r * 0.6, (rnd() * 2 - 1) * r * 0.35,
+        ctx.ellipse((rnd() * 2 - 1) * r * 0.5, (rnd() * 2 - 1) * r * half * 0.6,
           r * (0.05 + rnd() * 0.07), r * (0.03 + rnd() * 0.04), rnd() * 3, 0, TAU);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
     }
 
-    /* ---- the dust window: every vacuum has one, and it is where the bricks
-           it has already eaten are visible. On the big ones it is full. ---- */
+    /* ---- the dust window ----
+       Every machine has one, and the bricks it has already swallowed are
+       visible rattling around inside. On the big ones it is full. */
     if (f !== 'robo') {
-      const wx = f === 'hand' ? -0.34 : -0.52, ww = f === 'hand' ? 0.62 : 0.90;
-      ctx.fillStyle = 'rgba(228,240,248,0.55)';
-      rounded(ctx, r * wx, r * -0.16, r * ww, r * 0.52, r * 0.09);
-      ctx.fillStyle = 'rgba(20,30,44,0.22)';
-      rounded(ctx, r * wx, r * -0.16, r * ww, r * 0.12, r * 0.05);
-      // swallowed bricks rattling around inside
+      const ww = r * 0.62, wh = r * half * 1.05;
+      ctx.fillStyle = 'rgba(228,240,248,0.5)';
+      rounded(ctx, -r * 0.42, -wh / 2, ww, wh, r * 0.08);
       const rnd2 = mulberry32(def.rank * 7717 + variant * 131);
       const bits = 2 + (def.rank > 8 ? 2 : 0);
-      const cols = ['#c8443c', '#3f7fd4', '#e8b93c', '#3fae6a'];
       for (let i = 0; i < bits; i++) {
-        ctx.fillStyle = cols[(rnd2() * 4) | 0];
-        ctx.globalAlpha = 0.75;
         ctx.save();
-        ctx.translate(r * (wx + 0.12 + rnd2() * (ww - 0.24)), r * (0.02 + rnd2() * 0.26));
+        ctx.globalAlpha = 0.8;
+        ctx.translate(-r * 0.36 + rnd2() * (ww - r * 0.18), (rnd2() - 0.5) * wh * 0.7);
         ctx.rotate(rnd2() * 3);
-        ctx.fillRect(-r * 0.07, -r * 0.045, r * 0.14, r * 0.09);
+        brickBit(ctx, 0, 0, r * 0.20, r * 0.15, LOAD_COLS[(rnd2() * 3) | 0]);
         ctx.restore();
       }
       ctx.globalAlpha = 1;
     }
     ctx.restore();
 
-    // bold cartoon outline, the same as the Bros wear
+    // bold cartoon outline, the same weight the Bros wear
     ctx.strokeStyle = ink;
     ctx.globalAlpha = hidden ? 0.4 : 0.9;
-    ctx.lineWidth = Math.max(1.6, r * 0.13);
+    ctx.lineWidth = Math.max(1.6, r * 0.12);
     vacBody(ctx, r, spec); ctx.stroke();
     ctx.globalAlpha = hidden ? 0.45 : 1;
 
-    /* ---- wheels ---- */
-    if (f !== 'hand') {
-      const ws = f === 'drum' ? 0.24 : 0.19;
-      const pos = f === 'robo' ? [[-0.55, 0.60], [0.55, 0.60]] : [[-0.58, GROUND - 0.11], [0.18, GROUND - 0.11]];
-      for (const [wx, wy] of pos) {
-        ctx.fillStyle = '#2b3138';
-        ctx.beginPath(); ctx.arc(r * wx, r * wy, r * ws, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#5d6873';
-        ctx.beginPath(); ctx.arc(r * wx, r * wy, r * ws * 0.42, 0, TAU); ctx.fill();
+    /* ---- the motor housing, and the light that is also the face ----
+       One glowing lamp on the front of the body. It is the whole reason a box
+       on wheels reads as something coming for you rather than as scenery. */
+    if (f !== 'robo') {
+      ctx.fillStyle = shade(col, -46);
+      rounded(ctx, -r * 0.12, -r * half * 0.36, r * 0.52, r * half * 0.72, r * 0.08);
+      ctx.strokeStyle = 'rgba(10,16,24,0.5)'; ctx.lineWidth = Math.max(0.8, r * 0.035);
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.06 + i * r * 0.11, -r * half * 0.28);
+        ctx.lineTo(-r * 0.06 + i * r * 0.11, r * half * 0.28);
+        ctx.stroke();
       }
     }
-
-    /* ---- the headlight, which is also the face ----
-       One glowing eye on the front. It is the whole reason a box on wheels
-       reads as something coming for you rather than as scenery. */
-    const eyeX = f === 'robo' ? 0.80 : f === 'hand' ? 0.42 : 0.34;
-    const eyeY = f === 'robo' ? 0.30 : -0.16;
+    const eyeX = f === 'robo' ? 0.62 : 0.44;
     const eyeR = r * (boss ? 0.17 : 0.13);
     ctx.fillStyle = 'rgba(255,240,180,0.35)';
-    ctx.beginPath(); ctx.arc(r * eyeX, r * eyeY, eyeR * 1.9, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(r * eyeX, 0, eyeR * 1.9, 0, TAU); ctx.fill();
     ctx.fillStyle = spec.quiet ? '#6ec8e8' : boss ? '#ff6a4a' : '#ffe08a';
-    ctx.beginPath(); ctx.arc(r * eyeX, r * eyeY, eyeR, 0, TAU); ctx.fill();
-    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, r * 0.05);
-    ctx.beginPath(); ctx.arc(r * eyeX, r * eyeY, eyeR, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(r * eyeX, 0, eyeR, 0, TAU); ctx.fill();
+    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, r * 0.045);
+    ctx.beginPath(); ctx.arc(r * eyeX, 0, eyeR, 0, TAU); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.beginPath(); ctx.arc(r * eyeX - eyeR * 0.3, r * eyeY - eyeR * 0.35, eyeR * 0.28, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(r * eyeX - eyeR * 0.3, -eyeR * 0.35, eyeR * 0.28, 0, TAU); ctx.fill();
 
     /* ---- the one detail that tells this species from the last ---- */
-    if (spec.vents) {                        // Heavy Upright: cooling slots
-      ctx.fillStyle = shade(col, -50);
-      for (let i = 0; i < 4; i++) ctx.fillRect(r * (-0.86 + i * 0.13), -r * 0.34, r * 0.06, r * 0.44);
+    if (spec.vents) {                          // Heavy Upright: cooling slots
+      ctx.fillStyle = shade(col, -52);
+      for (let i = 0; i < 4; i++) ctx.fillRect(-r * (0.72 - i * 0.11), -r * half * 0.62, r * 0.05, r * half * 1.24);
     }
-    if (spec.quiet) {                        // Silent Runner: foam shroud
-      ctx.fillStyle = 'rgba(200,214,228,0.55)';
-      rounded(ctx, -r * 1.0, -r * 0.66, r * 1.6, r * 0.26, r * 0.12);
-      ctx.strokeStyle = 'rgba(120,140,164,0.7)'; ctx.lineWidth = 1;
-      for (let i = 0; i < 5; i++) {
-        ctx.beginPath(); ctx.moveTo(r * (-0.92 + i * 0.3), -r * 0.62); ctx.lineTo(r * (-0.92 + i * 0.3), -r * 0.44); ctx.stroke();
+    if (spec.quiet) {                          // Silent Runner: foam shroud
+      ctx.fillStyle = 'rgba(200,214,228,0.5)';
+      rounded(ctx, -r * 0.78, -r * half * 1.02, r * 1.30, r * half * 0.30, r * 0.08);
+      rounded(ctx, -r * 0.78, r * half * 0.72, r * 1.30, r * half * 0.30, r * 0.08);
+    }
+    if (spec.plated) {                         // Steel Canister: riveted plate
+      ctx.fillStyle = '#a9b3bd';
+      rounded(ctx, -r * 0.72, -r * half * 0.72, r * 1.16, r * half * 1.44, r * 0.10);
+      ctx.strokeStyle = '#6f7a86'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.rect(-r * 0.72, -r * half * 0.72, r * 1.16, r * half * 1.44); ctx.stroke();
+      ctx.fillStyle = '#5d6873';
+      for (const sy of [-0.5, 0.5]) for (let i = 0; i < 4; i++) {
+        ctx.beginPath(); ctx.arc(r * (-0.58 + i * 0.30), sy * r * half * 1.02, r * 0.045, 0, TAU); ctx.fill();
       }
     }
-    if (spec.plated) {                       // Steel Canister: riveted plate
-      ctx.fillStyle = '#a9b3bd';
-      rounded(ctx, -r * 0.92, -r * 0.56, r * 1.46, r * 0.40, r * 0.10);
-      ctx.strokeStyle = '#6f7a86'; ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.rect(-r * 0.92, -r * 0.56, r * 1.46, r * 0.40); ctx.stroke();
-      ctx.fillStyle = '#5d6873';
-      for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(r * (-0.80 + i * 0.30), -r * 0.36, r * 0.045, 0, TAU); ctx.fill(); }
-    }
-    if (spec.cyclone) {                      // Cyclone: the bin that empties itself
+    if (spec.cyclone) {                        // Cyclone: the bin that empties itself
       ctx.save();
       ctx.strokeStyle = 'rgba(120,235,160,0.9)'; ctx.lineWidth = Math.max(1.2, r * 0.07);
       ctx.beginPath();
       for (let i = 0; i <= 26; i++) {
-        const a = i * 0.42, rad = r * 0.06 + i * r * 0.012;
-        const px = -r * 0.16 + Math.cos(a) * rad, py = r * 0.10 + Math.sin(a) * rad * 0.55;
+        const a = i * 0.42, rad = r * 0.05 + i * r * 0.011;
+        const px = -r * 0.12 + Math.cos(a) * rad, py = Math.sin(a) * rad;
         i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
       }
       ctx.stroke();
       ctx.restore();
     }
-    if (spec.tank) {                         // Carpet Cleaner: solution tank on top
-      ctx.fillStyle = 'rgba(150,225,240,0.75)';
-      rounded(ctx, -r * 0.62, -r * 0.98, r * 1.0, r * 0.44, r * 0.12);
-      ctx.strokeStyle = shade(col, -40); ctx.lineWidth = lw * 0.7;
-      ctx.beginPath(); ctx.rect(-r * 0.62, -r * 0.98, r * 1.0, r * 0.44); ctx.stroke();
+    if (spec.tank) {                           // Carpet Cleaner: solution tank
+      ctx.fillStyle = 'rgba(150,225,240,0.72)';
+      rounded(ctx, -r * 0.66, -r * half * 0.52, r * 0.62, r * half * 1.04, r * 0.10);
+      ctx.strokeStyle = shade(col, -46); ctx.lineWidth = lw * 0.7;
+      ctx.beginPath(); ctx.rect(-r * 0.66, -r * half * 0.52, r * 0.62, r * half * 1.04); ctx.stroke();
     }
-    if (spec.pad) {                          // Floor Buffer: the spinning pad
+    if (spec.pad) {                            // Floor Buffer: the spinning pad
       ctx.fillStyle = '#d8dee4';
-      ctx.beginPath(); ctx.ellipse(r * 0.20, r * (GROUND - 0.04), r * 1.05, r * 0.20, 0, 0, TAU); ctx.fill();
-      ctx.strokeStyle = '#8b98a5'; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.beginPath(); ctx.arc(r * 0.30, 0, r * 0.72, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#8b98a5'; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.strokeStyle = 'rgba(120,136,152,0.7)'; ctx.lineWidth = 1.2;
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU;
+        ctx.beginPath();
+        ctx.moveTo(r * 0.30 + Math.cos(a) * r * 0.22, Math.sin(a) * r * 0.22);
+        ctx.lineTo(r * 0.30 + Math.cos(a) * r * 0.66, Math.sin(a) * r * 0.66);
+        ctx.stroke();
+      }
     }
-    if (spec.stack) {                        // The Extractor: exhaust stacks
+    if (spec.stack) {                          // The Extractor: exhaust stacks
       ctx.fillStyle = '#4a5560';
-      for (let i = -1; i <= 1; i++) {
-        rounded(ctx, r * (-0.30 + i * 0.34) - r * 0.09, -r * 1.14, r * 0.18, r * 0.62, r * 0.05);
-      }
-      ctx.fillStyle = '#2b3138';
-      for (let i = -1; i <= 1; i++) {
-        ctx.beginPath(); ctx.ellipse(r * (-0.30 + i * 0.34), -r * 1.14, r * 0.10, r * 0.05, 0, 0, TAU); ctx.fill();
+      for (const sy of [-0.55, 0, 0.55]) {
+        ctx.beginPath(); ctx.arc(-r * 0.46, sy * r * half, r * 0.14, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#20262e';
+        ctx.beginPath(); ctx.arc(-r * 0.46, sy * r * half, r * 0.07, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#4a5560';
       }
     }
-    if (spec.pipes) {                        // Central Unit: it is plumbed into the wall
-      ctx.strokeStyle = '#8b98a5'; ctx.lineWidth = Math.max(2, r * 0.14); ctx.lineCap = 'round';
+    if (spec.pipes) {                          // Central Unit: plumbed into the wall
+      ctx.strokeStyle = '#8b98a5'; ctx.lineWidth = Math.max(2, r * 0.16); ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(-r * 0.55, -r * 0.62);
-      ctx.quadraticCurveTo(-r * 1.25, -r * 1.1, -r * 1.75, -r * 0.55);
+      ctx.moveTo(-r * 0.60, -r * half * 0.5);
+      ctx.quadraticCurveTo(-r * 1.30, -r * 0.9, -r * 1.80, -r * 0.4);
       ctx.stroke();
       ctx.strokeStyle = '#5d6873'; ctx.lineWidth = Math.max(1, r * 0.05);
       for (let i = 0; i < 4; i++) {
-        const px = -r * (0.75 + i * 0.26), py = -r * (0.85 + Math.sin(i) * 0.06);
-        ctx.beginPath(); ctx.moveTo(px, py - r * 0.12); ctx.lineTo(px, py + r * 0.12); ctx.stroke();
+        const px = -r * (0.80 + i * 0.26), py = -r * (0.68 + Math.sin(i) * 0.06);
+        ctx.beginPath(); ctx.moveTo(px, py - r * 0.11); ctx.lineTo(px, py + r * 0.11); ctx.stroke();
       }
     }
-    if (f === 'robo') {                      // Robo-Vac: bumper and sensor turret
-      ctx.strokeStyle = shade(col, -50); ctx.lineWidth = Math.max(1.4, r * 0.09);
-      ctx.beginPath(); ctx.ellipse(0, r * 0.34, r * 0.72, r * 0.26, 0, 0, TAU); ctx.stroke();
+    if (f === 'robo') {                        // Robo-Vac: bumper and sensor turret
+      ctx.strokeStyle = shade(col, -52); ctx.lineWidth = Math.max(1.6, r * 0.10);
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.78, -1.2, 1.2); ctx.stroke();
       ctx.fillStyle = '#2b3138';
-      ctx.beginPath(); ctx.ellipse(-r * 0.25, r * 0.20, r * 0.20, r * 0.10, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(-r * 0.18, 0, r * 0.22, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#5d6873';
+      ctx.beginPath(); ctx.arc(-r * 0.18, 0, r * 0.10, 0, TAU); ctx.fill();
     }
 
-    /* Bosses carry a warning stripe. It is the same yellow-and-black hazard
-       tape on all four of them, because "this one is different" has to be one
-       signal the player learns once, not four they learn separately. */
+    /* Bosses and heavies wear the same yellow-and-black hazard tape, because
+       "this one is different" has to be one signal the player learns once, not
+       four they learn separately. Down the flanks, where nothing else sits. */
     if (boss) {
       ctx.save();
       vacBody(ctx, r, spec); ctx.clip();
       ctx.globalAlpha = 0.9;
-      for (let i = -4; i <= 6; i++) {
+      for (let i = -5; i <= 5; i++) {
         ctx.fillStyle = i % 2 ? '#1c1f24' : '#f2c14e';
-        ctx.beginPath();
-        ctx.moveTo(r * (-1.1 + i * 0.22), r * 0.30);
-        ctx.lineTo(r * (-0.98 + i * 0.22), r * 0.30);
-        ctx.lineTo(r * (-1.10 + i * 0.22), r * 0.66);
-        ctx.lineTo(r * (-1.22 + i * 0.22), r * 0.66);
-        ctx.closePath(); ctx.fill();
+        for (const s of [-1, 1]) {
+          ctx.beginPath();
+          ctx.moveTo(r * (i * 0.20), s * r * half * 0.62);
+          ctx.lineTo(r * (0.10 + i * 0.20), s * r * half * 0.62);
+          ctx.lineTo(r * (i * 0.20), s * r * half * 1.1);
+          ctx.lineTo(r * (-0.10 + i * 0.20), s * r * half * 1.1);
+          ctx.closePath(); ctx.fill();
+        }
       }
       ctx.restore();
     }
   }
-
   /* The half that has to be redrawn: anything whose shape or brightness is a
      function of the clock. Everything here sits clear of the head and the
      silhouette, so drawing it over the blitted sprite lands the same picture
@@ -2662,10 +2687,12 @@
       return;
     }
 
-    // the power cord, trailing behind — behind the machine, so it goes on first
+    /* The power cord, snaking away behind. Seen from above it lies flat on the
+       board, so it starts past the end of the handle rather than at the top of
+       a body that no longer has a top. */
     ctx.save();
-    ctx.translate(-r * 0.95, -r * 0.2);
-    blitSprite(ctx, sprite('cord|' + e.type, [r * 1.5, r * 0.2, r * 0.6, r * 0.4],
+    ctx.translate(-r * 1.85, 0);
+    blitSprite(ctx, sprite('cord|' + e.type, [r * 1.5, r * 0.2, r * 0.5, r * 0.5],
       (c) => paintVacCord(c, r, col)));
     ctx.restore();
 
@@ -2682,14 +2709,18 @@
     blitSprite(ctx, sprite(key, [r * 2.1, r * 1.6, r * 1.85, r * 1.1],
       (c) => paintVac(c, e.type, r, hidden, variant)));
 
-    /* The brush roll, under the floor head. The only moving part on the whole
-       machine, and it turns with distance travelled rather than with the clock
-       so a clogged vacuum visibly slows down instead of spinning merrily on
-       the spot. */
+    /* The brush roll, spanning the mouth of the floor head. From above it lies
+       ACROSS the machine rather than along it, so it is drawn turned a quarter
+       turn — the same helper, rotated, rather than a second one that could
+       drift out of step with the first.
+
+       It turns with distance travelled rather than with the clock, so a clogged
+       vacuum visibly slows down instead of spinning merrily on the spot. */
     if (e.type !== 'speedster') {
       ctx.save();
-      ctx.translate(r * 0.86, r * (GROUND - 0.02));
-      drawVacBrush(ctx, r, ((e.dist || 0) / Math.max(4, r * 0.9)) % 1, hidden);
+      ctx.translate(r * 1.06, 0);
+      ctx.rotate(Math.PI / 2);
+      drawVacBrush(ctx, r * 1.9, ((e.dist || 0) / Math.max(4, r * 0.9)) % 1, hidden);
       ctx.restore();
     }
     ctx.globalAlpha = ghost;
@@ -2956,6 +2987,27 @@
   /* ---------- projectiles & effects ---------- */
   /* Reused between frames; see the note on zEnemies at the bottom of the file. */
   const shotOwners = new Map();
+  /* One brick, drawn small and centred, for anything that flies or scatters:
+     shots, catapult loads, the debris a vacuum bursts into, the bits rattling
+     around inside a dust window. Top face lit, front face plain, dark edge, two
+     studs — the same four notes as every other brick on the board, at a size
+     where four notes is all that fits. */
+  const LOAD_COLS = ['#c8443c', '#3f7fd4', '#e8b93c'];
+  function brickBit(ctx, x, y, w, h, col) {
+    ctx.fillStyle = shade(col, -34);
+    ctx.fillRect(x - w / 2, y - h / 2, w, h);
+    ctx.fillStyle = col;
+    ctx.fillRect(x - w / 2, y - h / 2, w, h * 0.64);
+    ctx.fillStyle = shade(col, 32);
+    ctx.fillRect(x - w / 2, y - h / 2, w, h * 0.22);
+    ctx.strokeStyle = shade(col, -62); ctx.lineWidth = 0.9;
+    ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+    ctx.fillStyle = shade(col, 32);
+    for (const sx of [-w * 0.24, w * 0.24]) {
+      ctx.beginPath(); ctx.ellipse(x + sx, y - h / 2 - h * 0.13, w * 0.17, h * 0.13, 0, 0, TAU); ctx.fill();
+    }
+  }
+
   function drawProjectiles(ctx, game) {
     if (!game.projectiles.length) return;
     /* Every shot in the air had to be asked which Bro fired it, and the
@@ -2973,11 +3025,15 @@
         const x = pr.sx + (pr.tx - pr.sx) * f;
         const y = pr.sy + (pr.ty - pr.sy) * f - Math.sin(f * Math.PI) * 90;
         ctx.fillStyle = 'rgba(30,50,70,0.18)';
-        ctx.beginPath(); ctx.ellipse(pr.sx + (pr.tx - pr.sx) * f, pr.sy + (pr.ty - pr.sy) * f + 4, 6, 2.5, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#3b4a58';
-        ctx.beginPath(); ctx.arc(x, y, 7, 0, TAU); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.beginPath(); ctx.arc(x - 2, y - 2, 2.5, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(pr.sx + (pr.tx - pr.sx) * f, pr.sy + (pr.ty - pr.sy) * f + 4, 7, 3, 0, 0, TAU); ctx.fill();
+        /* A catapult load: three bricks tumbling together, not a cannonball.
+           The spin comes off how far along the arc it is, so a shot that hangs
+           in the air longer turns more. */
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(f * 7);
+        for (let i = 0; i < 3; i++) brickBit(ctx, (i - 1) * 4, i % 2 ? -3 : 3, 9, 6, LOAD_COLS[i]);
+        ctx.restore();
         ctx.strokeStyle = 'rgba(200,80,80,0.35)'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.arc(pr.tx, pr.ty, 10, 0, TAU); ctx.stroke();
       } else {
@@ -2994,35 +3050,66 @@
         ctx.translate(pr.x, pr.y);
         ctx.rotate(Math.atan2(pr.vy, pr.vx));
         if (type === 'torpedo') {
-          ctx.fillStyle = '#37474f'; ctx.fillRect(-8, -3, 16, 6);
-          ctx.fillStyle = '#e05252'; ctx.fillRect(4, -3, 4, 6);
-          ctx.fillStyle = 'rgba(255,255,255,0.5)';
-          ctx.beginPath(); ctx.arc(-10, 0, 3, 0, TAU); ctx.fill();
-        } else if (type === 'snowball' || type === 'pebble') {
-          ctx.fillStyle = type === 'snowball' ? '#f4f8fb' : '#8d9aa5';
-          ctx.beginPath(); ctx.arc(0, 0, type === 'snowball' ? 8 : 4, 0, TAU); ctx.fill();
-          ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 1; ctx.stroke();
+          // a bolt: a body with a stud nose, the way a brick projectile is built
+          ctx.fillStyle = '#4a5560'; rounded(ctx, -8, -3.5, 14, 7, 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.fillRect(-8, -3.5, 14, 2.4);
+          ctx.fillStyle = '#e05252';
+          ctx.beginPath(); ctx.arc(7, 0, 3.4, 0, TAU); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.55)';
+          ctx.beginPath(); ctx.arc(6, -1, 1.3, 0, TAU); ctx.fill();
+        } else if (type === 'snowball') {
+          // the Boulder Knight's stone wheel, rolling
+          ctx.fillStyle = '#8d97a2';
+          ctx.beginPath(); ctx.arc(0, 0, 8, 0, TAU); ctx.fill();
+          ctx.strokeStyle = '#5b656f'; ctx.lineWidth = 1.6; ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          ctx.beginPath(); ctx.arc(-2.5, -2.8, 2.6, 0, TAU); ctx.fill();
+          ctx.fillStyle = 'rgba(0,0,0,0.18)';
+          ctx.beginPath(); ctx.arc(2.6, 2.2, 1.8, 0, TAU); ctx.fill();
+        } else if (type === 'pebble') {
+          ctx.rotate(pr.x * 0.06 + pr.y * 0.06);        // a thrown 1x1, end over end
+          brickBit(ctx, 0, 0, 9, 7, '#c8443c');
         } else if (type === 'aurora' || type === 'witch') {
-          const col = type === 'aurora' ? '#9be8c8' : '#c98ef2';
+          /* A trans round stud — the piece a brick set uses for energy — with
+             the glow behind it and the bright disc on top that says the plastic
+             is see-through. */
+          const col = type === 'aurora' ? '#7ee8b4' : '#c98ef2';
+          ctx.save(); ctx.globalAlpha = 0.35;
           ctx.fillStyle = col;
-          ctx.save(); ctx.globalAlpha = 0.3;
-          ctx.beginPath(); ctx.ellipse(-6, 0, 14, 6, 0, 0, TAU); ctx.fill();
+          ctx.beginPath(); ctx.arc(-3, 0, 9, 0, TAU); ctx.fill();
           ctx.restore();
-          ctx.beginPath(); ctx.ellipse(0, 0, 9, 4, 0, 0, TAU); ctx.fill();
-          ctx.fillStyle = 'rgba(255,255,255,0.6)';
-          ctx.beginPath(); ctx.ellipse(-2, 0, 4, 2, 0, 0, TAU); ctx.fill();
+          ctx.fillStyle = col;
+          ctx.beginPath(); ctx.arc(0, 0, 5.5, 0, TAU); ctx.fill();
+          ctx.strokeStyle = shade(col, -50); ctx.lineWidth = 1; ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.beginPath(); ctx.arc(0, 0, 2.4, 0, TAU); ctx.fill();
+        } else if (type === 'harpoon') {
+          // a laser bar: a trans rod with a hot core
+          ctx.fillStyle = 'rgba(120,220,255,0.45)'; rounded(ctx, -10, -3, 22, 6, 3);
+          ctx.fillStyle = '#eaf9ff'; rounded(ctx, -8, -1.2, 18, 2.4, 1.2);
         } else if (type === 'shards' || type === 'shadow') {
-          ctx.fillStyle = '#bfe3f2';
-          ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-4, -3); ctx.lineTo(-2, 0); ctx.lineTo(-4, 3); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#cfd8e0';                     // a steel blade
+          ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, -3.4); ctx.lineTo(-2, 0); ctx.lineTo(-4, 3.4); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = '#7a8794'; ctx.lineWidth = 0.9; ctx.stroke();
         } else if (type === 'glacier') {
-          ctx.fillStyle = '#a8c8e8';
-          ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(2, -6); ctx.lineTo(-6, -3); ctx.lineTo(-5, 4); ctx.lineTo(2, 6); ctx.closePath(); ctx.fill();
+          ctx.rotate(pr.x * 0.05);
+          brickBit(ctx, 0, 0, 11, 8, '#9aa4ae');
         } else if (type === 'slush') {
-          ctx.fillStyle = 'rgba(130,210,235,0.85)';
+          // a blob of glue, still stringing off the nozzle
+          ctx.fillStyle = 'rgba(150,225,240,0.85)';
           ctx.beginPath(); ctx.arc(0, 0, 6, 0, TAU); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(-6, 0, 5, 2, 0, 0, TAU); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.beginPath(); ctx.arc(-1.5, -1.8, 1.8, 0, TAU); ctx.fill();
         } else {
-          ctx.fillStyle = '#5d6d7e';
-          ctx.beginPath(); ctx.arc(0, 0, 4, 0, TAU); ctx.fill();
+          /* The default, and what most shots use: a stud. A 1x1 round plate is
+             THE brick projectile, so an unnamed shot is one of those rather
+             than an anonymous grey dot. */
+          ctx.fillStyle = '#c9d2da';
+          ctx.beginPath(); ctx.arc(0, 0, 5, 0, TAU); ctx.fill();
+          ctx.strokeStyle = '#7d8892'; ctx.lineWidth = 1; ctx.stroke();
+          ctx.fillStyle = '#eef2f6';
+          ctx.beginPath(); ctx.arc(-0.6, -0.8, 2.4, 0, TAU); ctx.fill();
         }
         ctx.restore();
       }
@@ -3068,22 +3155,39 @@
         ctx.fillStyle = `rgba(255,245,220,${f * 0.9})`;
         ctx.beginPath(); ctx.arc(fx.tx, fx.ty, (beam ? 10 : 7) * (1.4 - f), 0, TAU); ctx.fill();
       } else if (fx.kind === 'pop') {
-        ctx.fillStyle = `rgba(255,255,255,${f})`;
+        /* A vacuum coming apart. It used to be white puffs, which is what a
+           popped balloon does; a machine on a brick board bursts into bricks,
+           and they tumble as they fly. */
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, f * 1.4);
         for (let i = 0; i < 7; i++) {
-          const a = (i / 7) * TAU;
-          const d = (1 - f) * 26;
-          ctx.beginPath(); ctx.arc(fx.x + Math.cos(a) * d, fx.y + Math.sin(a) * d, 3.6 * f, 0, TAU); ctx.fill();
+          const a = (i / 7) * TAU + fx.x * 0.01;
+          const d = (1 - f) * 30;
+          ctx.save();
+          ctx.translate(fx.x + Math.cos(a) * d, fx.y + Math.sin(a) * d);
+          ctx.rotate(a + (1 - f) * 5);
+          brickBit(ctx, 0, 0, 8 * f + 2, 6 * f + 1.5, LOAD_COLS[i % 3]);
+          ctx.restore();
         }
+        ctx.restore();
       } else if (fx.kind === 'devour') {
-        // a red bloom in the water and a ring of spray where the vacuum was
-        ctx.fillStyle = `rgba(168,32,38,${f * 0.5})`;
+        /* An intake taking a whole machine. The bricks are dragged INWARD as
+           this fades rather than thrown out, which is the difference between
+           being eaten and being killed. */
+        ctx.fillStyle = `rgba(60,70,84,${f * 0.45})`;
         ctx.beginPath(); ctx.arc(fx.x, fx.y, (1 - f) * (fx.r + 16) + 6, 0, TAU); ctx.fill();
-        ctx.fillStyle = `rgba(240,250,255,${f * 0.85})`;
+        ctx.save();
+        ctx.globalAlpha = f * 0.9;
         for (let i = 0; i < 8; i++) {
           const a = (i / 8) * TAU + fx.r;
-          const d = (1 - f) * 22 + 4;
-          ctx.beginPath(); ctx.arc(fx.x + Math.cos(a) * d, fx.y + Math.sin(a) * d, 2.6 * f, 0, TAU); ctx.fill();
+          const d = f * 24 + 4;
+          ctx.save();
+          ctx.translate(fx.x + Math.cos(a) * d, fx.y + Math.sin(a) * d);
+          ctx.rotate(a);
+          brickBit(ctx, 0, 0, 6, 4.5, LOAD_COLS[i % 3]);
+          ctx.restore();
         }
+        ctx.restore();
       } else if (fx.kind === 'bossDeath') {
         ctx.fillStyle = `rgba(255,190,90,${f * 0.6})`;
         ctx.beginPath(); ctx.arc(fx.x, fx.y, (1 - f) * 90 + 20, 0, TAU); ctx.fill();
@@ -3124,7 +3228,7 @@
           }
         }
       } else if (fx.kind === 'spikeHit') {
-        ctx.fillStyle = `rgba(180,220,250,${f})`;
+        ctx.fillStyle = `rgba(232,185,60,${f})`;   // a stud chipping off
         ctx.beginPath(); ctx.arc(fx.x, fx.y, 6 * (1 - f) + 2, 0, TAU); ctx.fill();
       }
     }
@@ -3146,7 +3250,7 @@
      see is a slow you cannot explain. Each tone is its own hue so a burning
      crater never reads as a chilling one. */
   const ZONE_TONES = {
-    ice:    { fill: 'rgba(150, 214, 245, 0.20)', edge: 'rgba(190, 234, 255, 0.55)' },
+    ice:    { fill: 'rgba(176, 168, 148, 0.26)', edge: 'rgba(226, 214, 182, 0.55)' },  // grit, not frost
     fire:   { fill: 'rgba(255, 150, 60, 0.20)',  edge: 'rgba(255, 200, 120, 0.55)' },
     aurora: { fill: 'rgba(110, 235, 175, 0.20)', edge: 'rgba(160, 255, 210, 0.55)' },
     curse:  { fill: 'rgba(160, 110, 220, 0.22)', edge: 'rgba(200, 160, 245, 0.55)' },
@@ -3181,16 +3285,32 @@
     ctx.restore();   // takes the alpha back with it
   }
 
+  /* The hazard on the track. It was a ring of white ice spikes, which was the
+     most Tundra-looking thing left in the game — and the brick replacement
+     writes itself, because everyone already knows exactly what standing on an
+     upturned brick feels like. Studs up, scattered, in primary colours. */
   function paintSpikePile(ctx, n) {
-    ctx.fillStyle = '#cfe4f4';
+    const cols = ['#c8443c', '#3f7fd4', '#e8b93c', '#3fae6a'];
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * TAU;
-      const d = 7;
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * d - 3, Math.sin(a) * d + 2);
-      ctx.lineTo(Math.cos(a) * d, Math.sin(a) * d - 9);
-      ctx.lineTo(Math.cos(a) * d + 3, Math.sin(a) * d + 2);
-      ctx.closePath(); ctx.fill();
+      const a = (i / n) * TAU + 0.4;
+      const bx = Math.cos(a) * 8, by = Math.sin(a) * 6.4;
+      const col = cols[i % cols.length];
+      const w = 9, h = 6;
+      ctx.fillStyle = 'rgba(16,26,40,0.30)';
+      ctx.fillRect(bx - w / 2 + 1.4, by - h / 2 + 1.8, w, h);
+      ctx.fillStyle = shade(col, -30);
+      ctx.fillRect(bx - w / 2, by - h / 2, w, h);
+      ctx.fillStyle = col;
+      ctx.fillRect(bx - w / 2, by - h / 2, w, h * 0.55);
+      ctx.strokeStyle = shade(col, -60); ctx.lineWidth = 0.9;
+      ctx.strokeRect(bx - w / 2, by - h / 2, w, h);
+      // the studs, pointing at the ceiling and at whatever rolls over them
+      for (const sx of [-2.2, 2.2]) {
+        ctx.fillStyle = shade(col, 34);
+        ctx.beginPath(); ctx.ellipse(bx + sx, by - h / 2 - 1.1, 1.9, 1.1, 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = shade(col, -55); ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.ellipse(bx + sx, by - h / 2 - 1.1, 1.9, 1.1, 0, 0, TAU); ctx.stroke();
+      }
     }
   }
 
@@ -3214,17 +3334,21 @@
         ctx.fillStyle = `rgba(255,90,80,${0.45 + Math.sin(t * 5) * 0.35})`;
         ctx.beginPath(); ctx.arc(0, 0, 3, 0, TAU); ctx.fill();
       } else if (p.decoy) {
-        // An ice-double of the diver: a glittering shard that shatters underfoot
-        ctx.globalAlpha = 0.55 + Math.sin(t * 4) * 0.2;
-        ctx.fillStyle = '#bfe8ff';
-        ctx.beginPath();
-        ctx.moveTo(0, -14); ctx.lineTo(7, 0); ctx.lineTo(0, 13); ctx.lineTo(-7, 0);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2;
-        ctx.stroke();
+        /* The Shadow Ninja's double: a Bro built out of transparent bricks,
+           standing in the road. It was an ice shard, which said nothing about
+           who left it there — this is plainly a copy of the thing that did. */
+        ctx.globalAlpha = 0.5 + Math.sin(t * 4) * 0.18;
+        ctx.fillStyle = '#9fd8ef'; ctx.fillRect(-5, 0, 10, 11);          // legs
+        ctx.fillStyle = '#b4e2f5'; ctx.fillRect(-4.5, -8, 9, 9);         // torso
+        ctx.fillStyle = '#8fcfe8';
+        ctx.fillRect(-8, -7, 3, 7); ctx.fillRect(5, -7, 3, 7);           // arms
+        ctx.fillStyle = '#d8f2fc'; ctx.fillRect(-4, -17, 8, 9);          // head
+        ctx.beginPath(); ctx.ellipse(0, -18, 2.4, 1.2, 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1;
+        ctx.strokeRect(-4, -17, 8, 9);
         ctx.fillStyle = '#e8f6ff';
         for (let i = 0; i < p.charges; i++) {
-          ctx.beginPath(); ctx.arc(-5 + i * 5, -18, 1.6, 0, TAU); ctx.fill();
+          ctx.beginPath(); ctx.arc(-5 + i * 5, -23, 1.6, 0, TAU); ctx.fill();
         }
       } else {
         /* A plain spike pile has no clock in it at all: how many spikes, and
