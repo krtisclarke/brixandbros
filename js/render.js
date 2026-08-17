@@ -1204,81 +1204,187 @@
      third costume. The rule of two means a Bro only ever wears two paths at
      once, so what the silhouette needs to say is "how far along", not "which of
      three" — the coloured pips above its head already answer that. */
-  /* The still half of a Bro: the props it wears on its back, its feet, the
-     shaded body and belly, and the gear sash. Two radial gradients and a dozen
-     fills, none of which changes between frames — so in a battle it is baked
-     into a sprite (see the cache at the top of the file) and blitted. The shop
-     icons still draw it the long way; they are painted once, not sixty times a
-     second, and they are drawn at sizes the battle never asks for. */
-  function paintBroBody(ctx, r, look, tierA, tierB, clsColor) {
-    const body = look.tint || '#2b3138';
-    const belly = look.belly || '#f4f6f8';
-    const ink = shade(body.startsWith('#') ? body : '#2b3138', -70);
+  /* ---- the figure ----
+     A brick figure is boxes, and boxes are what makes it read at 20 pixels:
+     legs block, tapered torso, cylinder head, one stud on top. Everything sits
+     on a fixed vertical layout so the eyes, the mouth, the hats and the pips
+     all know where the head is without being told:
 
+        HEAD_TOP  -0.94 ┬ head (always yellow, whatever the Bro wears)
+        FACE      -0.44 │   eyes and mouth are placed off this
+        HEAD_BOT  -0.20 ┴
+        SHOULDER  -0.16 ┬ torso, tapering wider toward the hips
+        HIP        0.30 ┼ legs block
+        FOOT       0.94 ┴
+
+     The whole thing is lit from the top-left, matching the cast shadow drawn
+     underneath it, so flat plastic still looks moulded rather than printed. */
+  const HEAD_TOP = -0.94, HEAD_BOT = -0.20, HIP = 0.30, FOOT = 0.94;
+  const SKIN = '#f2c033';           // the one colour every Bro shares
+
+  /* A brick-shaped panel: a rectangle whose top and bottom edges can differ in
+     width, so a torso can taper without four separate paths. */
+  function panel(ctx, yTop, yBot, halfTop, halfBot, rad) {
+    ctx.beginPath();
+    ctx.moveTo(-halfTop + rad, yTop);
+    ctx.lineTo(halfTop - rad, yTop);
+    ctx.quadraticCurveTo(halfTop, yTop, halfTop + (halfBot - halfTop) * 0.1, yTop + rad);
+    ctx.lineTo(halfBot, yBot - rad);
+    ctx.quadraticCurveTo(halfBot, yBot, halfBot - rad, yBot);
+    ctx.lineTo(-halfBot + rad, yBot);
+    ctx.quadraticCurveTo(-halfBot, yBot, -halfBot, yBot - rad);
+    ctx.lineTo(-halfTop - (halfBot - halfTop) * 0.1, yTop + rad);
+    ctx.quadraticCurveTo(-halfTop, yTop, -halfTop + rad, yTop);
+    ctx.closePath();
+  }
+
+  /* The still half of a Bro: the gear on its back, the legs, the torso and the
+     head. A dozen fills, none of which changes between frames — so in a battle
+     it is baked into a sprite (see the cache at the top of the file) and
+     blitted. The shop icons still draw it the long way; they are painted once,
+     not sixty times a second, and at sizes the battle never asks for. */
+  function paintBroBody(ctx, r, look, tierA, tierB, clsColor) {
+    const torso = look.tint || '#2f6fb5';
+    const legs = look.belly || '#2b3a4a';
+    const ink = shade(torso.startsWith('#') ? torso : '#2f6fb5', -70);
+    const lw = Math.max(1, r * 0.085);
+
+    // back-mounted gear, drawn before the body so it sits behind it
     if (look.prop === 'jetpack') {
       ctx.fillStyle = look.propColor || '#e07b39';
-      rounded(ctx, -r * 0.72, -r * 0.55, r * 0.34, r * 1.0, r * 0.16);
-      rounded(ctx, r * 0.38, -r * 0.55, r * 0.34, r * 1.0, r * 0.16);
+      rounded(ctx, -r * 0.74, -r * 0.30, r * 0.30, r * 0.86, r * 0.12);
+      rounded(ctx, r * 0.44, -r * 0.30, r * 0.30, r * 0.86, r * 0.12);
       ctx.fillStyle = '#b8b0a4';
-      rounded(ctx, -r * 0.72, -r * 0.62, r * 0.34, r * 0.2, r * 0.08);
-      rounded(ctx, r * 0.38, -r * 0.62, r * 0.34, r * 0.2, r * 0.08);
+      rounded(ctx, -r * 0.74, -r * 0.38, r * 0.30, r * 0.16, r * 0.06);
+      rounded(ctx, r * 0.44, -r * 0.38, r * 0.30, r * 0.16, r * 0.06);
     }
-    if (look.prop === 'periscope') {
+    if (look.prop === 'periscope') {           // the rover's antenna mast
       ctx.fillStyle = '#7d8a96';
-      ctx.fillRect(r * 0.55, -r * 1.5, r * 0.16, r * 1.1);
-      ctx.fillRect(r * 0.55, -r * 1.56, r * 0.42, r * 0.2);
+      ctx.fillRect(r * 0.52, -r * 1.62, r * 0.13, r * 1.2);
+      ctx.fillStyle = '#c9d4dd';
+      ctx.beginPath(); ctx.arc(r * 0.585, -r * 1.66, r * 0.15, 0, TAU); ctx.fill();
     }
 
-    // outlined webbed feet
-    ctx.fillStyle = '#f7ae3c';
-    ctx.strokeStyle = '#b26f1d'; ctx.lineWidth = Math.max(1, r * 0.07);
-    ctx.beginPath(); ctx.ellipse(-r * 0.4, r * 0.72, r * 0.28, r * 0.14, 0, 0, TAU); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(r * 0.4, r * 0.72, r * 0.28, r * 0.14, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    /* ---- legs ---- */
+    ctx.fillStyle = legs;
+    panel(ctx, HIP * r, FOOT * r, r * 0.44, r * 0.50, r * 0.07);
+    ctx.fill();
+    ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
+    // the gap between the two legs, and the darker boot band along the bottom
+    ctx.fillStyle = shade(legs.startsWith('#') ? legs : '#2b3a4a', -40);
+    ctx.fillRect(-r * 0.05, HIP * r + r * 0.22, r * 0.10, r * 0.72);
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(-r * 0.50, FOOT * r - r * 0.16, r * 1.0, r * 0.16);
+    ctx.globalAlpha = 1;
+    // hip plate — the little step where the legs meet the torso
+    ctx.fillStyle = shade(legs.startsWith('#') ? legs : '#2b3a4a', 22);
+    rounded(ctx, -r * 0.46, HIP * r - r * 0.02, r * 0.92, r * 0.16, r * 0.05);
 
-    // sphere-shaded body with a bold cartoon outline
-    const bodyGrad = ctx.createRadialGradient(-r * 0.3, -r * 0.45, r * 0.12, 0, 0, r * 1.15);
-    bodyGrad.addColorStop(0, shade(body.startsWith('#') ? body : '#2b3138', 40));
-    bodyGrad.addColorStop(0.55, body);
-    bodyGrad.addColorStop(1, shade(body.startsWith('#') ? body : '#2b3138', -30));
-    ctx.fillStyle = bodyGrad;
-    ctx.beginPath(); ctx.ellipse(0, 0, r * 0.82, r, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1.2, r * 0.11);
-    ctx.stroke();
-    const bellyGrad = ctx.createRadialGradient(-r * 0.18, -r * 0.1, r * 0.1, 0, r * 0.14, r * 0.85);
-    bellyGrad.addColorStop(0, '#ffffff');
-    bellyGrad.addColorStop(0.6, belly);
-    bellyGrad.addColorStop(1, shade(belly.startsWith('#') ? belly : '#f4f6f8', -34));
-    ctx.fillStyle = bellyGrad;
-    ctx.beginPath(); ctx.ellipse(0, r * 0.14, r * 0.55, r * 0.72, 0, 0, TAU); ctx.fill();
-    // glossy crown highlight — sells the rounded head
-    ctx.fillStyle = 'rgba(255,255,255,0.30)';
-    ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.62, r * 0.3, r * 0.16, 0.5, 0, TAU); ctx.fill();
+    /* ---- torso ---- */
+    ctx.fillStyle = torso;
+    panel(ctx, HEAD_BOT * r + r * 0.04, HIP * r + r * 0.02, r * 0.34, r * 0.47, r * 0.07);
+    ctx.fill();
+    ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke();
+    // moulded shading: light down the left face, shadow down the right
+    ctx.save();
+    panel(ctx, HEAD_BOT * r + r * 0.04, HIP * r + r * 0.02, r * 0.34, r * 0.47, r * 0.07);
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,0.16)';
+    ctx.fillRect(-r * 0.5, -r, r * 0.22, r * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(r * 0.22, -r, r * 0.3, r * 2);
 
-    // gear-path sash across the chest (tier 1+)
+    /* ---- the gear path, worn on the chest ----
+       Tier 1 is a printed torso stripe in the class colour; tier 2 adds the
+       cape (drawn in drawBro, behind everything); tier 3 gilds the stripe. */
     if (tierB >= 1) {
-      ctx.save();
-      ctx.beginPath(); ctx.ellipse(0, 0, r * 0.82, r, 0, 0, TAU); ctx.clip();
-      ctx.strokeStyle = clsColor; ctx.lineWidth = r * 0.2; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-r * 0.66, -r * 0.2); ctx.lineTo(r * 0.5, r * 0.62); ctx.stroke();
+      ctx.strokeStyle = clsColor; ctx.lineWidth = r * 0.17; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-r * 0.34, HEAD_BOT * r + r * 0.16); ctx.lineTo(r * 0.30, HIP * r - r * 0.04); ctx.stroke();
       if (tierB >= 3) {
-        ctx.strokeStyle = '#ffd166'; ctx.lineWidth = r * 0.06;
-        ctx.beginPath(); ctx.moveTo(-r * 0.66, -r * 0.2); ctx.lineTo(r * 0.5, r * 0.62); ctx.stroke();
+        ctx.strokeStyle = '#ffd166'; ctx.lineWidth = r * 0.05;
+        ctx.beginPath(); ctx.moveTo(-r * 0.34, HEAD_BOT * r + r * 0.16); ctx.lineTo(r * 0.30, HIP * r - r * 0.04); ctx.stroke();
       }
-      ctx.restore();
     }
+    ctx.restore();
+
+    /* ---- neck stud ---- */
+    ctx.fillStyle = shade(torso.startsWith('#') ? torso : '#2f6fb5', 30);
+    rounded(ctx, -r * 0.13, HEAD_BOT * r - r * 0.02, r * 0.26, r * 0.12, r * 0.05);
+
+    /* ---- head ----
+       Always the same yellow, on every Bro in the game. It is the one thing
+       that says these are all the same kind of thing, so nothing is allowed to
+       recolour it — hats go on top, they do not replace it. */
+    ctx.fillStyle = SKIN;
+    rounded(ctx, -r * 0.40, HEAD_TOP * r, r * 0.80, (HEAD_BOT - HEAD_TOP) * r, r * 0.20);
+    ctx.strokeStyle = '#9a7412'; ctx.lineWidth = lw;
+    // rounded() only fills, so re-trace the outline
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.40 + r * 0.20, HEAD_TOP * r);
+    ctx.arcTo(r * 0.40, HEAD_TOP * r, r * 0.40, HEAD_BOT * r, r * 0.20);
+    ctx.arcTo(r * 0.40, HEAD_BOT * r, -r * 0.40, HEAD_BOT * r, r * 0.20);
+    ctx.arcTo(-r * 0.40, HEAD_BOT * r, -r * 0.40, HEAD_TOP * r, r * 0.20);
+    ctx.arcTo(-r * 0.40, HEAD_TOP * r, r * 0.40, HEAD_TOP * r, r * 0.20);
+    ctx.closePath(); ctx.stroke();
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(-r * 0.42, HEAD_TOP * r, r * 0.18, r);
+    ctx.fillStyle = 'rgba(0,0,0,0.13)';
+    ctx.fillRect(r * 0.24, HEAD_TOP * r, r * 0.2, r);
+    ctx.restore();
+
+    // the stud on top of the head
+    ctx.fillStyle = shade(SKIN, -18);
+    ctx.beginPath(); ctx.ellipse(0, HEAD_TOP * r, r * 0.15, r * 0.07, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = SKIN;
+    ctx.beginPath(); ctx.ellipse(0, HEAD_TOP * r - r * 0.05, r * 0.15, r * 0.07, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#9a7412'; ctx.lineWidth = Math.max(0.8, r * 0.05);
+    ctx.beginPath(); ctx.ellipse(0, HEAD_TOP * r - r * 0.05, r * 0.15, r * 0.07, 0, 0, TAU); ctx.stroke();
+  }
+
+  /* One arm and its C-shaped hand, swinging from the shoulder. Drawn live
+     rather than baked because it is the only part of a Bro that moves. */
+  function paintArm(ctx, r, side, torso, ink) {
+    ctx.save();
+    ctx.scale(side, 1);
+    ctx.fillStyle = torso;
+    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, r * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(r * 0.30, -r * 0.12);
+    ctx.quadraticCurveTo(r * 0.70, -r * 0.06, r * 0.68, r * 0.30);
+    ctx.lineTo(r * 0.48, r * 0.32);
+    ctx.quadraticCurveTo(r * 0.50, r * 0.06, r * 0.26, r * 0.10);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // hand: an open C, the way a brick figure's grip actually looks
+    ctx.fillStyle = SKIN; ctx.strokeStyle = '#9a7412';
+    ctx.lineWidth = Math.max(1.4, r * 0.11); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(r * 0.60, r * 0.40, r * 0.13, -2.2, 1.5); ctx.stroke();
+    ctx.restore();
   }
 
   /* The hat, and the gold halo a maxed gear path puts around it. shadowBlur is
      the most expensive thing a 2D context can be asked for, and it was being
      asked for once per capstone Bro per frame; baked, it costs nothing. */
+  /* The headgear was laid out around a penguin's head, which sat lower and
+     rounder than a brick figure's does. Rather than re-draw nineteen hats to
+     new coordinates, the whole set is nudged up onto the top of the cylinder
+     and scaled so it overhangs the head the way a moulded hat piece does —
+     0.52r of hat brim on 0.40r of head. */
   function paintBroHat(ctx, r, look, tierB) {
+    const put = () => {
+      ctx.save();
+      ctx.translate(0, -r * 0.13);
+      drawHat(ctx, r, look, 0);
+      ctx.restore();
+    };
     if (tierB >= 3) {
       ctx.save();
       ctx.shadowColor = 'rgba(255,209,102,0.85)'; ctx.shadowBlur = r * 0.5;
-      drawHat(ctx, r * 1.18, look, 0);
+      put();
       ctx.restore();
     } else {
-      drawHat(ctx, r * 1.18, look, 0);
+      put();
     }
   }
 
@@ -1288,8 +1394,8 @@
     const tierB = up ? Math.max(up[1] || 0, up[2] || 0) : 0;
     const tiers = tierA + tierB;
     const r = r0 * (look.scale || 1) * (1 + tiers * 0.03);
-    const body = look.tint || '#2b3138';
-    const ink = shade(body.startsWith('#') ? body : '#2b3138', -70);
+    const body = look.tint || '#2f6fb5';
+    const ink = shade(body.startsWith('#') ? body : '#2f6fb5', -70);
     const twDef = typeId && G.TOWERS[typeId];
     const clsColor = (twDef && G.CLASSES[twDef.cls] && G.CLASSES[twDef.cls].color) || '#e05252';
     /* Keyed on everything the baked art depends on, and on nothing else. r is
@@ -1329,47 +1435,44 @@
       ctx.stroke();
     }
 
+    /* The pad box has to clear everything paintBroBody draws: the head stud at
+       HEAD_TOP−0.05, the boots at FOOT, the jetpack tanks at ±0.74 and the
+       rover's antenna at −1.66. Under-measure any of these and the sprite is
+       silently cropped — no error, just a Bro with no aerial. */
     if (skey) {
-      const tall = look.prop === 'periscope' ? r * 1.8 : r * 1.2;
-      blitSprite(ctx, sprite('peng|' + skey, [r * 1.15, r * 1.15, tall, r * 1.15],
+      const tall = look.prop === 'periscope' ? r * 1.85 : r * 1.15;
+      blitSprite(ctx, sprite('fig|' + skey, [r * 0.95, r * 0.95, tall, r * 1.1],
         (c) => paintBroBody(c, r, look, tierA, tierB, clsColor)));
     } else {
       paintBroBody(ctx, r, look, tierA, tierB, clsColor);
     }
 
-    const flap = Math.sin(t * 6) * 0.15;
-    ctx.fillStyle = body;
-    ctx.strokeStyle = ink;
-    ctx.lineWidth = Math.max(1, r * 0.09);
-    ctx.save(); ctx.rotate(0.5 + flap);
-    ctx.beginPath(); ctx.ellipse(-r * 0.85, 0, r * 0.18, r * 0.55, 0, 0, TAU); ctx.fill(); ctx.stroke(); ctx.restore();
-    ctx.save(); ctx.rotate(-0.5 - flap);
-    ctx.beginPath(); ctx.ellipse(r * 0.85, 0, r * 0.18, r * 0.55, 0, 0, TAU); ctx.fill(); ctx.stroke(); ctx.restore();
+    // arms swing a little; the right one holds whatever the Bro is armed with
+    const swing = Math.sin(t * 4) * 0.12;
+    ctx.save(); ctx.translate(0, r * swing * 0.25); paintArm(ctx, r, -1, body, ink); ctx.restore();
+    ctx.save(); ctx.translate(0, -r * swing * 0.25); paintArm(ctx, r, 1, body, ink); ctx.restore();
 
     if (look.cheeks) {
       ctx.fillStyle = look.cheeks;
-      ctx.beginPath(); ctx.ellipse(-r * 0.44, -r * 0.34, r * 0.14, r * 0.2, 0.3, 0, TAU); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(r * 0.44, -r * 0.34, r * 0.14, r * 0.2, -0.3, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-r * 0.30, -r * 0.33, r * 0.09, r * 0.06, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(r * 0.30, -r * 0.33, r * 0.09, r * 0.06, 0, 0, TAU); ctx.fill();
     }
 
-    // big glossy eyes that track the aim
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(-r * 0.26, -r * 0.42, r * 0.19, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.arc(r * 0.26, -r * 0.42, r * 0.19, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#1a1d21';
-    const lx = aim != null ? Math.cos(aim) * r * 0.05 : 0;
-    const ly = aim != null ? Math.sin(aim) * r * 0.05 : 0;
-    ctx.beginPath(); ctx.arc(-r * 0.26 + lx, -r * 0.42 + ly, r * 0.095, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.arc(r * 0.26 + lx, -r * 0.42 + ly, r * 0.095, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.beginPath(); ctx.arc(-r * 0.29 + lx, -r * 0.46 + ly, r * 0.035, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.arc(r * 0.23 + lx, -r * 0.46 + ly, r * 0.035, 0, TAU); ctx.fill();
-    // two-tone outlined beak
-    ctx.fillStyle = '#f7ae3c';
-    ctx.beginPath(); ctx.moveTo(-r * 0.16, -r * 0.3); ctx.lineTo(r * 0.16, -r * 0.3); ctx.lineTo(0, -r * 0.06); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#b26f1d'; ctx.lineWidth = Math.max(1, r * 0.05); ctx.stroke();
-    ctx.fillStyle = '#ffd07a';
-    ctx.beginPath(); ctx.moveTo(-r * 0.1, -r * 0.29); ctx.lineTo(r * 0.1, -r * 0.29); ctx.lineTo(0, -r * 0.2); ctx.closePath(); ctx.fill();
+    /* The face is printed on, so it is flat black on yellow — no gloss, no
+       gradient. The eyes still slide a little toward the aim, which is the one
+       liberty taken with it: a whole row of Bros staring at the same vacuum is
+       worth more than being strict about it. */
+    const lx = aim != null ? Math.cos(aim) * r * 0.045 : 0;
+    const ly = aim != null ? Math.sin(aim) * r * 0.03 : 0;
+    ctx.fillStyle = '#20242a';
+    ctx.beginPath(); ctx.ellipse(-r * 0.15 + lx, -r * 0.50 + ly, r * 0.075, r * 0.09, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 0.15 + lx, -r * 0.50 + ly, r * 0.075, r * 0.09, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath(); ctx.arc(-r * 0.17 + lx, -r * 0.53 + ly, r * 0.025, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(r * 0.13 + lx, -r * 0.53 + ly, r * 0.025, 0, TAU); ctx.fill();
+    // a printed smile
+    ctx.strokeStyle = '#20242a'; ctx.lineWidth = Math.max(1, r * 0.055); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, -r * 0.38, r * 0.16, 0.45, Math.PI - 0.45); ctx.stroke();
 
     // oversized hat & weapon: role reads at a glance. The weapon grows with
     // its path, and a maxed path glows gold.
@@ -1399,11 +1502,13 @@
   function drawRoleExtras(ctx, r, typeId, t, tierA, tierB) {
     tierA = tierA || 0; tierB = tierB || 0;
     switch (typeId) {
-      case 'slush': // slush tank backpack
+      case 'slush': // glue tank strapped to the hip, with a sight glass
         ctx.fillStyle = '#2e8fa3';
-        rounded(ctx, -r * 0.95, -r * 0.5, r * 0.42, r * 0.95, r * 0.16);
-        ctx.fillStyle = 'rgba(140,225,245,0.85)';
-        rounded(ctx, -r * 0.88, -r * 0.34, r * 0.28, r * 0.4, r * 0.1);
+        rounded(ctx, -r * 0.92, -r * 0.16, r * 0.34, r * 0.72, r * 0.10);
+        ctx.fillStyle = 'rgba(160,235,250,0.85)';
+        rounded(ctx, -r * 0.86, -r * 0.04, r * 0.22, r * 0.34, r * 0.06);
+        ctx.fillStyle = '#1c6b7c';
+        rounded(ctx, -r * 0.92, -r * 0.22, r * 0.34, r * 0.10, r * 0.04);
         break;
       case 'artillery': // shell pile grows with the Shells path
         ctx.fillStyle = '#2f3b47';
@@ -1413,16 +1518,20 @@
           ctx.fill();
         }
         break;
-      case 'icewall': // spike stockpile at the feet
-        ctx.fillStyle = '#cfe4f4';
-        for (let i = -1; i <= 1; i++) {
-          ctx.beginPath();
-          ctx.moveTo(-r * 0.9 + i * r * 0.22 - r * 0.1, r * 0.75);
-          ctx.lineTo(-r * 0.9 + i * r * 0.22, r * 0.25 - Math.abs(i) * r * 0.12);
-          ctx.lineTo(-r * 0.9 + i * r * 0.22 + r * 0.1, r * 0.75);
-          ctx.closePath(); ctx.fill();
+      case 'icewall': { // a stack of spare bricks at the feet
+        const cols = ['#c8443c', '#3f7fd4', '#e8b93c'];
+        for (let i = 0; i < 3; i++) {
+          const bw = r * 0.30, bh = r * 0.16;
+          const bx = -r * 0.95 + (i % 2) * r * 0.14, by = r * 0.76 - i * bh;
+          ctx.fillStyle = cols[i];
+          ctx.fillRect(bx, by - bh, bw, bh);
+          ctx.fillStyle = 'rgba(255,255,255,0.35)';
+          ctx.fillRect(bx, by - bh, bw, bh * 0.3);
+          ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = Math.max(0.7, r * 0.03);
+          ctx.strokeRect(bx, by - bh, bw, bh);
         }
         break;
+      }
       case 'sunpriest': { // radiating sun rays around the halo — more with power
         const rays = 6 + tierA * 2;
         ctx.save();
@@ -1441,14 +1550,18 @@
         ctx.restore();
         break;
       }
-      case 'blizzard': { // orbiting snowflakes — a thicker flurry when upgraded
+      case 'blizzard': { // orbiting loose bricks — a thicker swarm when upgraded
         const n = 4 + tierA;
-        ctx.fillStyle = 'rgba(240,250,255,0.9)';
+        const cols = ['#c8443c', '#3f7fd4', '#e8b93c', '#3fae6a'];
         for (let i = 0; i < n; i++) {
           const a = t * 2.2 + (i * TAU) / n;
-          ctx.beginPath();
-          ctx.arc(Math.cos(a) * r * 1.25, Math.sin(a) * r * 0.7 - r * 0.15, r * 0.09, 0, TAU);
-          ctx.fill();
+          const px = Math.cos(a) * r * 1.25, py = Math.sin(a) * r * 0.7 - r * 0.15;
+          ctx.save(); ctx.translate(px, py); ctx.rotate(a * 1.6);
+          ctx.fillStyle = cols[i % cols.length];
+          ctx.fillRect(-r * 0.11, -r * 0.07, r * 0.22, r * 0.14);
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          ctx.fillRect(-r * 0.11, -r * 0.07, r * 0.22, r * 0.05);
+          ctx.restore();
         }
         break;
       }
@@ -1663,19 +1776,29 @@
         ctx.moveTo(r * 0.62, -r * 0.34); ctx.lineTo(r * 0.8, -r * 0.58);
         ctx.stroke();
         break;
-      case 'snowball':
-        ctx.fillStyle = '#f4f8fb';
-        ctx.beginPath(); ctx.arc(-r * 0.95, r * 0.45, r * 0.42, 0, TAU); ctx.fill();
-        ctx.strokeStyle = 'rgba(90,120,150,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+      case 'boulder': {
+        // a grey stone wheel the knight rolls, resting on the ground beside it
+        const bx = -r * 0.70, by = r * 0.48, br = r * 0.30;
+        ctx.fillStyle = '#8d97a2';
+        ctx.beginPath(); ctx.arc(bx, by, br, 0, TAU); ctx.fill();
+        ctx.strokeStyle = '#5b656f'; ctx.lineWidth = Math.max(1, r * 0.06); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath(); ctx.ellipse(bx - br * 0.32, by - br * 0.36, br * 0.34, br * 0.2, -0.5, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.16)';
+        ctx.beginPath(); ctx.arc(bx + br * 0.3, by + br * 0.22, br * 0.16, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(bx - br * 0.1, by + br * 0.44, br * 0.11, 0, TAU); ctx.fill();
         break;
-      case 'icering':
-        ctx.fillStyle = '#bfe3f2';
+      }
+      case 'blades':
+        // steel blades orbiting the spinner, not ice shards
+        ctx.fillStyle = '#cfd8e0';
+        ctx.strokeStyle = '#7a8794'; ctx.lineWidth = Math.max(0.8, r * 0.03);
         for (let i = 0; i < 3; i++) {
           const a = t * 2 + (i * TAU) / 3;
           const px = Math.cos(a) * r * 1.05, py = Math.sin(a) * r * 0.55 + r * 0.1;
           ctx.save(); ctx.translate(px, py); ctx.rotate(a + 0.8);
-          ctx.beginPath(); ctx.moveTo(r * 0.22, 0); ctx.lineTo(-r * 0.1, -r * 0.09); ctx.lineTo(-r * 0.1, r * 0.09);
-          ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(r * 0.26, 0); ctx.lineTo(-r * 0.12, -r * 0.09); ctx.lineTo(-r * 0.12, r * 0.09);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
           ctx.restore();
         }
         break;
@@ -1743,22 +1866,30 @@
       case 'shuriken':
         ctx.save();
         ctx.translate(r * 0.7, -r * 0.1); ctx.rotate(t * 3);
-        ctx.fillStyle = '#bfe3f2';
+        ctx.fillStyle = '#cfd8e0';
         for (let i = 0; i < 4; i++) {
           ctx.rotate(Math.PI / 2);
           ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(r * 0.3, -r * 0.08); ctx.lineTo(r * 0.3, r * 0.08); ctx.closePath(); ctx.fill();
         }
         ctx.restore();
         break;
-      case 'stud':
-        ctx.save(); ctx.translate(r * 0.72, r * 0.05); ctx.rotate(-0.5);
-        ctx.fillStyle = '#9fd8e8';
-        ctx.beginPath(); ctx.ellipse(0, 0, r * 0.34, r * 0.15, 0, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(r * 0.3, 0); ctx.lineTo(r * 0.5, -r * 0.14); ctx.lineTo(r * 0.5, r * 0.14); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#1a1d21';
-        ctx.beginPath(); ctx.arc(-r * 0.16, -r * 0.03, r * 0.035, 0, TAU); ctx.fill();
+      case 'stud': {
+        // a single 2×2 brick held up in the hand — the currency, made solid
+        const c2 = look.propColor || '#e8b93c';
+        ctx.save(); ctx.translate(r * 0.52, r * 0.20);
+        const w = r * 0.19, h = r * 0.17;
+        ctx.fillStyle = shade(c2, -30);
+        rounded(ctx, -w, -h * 0.2, w * 2, h, r * 0.04);
+        ctx.fillStyle = c2;
+        rounded(ctx, -w, -h * 0.55, w * 2, h * 0.6, r * 0.04);
+        ctx.fillStyle = shade(c2, 26);
+        ctx.beginPath(); ctx.ellipse(-w * 0.45, -h * 0.62, w * 0.34, h * 0.2, 0, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(w * 0.45, -h * 0.62, w * 0.34, h * 0.2, 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = shade(c2, -60); ctx.lineWidth = Math.max(0.8, r * 0.035);
+        ctx.beginPath(); ctx.rect(-w, -h * 0.55, w * 2, h * 1.15); ctx.stroke();
         ctx.restore();
         break;
+      }
       case 'drumsticks': {
         const beat = Math.sin(t * 9);
         ctx.strokeStyle = c; ctx.lineWidth = r * 0.1; ctx.lineCap = 'round';

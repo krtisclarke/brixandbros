@@ -1170,38 +1170,49 @@
            hood crown headband halo straw beanie headset hardhat mohawk
      prop: sling snowball cannon hose harpoongun periscope jetpack howitzer
            staff crookstaff icering shuriken orb stud drumsticks pickaxe flag   */
+  /* ---------------- How each Bro is dressed ----------------
+     `tint` is the torso, `belly` is the legs, and the head is always the same
+     yellow — nothing here can change it, because one shared head colour is what
+     makes twenty different silhouettes read as one cast.
+
+     Torsos run to the class colour so a glance at the board sorts them:
+     Knights red, Space blue, Wizards purple, Crew green. Heroes wear gold
+     somewhere and no two share a hat. */
   G.LOOKS = {
-    pebble:    { hat: 'scarf',    hatColor: '#e05252', prop: 'sling' },
-    snowball:  { hat: 'earmuffs', hatColor: '#5b9bd4', prop: 'snowball' },
-    shards:    { hat: 'goggles',  hatColor: '#67d4f5', prop: 'icering' },
-    glacier:   { hat: 'helmet',   hatColor: '#8b98a5', prop: 'cannon',    propColor: '#3b4a58' },
-    slush:     { hat: 'beanie',   hatColor: '#37b5ce', prop: 'hose',      propColor: '#2e8fa3' },
-    harpoon:   { hat: 'captain',  hatColor: '#3f7fd4', prop: 'harpoongun', propColor: '#4a5a6a' },
-    torpedo:   { hat: 'sailor',   hatColor: '#eef2f6', prop: 'periscope' },
-    depth:     { hat: 'souwester', hatColor: '#f2c14e', prop: 'stud' },
-    jetpack:   { hat: 'aviator',  hatColor: '#8a6d4a', prop: 'jetpack',   propColor: '#e07b39' },
-    artillery: { hat: 'officer',  hatColor: '#2f4858', prop: 'howitzer',  propColor: '#2f3b47', scale: 1.22, cheeks: '#f2b04e' },
-    aurora:    { hat: 'wizard',   hatColor: '#3fae8c', prop: 'staff',     propColor: '#5ee8a8' },
-    witch:     { hat: 'hood',     hatColor: '#7a4fc0', prop: 'crookstaff', propColor: '#b07ce8', tint: '#322b3d' },
-    blizzard:  { hat: 'crown',    hatColor: '#bfe8ff', prop: 'orb',       propColor: '#8fd4f0' },
-    shadow:    { hat: 'headband', hatColor: '#c0392b', prop: 'shuriken',  tint: '#23262b', belly: '#6e7681' },
-    sunpriest: { hat: 'halo',     hatColor: '#ffd166', prop: 'orb',       propColor: '#ffd166', tint: '#4a4438', belly: '#f6ecd8', scale: 1.12 },
-    vendor:    { hat: 'straw',    hatColor: '#d8b46a', prop: 'stud' },
-    fort:     { hat: 'beanie',   hatColor: '#3fae6a', prop: 'flag',      propColor: '#3fae6a' },
-    sonar:     { hat: 'headset',  hatColor: '#3fae6a' },
-    drummer:   { hat: 'mohawk',   hatColor: '#e0653f', prop: 'drumsticks', propColor: '#8a5a33' },
-    icewall:   { hat: 'hardhat',  hatColor: '#f2c14e', prop: 'pickaxe',   propColor: '#8a5a33' },
-    /* heroes — bigger, bolder, unmistakable. Every one wears gold somewhere so
-       a champion reads as a champion at a glance, and no two share a hat. */
-    hero_frost:  { hat: 'captain',  hatColor: '#d4af37', prop: 'harpoongun', propColor: '#5a6a7a', scale: 1.28, cheeks: '#f2b04e' },
-    hero_beak:   { hat: 'officer',  hatColor: '#d4af37', prop: 'flag',       propColor: '#d4af37', scale: 1.24 },
-    hero_shiver: { hat: 'hood',     hatColor: '#9fd8ef', prop: 'orb',        propColor: '#bfeaff', tint: '#2e4a66', scale: 1.24 },
-    hero_tilly:  { hat: 'goggles',  hatColor: '#ffd166', prop: 'sling',      propColor: '#d4af37', scale: 1.20, cheeks: '#f2b04e' },
-    hero_rook:   { hat: 'sailor',   hatColor: '#f4f7fa', prop: 'periscope',  propColor: '#d4af37', tint: '#26364a', scale: 1.26 },
-    hero_marlow: { hat: 'souwester', hatColor: '#d4af37', prop: 'cannon',    propColor: '#3b4a58', scale: 1.26 },
-    hero_kell:   { hat: 'wizard',   hatColor: '#7fc98f', prop: 'crookstaff', propColor: '#a8e6b4', tint: '#2f4436', scale: 1.24 },
-    hero_sage:   { hat: 'crown',    hatColor: '#d4af37', prop: 'staff',      propColor: '#9fe8d4', tint: '#3a3358', scale: 1.24 },
-    hero_fen:    { hat: 'straw',    hatColor: '#d4af37', prop: 'stud',       propColor: '#f2b04e', scale: 1.22, belly: '#f6ecd8' },
+    /* Knights */
+    pebble:    { hat: 'scarf',    hatColor: '#c8382f', prop: 'sling',      tint: '#c8443c', belly: '#7a3a2e' },
+    snowball:  { hat: 'earmuffs', hatColor: '#8b98a5', prop: 'boulder',    tint: '#a63f38', belly: '#4c4c52' },
+    shards:    { hat: 'goggles',  hatColor: '#67d4f5', prop: 'blades',     tint: '#d4564a', belly: '#57606b' },
+    glacier:   { hat: 'helmet',   hatColor: '#8b98a5', prop: 'cannon',     propColor: '#5b4632', tint: '#8f4a3a', belly: '#4a3a2c' },
+    slush:     { hat: 'beanie',   hatColor: '#37b5ce', prop: 'hose',       propColor: '#2e8fa3', tint: '#b8564c', belly: '#2f5a63' },
+    /* Space */
+    harpoon:   { hat: 'captain',  hatColor: '#3f7fd4', prop: 'harpoongun', propColor: '#4a5a6a', tint: '#3f7fd4', belly: '#27354a' },
+    torpedo:   { hat: 'sailor',   hatColor: '#eef2f6', prop: 'periscope',  tint: '#2f6fb5', belly: '#25384d' },
+    depth:     { hat: 'souwester', hatColor: '#f2c14e', prop: 'stud',      tint: '#3a86c8', belly: '#26405c' },
+    jetpack:   { hat: 'aviator',  hatColor: '#8a6d4a', prop: 'jetpack',    propColor: '#e07b39', tint: '#4a90d9', belly: '#2c3e56' },
+    artillery: { hat: 'officer',  hatColor: '#2f4858', prop: 'howitzer',   propColor: '#2f3b47', tint: '#35618f', belly: '#232f3d', scale: 1.22, cheeks: '#d9a04a' },
+    /* Wizards */
+    aurora:    { hat: 'wizard',   hatColor: '#7a52c0', prop: 'staff',      propColor: '#5ee8a8', tint: '#8b5fd0', belly: '#3a2f52' },
+    witch:     { hat: 'hood',     hatColor: '#7a4fc0', prop: 'crookstaff', propColor: '#b07ce8', tint: '#5e3f8c', belly: '#322b3d' },
+    blizzard:  { hat: 'crown',    hatColor: '#bfe8ff', prop: 'orb',        propColor: '#8fd4f0', tint: '#9b6fd6', belly: '#3d3358' },
+    shadow:    { hat: 'headband', hatColor: '#c0392b', prop: 'shuriken',   tint: '#2e2a3a', belly: '#23262b' },
+    sunpriest: { hat: 'halo',     hatColor: '#ffd166', prop: 'orb',        propColor: '#ffd166', tint: '#b58fe0', belly: '#6a5a3a', scale: 1.12 },
+    /* Crew */
+    vendor:    { hat: 'straw',    hatColor: '#d8b46a', prop: 'stud',       tint: '#3fae6a', belly: '#4a3a24' },
+    fort:      { hat: 'beanie',   hatColor: '#3fae6a', prop: 'flag',       propColor: '#3fae6a', tint: '#37945c', belly: '#2c4436' },
+    sonar:     { hat: 'headset',  hatColor: '#3fae6a', tint: '#46b878',    belly: '#2b3a4a' },
+    drummer:   { hat: 'mohawk',   hatColor: '#e0653f', prop: 'drumsticks', propColor: '#8a5a33', tint: '#4aa86a', belly: '#4a3a24' },
+    icewall:   { hat: 'hardhat',  hatColor: '#f2c14e', prop: 'pickaxe',    propColor: '#8a5a33', tint: '#52b47e', belly: '#5a4a2c' },
+    /* Heroes */
+    hero_frost:  { hat: 'captain',  hatColor: '#d4af37', prop: 'harpoongun', propColor: '#5a6a7a', tint: '#b8352c', belly: '#3a2a26', scale: 1.28, cheeks: '#d9a04a' },
+    hero_beak:   { hat: 'officer',  hatColor: '#d4af37', prop: 'flag',       propColor: '#d4af37', tint: '#2f9a5e', belly: '#26402f', scale: 1.24 },
+    hero_shiver: { hat: 'hood',     hatColor: '#9fd8ef', prop: 'orb',        propColor: '#bfeaff', tint: '#6a4fb0', belly: '#2e3a5a', scale: 1.24 },
+    hero_tilly:  { hat: 'goggles',  hatColor: '#ffd166', prop: 'sling',      propColor: '#d4af37', tint: '#d94f42', belly: '#4a2f28', scale: 1.20, cheeks: '#d9a04a' },
+    hero_rook:   { hat: 'sailor',   hatColor: '#f4f7fa', prop: 'periscope',  propColor: '#d4af37', tint: '#2d64a8', belly: '#26364a', scale: 1.26 },
+    hero_marlow: { hat: 'souwester', hatColor: '#d4af37', prop: 'cannon',    propColor: '#3b4a58', tint: '#3878be', belly: '#28394d', scale: 1.26 },
+    hero_kell:   { hat: 'wizard',   hatColor: '#7fc98f', prop: 'crookstaff', propColor: '#a8e6b4', tint: '#7a52a8', belly: '#2f4436', scale: 1.24 },
+    hero_sage:   { hat: 'crown',    hatColor: '#d4af37', prop: 'staff',      propColor: '#9fe8d4', tint: '#8b5fd0', belly: '#3a3358', scale: 1.24 },
+    hero_fen:    { hat: 'straw',    hatColor: '#d4af37', prop: 'stud',       propColor: '#f2b04e', tint: '#35a068', belly: '#4a3a24', scale: 1.22 },
   };
 
   /* ---------------- Vacuums ----------------
