@@ -2046,26 +2046,37 @@
         drawBridgeRails(c, pts, 2635, 170, rnd);   // x=1400 over the south run
         drawTank(c, 860, 500, 20, '#2fa4a8');
         drawTank(c, 925, 512, 16, '#3f7fd4');
-        drawPipeRun(c, 60, 240, 60, 400, 12);
+        drawPipeRun(c, 120, 330, 330, 330, 13);
       },
     },
     shelf: {
       paint(c, L, rnd, meta) {
-        drawContainers(c, 160, 620, 16, rnd);
-        drawContainers(c, 1230, 700, 17, rnd);
-        drawContainers(c, 680, 88, 15, rnd);
-        drawGantry(c, 1330, 660, 18, -1);
+        /* The freight yard, in the pocket the two lanes braid around. Three
+           stacks at s=16 scattered into the corners was the entire cargo on
+           a board called Cargo Deck. */
+        drawContainers(c, 545, 622, 34, rnd);
+        drawContainers(c, 760, 628, 34, rnd);
+        drawContainers(c, 968, 620, 32, rnd);
+        drawGantry(c, 1040, 648, 32, -1);
+        drawContainers(c, 160, 620, 18, rnd);
+        drawContainers(c, 1250, 700, 19, rnd);
       },
     },
     rookery: {
+      /* The three no-build blockers become a row of hangar bays, at full
+         blocker size — the road coils around them, so they have to be the
+         thing you see. */
       skin(c, b, rnd) {
         if (b.kind !== 'fort' || b.gen) return false;
-        drawHangar(c, b.x, b.y + b.r * 0.45, b.r * 0.62, rnd);
+        drawHangar(c, b.x, b.y + b.r * 0.9, b.r * 1.2, rnd);
         return true;
       },
       paint(c, L, rnd, meta) {
-        drawHangar(c, 200, 848, 20, rnd);
-        drawWindsock(c, 1000, 306, 14);
+        // clear of the western pool (its right edge is x=195) and of the bay row
+        drawHangar(c, 312, 350, 58, rnd);      // the big bay in the coil's eye
+        drawHangar(c, 210, 838, 46, rnd);
+        drawWindsock(c, 1000, 306, 16);
+        drawWindsock(c, 424, 348, 15);
       },
     },
     basin: {
