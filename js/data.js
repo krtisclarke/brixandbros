@@ -1672,8 +1672,8 @@
     shelf:     { snow: '#9099a6', ice: '#666e7b', pathColor: '#565c64', pathEdge: '#383d44', pathCore: '#686e76', deep: '#1c6cba', shore: '#78bcea', props: 'floes' },
     rookery:   { snow: '#a2acb6', ice: '#76808b', pathColor: '#5e646c', pathEdge: '#40454c', pathCore: '#70767e', deep: '#2381c8', shore: '#80c8ee', props: 'village' },
     basin:     { snow: '#3a4152', ice: '#232937', pathColor: '#454b55', pathEdge: '#2a3038', pathCore: '#555b65', deep: '#263e6e', shore: '#42638e', props: 'crystals', glow: '#7fb8f5', dark: true },
-    sable:     { snow: '#8e97a2', ice: '#646d78', pathColor: '#545a62', pathEdge: '#363b42', pathCore: '#666c74', deep: '#2470b2', shore: '#7ab8e8', props: 'dead' },
-    floes:     { snow: '#95a0ad', ice: '#6a7582', pathColor: '#585e66', pathEdge: '#3a3f46', pathCore: '#6a7078', deep: '#156cba', shore: '#74b8ea', props: 'floes' },
+    sable:     { snow: '#8e97a2', ice: '#646d78', pathColor: '#545a62', pathEdge: '#363b42', pathCore: '#666c74', deep: '#2470b2', shore: '#7ab8e8', props: 'industrial' },
+    floes:     { snow: '#95a0ad', ice: '#6a7582', pathColor: '#585e66', pathEdge: '#3a3f46', pathCore: '#6a7078', deep: '#156cba', shore: '#74b8ea', props: 'industrial' },
     stormwall: { snow: '#8b95a2', ice: '#616b78', pathColor: '#525860', pathEdge: '#343940', pathCore: '#646a72', deep: '#2470b2', shore: '#7ab8e8', props: 'dead' },
     longdark:  { snow: '#333a49', ice: '#1e2430', pathColor: '#3e444e', pathEdge: '#242a32', pathCore: '#4e545e', deep: '#21335c', shore: '#3a5684', props: 'crystals', glow: '#6fa8ea', dark: true },
 
@@ -1796,10 +1796,10 @@
     shelf: [{ x: 180, y: 610, r: 80 }, { x: 1250, y: 690, r: 90 }, { x: 700, y: 80, r: 75 }],
     rookery: [{ x: 200, y: 840, r: 70 }, { x: 1000, y: 300, r: 45 }, { x: 600, y: 280, r: 120 }],
     basin: [{ x: 200, y: 148, r: 65 }, { x: 1435, y: 305, r: 60 }, { x: 1060, y: 462, r: 182 }],
-    sable: [{ x: 452, y: 636, w: 416, h: 216 }, { x: 250, y: 255, r: 55 }],
+    sable: [{ x: 430, y: 700, w: 460, h: 160 }, { x: 250, y: 255, r: 55 }],
     floes: [{ x: 985, y: 95, r: 85 }, { x: 148, y: 762, r: 80 }],
     stormwall: [{ x: 100, y: 85, r: 60 }, { x: 1380, y: 802, r: 60 }, { x: 620, y: 55, r: 45 }],
-    longdark: [{ x: 1150, y: 135, r: 100 }, { x: 300, y: 108, r: 60 }],
+    longdark: [{ x: 1140, y: 150, r: 175 }, { x: 300, y: 150, r: 110 }],
 
     approach: [{ x: 400, y: 872, r: 150 }, { x: 155, y: 880, r: 90 }, { x: 645, y: 880, r: 90 }],
     causeway: [{ x: 340, y: 236, w: 130, h: 80 }, { x: 545, y: 620, r: 60 }],
@@ -1810,9 +1810,9 @@
       { x: 700, y: 672, r: 55 }, { x: 960, y: 672, r: 55 },
     ],
     maelstrom: [{ x: 760, y: 330, r: 95 }],
-    icefall: [{ x: 235, y: 88, r: 130 }, { x: 935, y: 85, r: 110 }, { x: 500, y: 775, r: 110 }],
+    icefall: [{ x: 130, y: 8, w: 510, h: 116 }, { x: 880, y: 8, w: 460, h: 116 }, { x: 320, y: 698, w: 310, h: 108 }],
     blackice: [{ x: 450, y: 62, r: 50 }, { x: 1500, y: 598, r: 50 }],
-    throne: [{ x: 855, y: 588, r: 100 }, { x: 700, y: 302, r: 50 }, { x: 1000, y: 302, r: 50 }],
+    throne: [{ x: 855, y: 612, r: 145 }, { x: 700, y: 302, r: 55 }, { x: 1000, y: 302, r: 55 }, { x: 700, y: 640, r: 55 }, { x: 1000, y: 645, r: 55 }],
     worldsend: [{ x: 1050, y: 95, r: 165 }, { x: 330, y: 855, r: 55 }, { x: 470, y: 855, r: 55 }],
   };
   /* A zone is a circle {x,y,r} or a rectangle {x,y,w,h}. Roofs, platforms and
@@ -1924,11 +1924,25 @@
       const seed = pool[(rnd() * pool.length) | 0];
       if (!seed || blocked.has(key(seed))) continue;
       const kind = kinds[(rnd() * kinds.length) | 0];
+      /* Two plate gaps overlapping look like one mis-drawn shape rather than
+         two holes, because each is snapped to the stud grid and the union of
+         two grid rectangles is a stair-step. Keep them apart. */
+      if (kind === 'crack') {
+        let tooClose = false;
+        for (const b of L.blockers) {
+          if (b.kind === 'crack' && (seed.x - b.x) ** 2 + (seed.y - b.y) ** 2 < 130 ** 2) { tooClose = true; break; }
+        }
+        if (tooClose) continue;
+      }
       /* Wall ridges are long BARRIERS laid alongside the track — that is what
          casts a real shadow down it. Scattered lumps looked like terrain but
          blocked almost nothing: they left line of sight worth about 1%. Rocks
          and cracks stay short and scattered. */
-      const lumps = kind === 'glacier' ? 4 + ((rnd() * 5) | 0) : 1 + ((rnd() * 2) | 0);
+      /* A gap in the plate is ONE gap. Cracks used to come in clumps of up
+         to three, and since each is drawn snapped to the stud grid, two
+         overlapping ones produced a stair-stepped shape that read as a
+         drawing fault rather than a hole. Walls still run long. */
+      const lumps = kind === 'glacier' ? 4 + ((rnd() * 5) | 0) : kind === 'crack' ? 1 : 1 + ((rnd() * 2) | 0);
       const ang = kind === 'glacier'
         ? trackAngleNear(pts, seed.x, seed.y) + (rnd() - 0.5) * 0.7
         : rnd() * Math.PI * 2;

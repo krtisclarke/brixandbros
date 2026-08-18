@@ -379,6 +379,33 @@
     const end = pts0[pts0.length - 1];
     drawFort(c, Math.min(G.W - 44, Math.max(44, end.x)), Math.min(G.H - 40, Math.max(40, end.y)), 36, true);
 
+    /* Ion storm: a band of charged air across the middle of the board. It
+       was doing nothing at all in the baked terrain — the only static trace
+       of a "permanent ion storm" was one crystal cluster — while the animated
+       streaks alone are too thin to say weather. This is the sky the streaks
+       fly through. */
+    if (th.storm) {
+      const st = c.createLinearGradient(0, G.H * 0.18, 0, G.H * 0.86);
+      st.addColorStop(0, 'rgba(150,110,225,0)');
+      st.addColorStop(0.45, dk ? 'rgba(150,120,235,0.20)' : 'rgba(158,120,230,0.15)');
+      st.addColorStop(1, 'rgba(120,150,235,0)');
+      c.fillStyle = st;
+      c.fillRect(0, 0, G.W, G.H);
+      // and the discharge scars it leaves on the plate
+      c.strokeStyle = dk ? 'rgba(196,170,255,0.20)' : 'rgba(150,110,220,0.22)';
+      c.lineWidth = 2.2; c.lineCap = 'round';
+      for (let i = 0; i < 9; i++) {
+        const bx = 60 + rnd() * (G.W - 120), by = G.H * 0.2 + rnd() * G.H * 0.6;
+        c.beginPath(); c.moveTo(bx, by);
+        let px = bx, py = by;
+        for (let k = 0; k < 3; k++) {
+          px += (rnd() - 0.5) * 60; py += (rnd() - 0.5) * 50;
+          c.lineTo(px, py);
+        }
+        c.stroke();
+      }
+    }
+
     // rough landings, printed on the deck — the spaceport tier only
     if (level.tier === 2 && !flooded) {
       for (let i = 0; i < 5; i++) {
@@ -729,13 +756,17 @@
       for (let i = 0; i < n; i++) {
         for (let tries = 0; tries < 40; tries++) {
           const x = 30 + rnd() * (G.W - 60), y = 40 + rnd() * (G.H - 80);
+          const size = sizeMin + rnd() * sizeVar;
           if (!pathDistOk(level.paths, x, y, minPath)) continue;
-          if (waterHit(level, x, y, 26)) continue;
+          /* Padded by the prop's own size: every one of these draws UPWARD
+             from its base point, so a barrel whose foot cleared a pool by
+             20px still stood its body in the water. */
+          if (waterHit(level, x, y, 26 + size)) continue;
           if (inKeep(x, y)) continue;
           let nearBlocker = false;
           for (const b of level.blockers) if ((x - b.x) ** 2 + (y - b.y) ** 2 < (b.r + 26) ** 2) nearBlocker = true;
           if (nearBlocker) continue;
-          fn(c, x, y, sizeMin + rnd() * sizeVar, rnd);
+          fn(c, x, y, size, rnd);
           break;
         }
       }
@@ -791,6 +822,12 @@
       place(6, G.PATH_HALF + 42, drawDeadTree, 16, 12);
       place(7, G.PATH_HALF + 32, drawStone, 5, 8);
       place(4, G.PATH_HALF + 32, drawTuft, 4, 4);
+    } else if (kind === 'industrial') {
+      /* Bare winter trees on a fuel yard were a leftover from the game this
+         used to be. A yard is drums, pipe and dropped brick. */
+      place(9, G.PATH_HALF + 38, drawBarrel, 9, 5);
+      place(7, G.PATH_HALF + 34, drawStone, 5, 7);
+      place(4, G.PATH_HALF + 44, (cc, x, y, sz, r) => drawPipeRun(cc, x - sz * 2.4, y, x + sz * 2.4, y, sz * 0.8), 9, 4);
     } else if (kind === 'workshop') {
       place(4, G.PATH_HALF + 44, drawPine, 15, 12);
       place(2, G.PATH_HALF + 48, drawSnowman, 12, 4);
@@ -809,7 +846,10 @@
     }
 
     // frame the map edges with scenery so the world doesn't just fade out
-    const edgeFn = kind === 'crystals' ? drawCrystalShard : kind === 'dead' ? drawDeadTree : drawPine;
+    const edgeFn = kind === 'crystals' ? drawCrystalShard
+      : kind === 'dead' ? drawDeadTree
+      : kind === 'industrial' ? drawStone   // a yard is fenced with dropped brick, not pines
+      : drawPine;
     for (let i = 0; i < 16; i++) {
       for (let tries = 0; tries < 30; tries++) {
         const side = (rnd() * 4) | 0;
@@ -1767,6 +1807,18 @@
      why the yard is called what it is. */
   function drawServicePit(c, x, y, w, h, spill) {
     c.save();
+    /* The spill goes down FIRST. Painted after, its translucent green sat on
+       top of the pit's own hazard border and made the edge look printed on
+       the puddle. Coolant runs out of the pit and across the deck; it does
+       not run over the rim it came out of. */
+    if (spill) {
+      c.fillStyle = 'rgba(64,214,180,0.42)';
+      c.beginPath();
+      c.ellipse(x + w * 0.78, y + h * 0.42, w * 0.4, h * 0.62, 0.3, 0, TAU); c.fill();
+      c.fillStyle = 'rgba(120,240,210,0.3)';
+      c.beginPath();
+      c.ellipse(x + w * 0.7, y + h * 0.3, w * 0.19, h * 0.3, 0.3, 0, TAU); c.fill();
+    }
     c.fillStyle = 'rgba(24,30,40,0.82)'; c.fillRect(x - w / 2, y - h / 2, w, h);
     c.fillStyle = 'rgba(46,56,70,0.9)'; c.fillRect(x - w / 2, y - h / 2, w, 6);
     c.strokeStyle = '#e8b93c'; c.lineWidth = 4;
@@ -1780,14 +1832,6 @@
     for (let d = x - w / 2 + 12; d < x + w / 2; d += 12) {
       c.beginPath(); c.moveTo(d, y - h / 2 + 4); c.lineTo(d, y + h / 2 - 4); c.stroke();
     }
-    if (spill) {
-      c.fillStyle = 'rgba(64,214,180,0.42)';
-      c.beginPath();
-      c.ellipse(x + w * 0.62, y + h * 0.36, w * 0.42, h * 0.5, 0.3, 0, TAU); c.fill();
-      c.fillStyle = 'rgba(120,240,210,0.3)';
-      c.beginPath();
-      c.ellipse(x + w * 0.52, y + h * 0.26, w * 0.2, h * 0.24, 0.3, 0, TAU); c.fill();
-    }
     c.restore();
   }
 
@@ -1798,12 +1842,14 @@
     c.save();
     for (let i = 0; i < 4; i++) {
       const rr = r * (1 - i * 0.22);
-      c.fillStyle = `rgba(8,12,26,${0.14 + i * 0.09})`;
+      c.fillStyle = `rgba(6,9,20,${0.2 + i * 0.15})`;
       c.beginPath(); c.ellipse(x, y, rr, rr * 0.82, 0, 0, TAU); c.fill();
-      c.strokeStyle = 'rgba(190,205,240,0.16)'; c.lineWidth = 2;
-      c.beginPath(); c.ellipse(x, y - 1.5, rr, rr * 0.82, 0, Math.PI * 0.92, Math.PI * 1.92); c.stroke();
-      c.strokeStyle = 'rgba(4,8,20,0.4)'; c.lineWidth = 2;
-      c.beginPath(); c.ellipse(x, y + 1.5, rr, rr * 0.82, 0, Math.PI * -0.08, Math.PI * 0.92); c.stroke();
+      // each step gets a full dark outline first, so no lit arc reads as a
+      // loose fragment hanging in the middle of the bowl
+      c.strokeStyle = 'rgba(4,8,20,0.55)'; c.lineWidth = 2.4;
+      c.beginPath(); c.ellipse(x, y, rr, rr * 0.82, 0, 0, TAU); c.stroke();
+      c.strokeStyle = 'rgba(200,214,248,0.3)'; c.lineWidth = 2.4;
+      c.beginPath(); c.ellipse(x, y - 2, rr, rr * 0.82, 0, Math.PI * 0.9, Math.PI * 1.9); c.stroke();
     }
     c.restore();
   }
@@ -2034,16 +2080,17 @@
     },
     sable: {
       under(c, L, rnd, meta) {
-        drawServicePit(c, 660, 782, 250, 84, true);   // the pit, and what left it
+        drawServicePit(c, 655, 818, 250, 64, true);   // the pit, and what left it
       },
       paint(c, L, rnd, meta) {
-        // the fuel yard: three tanks and the pipework that feeds them
-        drawTank(c, 545, 700, 23, '#e8b93c');
-        drawTank(c, 660, 706, 26, '#c8443c');
-        drawTank(c, 775, 700, 23, '#e8b93c');
-        drawPipeRun(c, 512, 716, 808, 716, 12);
-        drawBarrel(c, 470, 800, 12, rnd); drawBarrel(c, 498, 812, 11, rnd);
-        drawBarrel(c, 845, 800, 12, rnd);
+        /* The yard sits in the band between the coolant pool (bottom edge
+           y=690) and the board edge — the tanks were standing in the water. */
+        drawTank(c, 545, 760, 22, '#e8b93c');
+        drawTank(c, 655, 766, 25, '#c8443c');
+        drawTank(c, 765, 760, 22, '#e8b93c');
+        drawPipeRun(c, 505, 776, 805, 776, 12);
+        drawBarrel(c, 455, 790, 12, rnd); drawBarrel(c, 482, 802, 11, rnd);
+        drawBarrel(c, 855, 790, 12, rnd);
         drawTank(c, 250, 262, 16, '#77808a');
       },
     },
@@ -2066,10 +2113,14 @@
     },
     longdark: {
       paint(c, L, rnd, meta) {
-        // the deep space dock: a gantry with a ship on the pad beside it
-        drawLandingPad(c, 300, 110, 46, meta);
-        drawGantry(c, 1095, 148, 21, 1);
-        drawRocket(c, 1175, 145, 25);
+        /* One installation, not three ornaments in a corner: the pad, the
+           gantry standing over it and the ship it is servicing, grouped and
+           scaled so the dock reads as the dock. */
+        drawLandingPad(c, 1140, 150, 108, meta);
+        drawGantry(c, 1016, 178, 34, 1);
+        drawRocket(c, 1146, 172, 40);
+        drawDish(c, 320, 112, 24);
+        drawContainers(c, 250, 200, 16, rnd);
       },
     },
 
@@ -2080,7 +2131,7 @@
         const cols = ['#c8443c', '#3f7fd4', '#e8b93c'];
         for (let i = 0; i < 6; i++) {
           const bx = 170 + i * 180;
-          drawBanner(c, bx, i % 2 ? 168 : 322, 13, cols[i % 3]);
+          drawBanner(c, bx, i % 2 ? 158 : 330, 20, cols[i % 3]);
         }
         // ...and the castle wall it ends at
         drawCurtainWall(c, 30, 880, 260, 880, 22);
@@ -2151,10 +2202,12 @@
     },
     icefall: {
       paint(c, L, rnd, meta) {
-        // the aqueduct, in three stranded runs
-        drawArches(c, 150, 95, 21, 3, false);
-        drawArches(c, 880, 92, 20, 2, true);
-        drawArches(c, 430, 782, 19, 2, true);
+        /* Three stranded runs of aqueduct. They were drawn at s=20 and read
+           as garden trellises on a 1600px board — an aqueduct is the biggest
+           thing for miles, so these now span most of the open bands. */
+        drawArches(c, 150, 100, 42, 6, false);
+        drawArches(c, 900, 100, 40, 7, true);
+        drawArches(c, 340, 790, 36, 6, true);
       },
     },
     blackice: {
@@ -2165,9 +2218,10 @@
     },
     throne: {
       paint(c, L, rnd, meta) {
-        drawThrone(c, 855, 570, 24);          // the old seat itself
-        drawColumn(c, 700, 305, 14); drawColumn(c, 1000, 305, 14);
-        drawBanner(c, 772, 555, 13, '#c8443c'); drawBanner(c, 940, 555, 13, '#e8b93c');
+        drawThrone(c, 855, 620, 46);          // the old seat itself
+        drawColumn(c, 700, 305, 24); drawColumn(c, 1000, 305, 24);
+        drawColumn(c, 700, 640, 24); drawColumn(c, 1000, 645, 24);
+        drawBanner(c, 742, 596, 19, '#c8443c'); drawBanner(c, 962, 600, 19, '#e8b93c');
       },
     },
     worldsend: {
