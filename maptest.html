@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>map test grid</title>
+<style>
+  body { background: #1c2430; font-family: sans-serif; margin: 12px; color: #dde; }
+  .grid { display: flex; gap: 14px; flex-wrap: wrap; }
+  .cell { text-align: center; }
+  .cell span { display: block; font-size: 12px; color: #cdd; margin-top: 3px; }
+  canvas { border-radius: 6px; display: block; }
+  h2 { margin: 18px 0 8px; font-size: 16px; }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script src="js/data.js"></script>
+<script src="js/waves.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/render.js"></script>
+<script>
+  const grid = document.getElementById('grid');
+  const params = new URLSearchParams(location.search);
+  const only = params.get('level');          // ?level=shores → one board, full size
+  const scale = +(params.get('w') || 640);   // grid cell width
+
+  function addCanvas(level, w) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const cv = document.createElement('canvas');
+    cv.width = w;
+    cv.height = Math.round(w * (level.tier >= 2 ? (level.tier === 2 ? 860 / 1440 : 920 / 1600) : 800 / 1280));
+    G.setDims(level);
+    cv.height = Math.round(w * G.H / G.W);
+    G.drawLevelThumb(cv, level);
+    const lab = document.createElement('span');
+    lab.textContent = (G.LEVELS.indexOf(level) + 1) + '. ' + level.name + ' (' + level.id + ')';
+    cell.appendChild(cv); cell.appendChild(lab);
+    return cell;
+  }
+
+  if (only) {
+    const level = G.LEVELS.find(l => l.id === only);
+    grid.appendChild(addCanvas(level, +(params.get('w') || 1280)));
+  } else {
+    const tiers = [['Brick City', 0, 10], ['Star Port', 10, 20], ['Castle Realm', 20, 30]];
+    for (const [name, a, b] of tiers) {
+      const h = document.createElement('h2');
+      h.textContent = name;
+      document.body.insertBefore(h, null);
+      const row = document.createElement('div');
+      row.className = 'grid';
+      for (let i = a; i < b; i++) row.appendChild(addCanvas(G.LEVELS[i], scale));
+      document.body.appendChild(row);
+    }
+  }
+</script>
+</body>
+</html>

@@ -1766,6 +1766,66 @@
      rather than inlined because the dock panel quotes it back to the player. */
   G.VENDOR_FALLOFF = 0.7;
 
+  /* ---------------- Landmark ground ----------------
+     Every battlefield is named after a place, and the renderer builds that
+     place — a fountain for Fountain Square, a keep for the Black Keep. This
+     is the ground those builds stand on, and it lives here rather than in the
+     renderer because two separate systems have to agree to stay off it: the
+     obstacle generator below, and the scenery scatter in render.js. Authored
+     in one place, read by both.
+
+     Deliberately NOT no-build ground. A landmark is scenery, so a Bro can
+     still take the spot beside the fountain — adding thirty new no-build
+     zones would quietly retune every battlefield's difficulty, and the
+     obstacle bite above is already tuned to what each map can spare. */
+  G.DECO_ZONES = {
+    shores: [{ x: 780, y: 690, r: 70 }, { x: 900, y: 670, r: 60 }],
+    pass: [{ x: 1205, y: 420, r: 100 }, { x: 60, y: 500, r: 90 }],
+    river: [{ x: 300, y: 415, r: 60 }, { x: 680, y: 415, r: 55 }],
+    alley: [{ x: 40, y: 150, r: 85 }, { x: 40, y: 650, r: 85 }, { x: 118, y: 62, r: 55 }, { x: 96, y: 748, r: 55 }],
+    village: [{ x: 640, y: 96, r: 60 }, { x: 620, y: 500, r: 130 }, { x: 330, y: 270, w: 620, h: 105 }],
+    caves: [{ x: 336, y: 152, w: 570, h: 92 }],
+    ridge: [{ x: 640, y: 400, r: 90 }],
+    bay: [{ x: 420, y: 500, r: 120 }, { x: 940, y: 330, r: 60 }, { x: 770, y: 490, r: 80 }, { x: 830, y: 250, r: 70 }, { x: 1070, y: 745, r: 65 }],
+    peak: [{ x: 322, y: 208, w: 636, h: 416 }, { x: 200, y: 452, r: 55 }, { x: 1150, y: 258, r: 55 }],
+    workshop: [{ x: 1120, y: 100, r: 130 }],
+
+    flats: [{ x: 850, y: 690, r: 110 }, { x: 1250, y: 730, r: 65 }, { x: 1290, y: 170, r: 70 }],
+    fjord: [{ x: 640, y: 150, r: 65 }, { x: 200, y: 150, r: 50 }],
+    cataracts: [{ x: 890, y: 490, r: 90 }, { x: 80, y: 320, r: 55 }],
+    shelf: [{ x: 180, y: 610, r: 80 }, { x: 1250, y: 690, r: 90 }, { x: 700, y: 80, r: 75 }],
+    rookery: [{ x: 200, y: 840, r: 70 }, { x: 1000, y: 300, r: 45 }, { x: 600, y: 280, r: 120 }],
+    basin: [{ x: 200, y: 148, r: 65 }, { x: 1435, y: 305, r: 60 }, { x: 1060, y: 462, r: 182 }],
+    sable: [{ x: 452, y: 636, w: 416, h: 216 }, { x: 250, y: 255, r: 55 }],
+    floes: [{ x: 985, y: 95, r: 85 }, { x: 148, y: 762, r: 80 }],
+    stormwall: [{ x: 100, y: 85, r: 60 }, { x: 1380, y: 802, r: 60 }, { x: 620, y: 55, r: 45 }],
+    longdark: [{ x: 1150, y: 135, r: 100 }, { x: 300, y: 108, r: 60 }],
+
+    approach: [{ x: 400, y: 872, r: 150 }, { x: 155, y: 880, r: 90 }, { x: 645, y: 880, r: 90 }],
+    causeway: [{ x: 340, y: 236, w: 130, h: 80 }, { x: 545, y: 620, r: 60 }],
+    trench: [{ x: 660, y: 655, r: 175 }],
+    obsidian: [{ x: 694, y: 28, w: 140, h: 396 }, { x: 1545, y: 128, r: 70 }],
+    cathedral: [
+      { x: 700, y: 255, r: 55 }, { x: 960, y: 255, r: 55 },
+      { x: 700, y: 672, r: 55 }, { x: 960, y: 672, r: 55 },
+    ],
+    maelstrom: [{ x: 760, y: 330, r: 95 }],
+    icefall: [{ x: 235, y: 88, r: 130 }, { x: 935, y: 85, r: 110 }, { x: 500, y: 775, r: 110 }],
+    blackice: [{ x: 450, y: 62, r: 50 }, { x: 1500, y: 598, r: 50 }],
+    throne: [{ x: 855, y: 588, r: 100 }, { x: 700, y: 302, r: 50 }, { x: 1000, y: 302, r: 50 }],
+    worldsend: [{ x: 1050, y: 95, r: 165 }, { x: 330, y: 855, r: 55 }, { x: 470, y: 855, r: 55 }],
+  };
+  /* A zone is a circle {x,y,r} or a rectangle {x,y,w,h}. Roofs, platforms and
+     service pits are rectangles, and approximating them with circles either
+     left corners unguarded or swallowed three lanes of obstacle ground. */
+  G.inDecoZone = function (levelId, x, y, pad) {
+    const p = pad || 0;
+    return (G.DECO_ZONES[levelId] || []).some((z) => (z.w
+      ? x >= z.x - p && x <= z.x + z.w + p && y >= z.y - p && y <= z.y + z.h + p
+      : (x - z.x) ** 2 + (y - z.y) ** 2 < (z.r + p) ** 2));
+  };
+  const inDecoOf = (L, x, y, pad) => G.inDecoZone(L.id, x, y, pad);
+
   const OBSTACLE_KINDS = {
     1: ['rock', 'rock', 'crack', 'glacier'],
     2: ['rock', 'crack', 'crack', 'glacier'],
@@ -1808,9 +1868,12 @@
     }
     return ang;
   }
-  const inWaterOf = (L, x, y) => L.water.some((w) => w.rect
-    ? x >= w.rect.x - 10 && x <= w.rect.x + w.rect.w + 10 && y >= w.rect.y - 10 && y <= w.rect.y + w.rect.h + 10
-    : (x - w.x) ** 2 + (y - w.y) ** 2 <= (w.r + 10) ** 2);
+  const inWaterOf = (L, x, y, pad) => {
+    const p = 10 + (pad || 0);
+    return L.water.some((w) => w.rect
+      ? x >= w.rect.x - p && x <= w.rect.x + w.rect.w + p && y >= w.rect.y - p && y <= w.rect.y + w.rect.h + p
+      : (x - w.x) ** 2 + (y - w.y) ** 2 <= (w.r + p) ** 2);
+  };
 
   G.LEVELS.forEach((L, li) => {
     const W = L.w, H = L.h;
@@ -1836,6 +1899,7 @@
         }
         const d = Math.sqrt(best);
         if (d < CLEAR || d > 150) continue;
+        if (inDecoOf(L, x, y, 20)) continue;   // the landmark's ground is spoken for
         lattice.push({ x, y, shoulder: d < CLEAR + 46 });
       }
     }
@@ -1871,8 +1935,14 @@
       let cx = seed.x, cy = seed.y;
       for (let n = 0; n < lumps; n++) {
         const r = (kind === 'glacier' ? 26 : kind === 'crack' ? 24 : 22) + rnd() * 10;
-        if (cx < 30 || cx > W - 30 || cy < 60 || cy > H - 30) break;
-        if (inWaterOf(L, cx, cy)) break;
+        /* Keep the whole lump on the board and out of the water, not just its
+           centre. The old test asked about the centre point alone, so a wall
+           whose middle cleared a pool by 11px still laid half its bricks
+           across the water — and a lump seeded 30px from the edge drew its
+           right-hand courses off the plate entirely. */
+        if (cx < 30 + r || cx > W - 30 - r || cy < 60 + r || cy > H - 30 - r) break;
+        if (inWaterOf(L, cx, cy, r)) break;
+        if (inDecoOf(L, cx, cy, r)) break;
         let clearsPath = true;
         for (const p of pts) {
           if ((cx - p.x) ** 2 + (cy - p.y) ** 2 < (CLEAR + r * 0.5) ** 2) { clearsPath = false; break; }

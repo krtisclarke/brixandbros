@@ -334,6 +334,8 @@
     const nLoose = Math.round(26 * (G.W * G.H) / (1280 * 800));
     for (let i = 0; i < nLoose; i++) {
       const x = rnd() * G.W, y = rnd() * G.H;
+      // not on a roof, a platform or down a service pit
+      if (G.inDecoZone(level.id, x, y, 6)) continue;
       c.save();
       c.translate(x, y); c.rotate(rnd() * 3);
       c.globalAlpha = 0.55 + rnd() * 0.3;
@@ -348,6 +350,13 @@
 
     // --- water ---
     for (const wt of level.water) drawWaterBody(c, wt, th, rnd);
+
+    /* Flat landmark prints go down BEFORE the track: a roof, a platform, a
+       pit. The track then runs visibly over them, which is the whole point on
+       Rooftop Run — the road has to climb across the building, not around it.
+       Anything that stands up waits for the `paint` pass below. */
+    const deco = DECOS[level.id];
+    if (deco && deco.under) deco.under(c, level, rnd, meta);
 
     // --- path(s) ---
     for (const pts of level.paths) {
@@ -384,7 +393,6 @@
     }
 
     // blockers — a hand-placed one may wear its battlefield's costume
-    const deco = DECOS[level.id];
     for (const b of level.blockers) {
       if (!(deco && deco.skin && deco.skin(c, b, rnd))) drawBlocker(c, b);
       if (b.kind === 'crystal') meta.crystals.push({ x: b.x, y: b.y, r: b.r });
@@ -715,12 +723,8 @@
   /* ---------- scenery props ---------- */
   function scatterProps(c, level, rnd, meta) {
     const kind = level.theme.props || 'pines';
-    // scattered props stay out of the landmarks' ground
-    const keep = (DECOS[level.id] && DECOS[level.id].zones) || [];
-    const inKeep = (x, y) => {
-      for (const z of keep) if ((x - z.x) ** 2 + (y - z.y) ** 2 < (z.r + 18) ** 2) return true;
-      return false;
-    };
+    // scattered props stay out of the landmarks' ground (G.DECO_ZONES, data.js)
+    const inKeep = (x, y) => G.inDecoZone(level.id, x, y, 18);
     const place = (n, minPath, fn, sizeMin, sizeVar) => {
       for (let i = 0; i < n; i++) {
         for (let tries = 0; tries < 40; tries++) {
@@ -763,10 +767,15 @@
       place(6, G.PATH_HALF + 42, drawPine, 15, 13);
       place(11, G.PATH_HALF + 34, drawTuft, 5, 4);
     } else if (kind === 'crystals') {
+      /* This branch grew its own placement loop and so never picked up the
+         guards `place` carries — which is why glowing shards sprouted through
+         the subway platform and out of open water. */
       for (let i = 0; i < 11; i++) {
         for (let tries = 0; tries < 40; tries++) {
           const x = 30 + rnd() * (G.W - 60), y = 40 + rnd() * (G.H - 80);
           if (!pathDistOk(level.paths, x, y, G.PATH_HALF + 36)) continue;
+          if (waterHit(level, x, y, 26)) continue;
+          if (inKeep(x, y)) continue;
           drawCrystalShard(c, x, y, 8 + rnd() * 12, rnd);
           meta.crystals.push({ x, y, r: 14 });
           break;
@@ -1091,27 +1100,56 @@
     }
   }
 
-  // the town fountain: a stud-ringed basin, a pedestal, and living spray (FX)
-  function drawFountain(c, x, y, s, meta) {
-    const R = s * 1.35;
-    c.fillStyle = '#8b959f'; c.beginPath(); c.arc(x, y, R, 0, TAU); c.fill();
-    c.fillStyle = '#5db4e4'; c.beginPath(); c.arc(x, y, R * 0.78, 0, TAU); c.fill();
-    c.fillStyle = '#2f8fd6'; c.beginPath(); c.arc(x, y, R * 0.55, 0, TAU); c.fill();
-    c.strokeStyle = 'rgba(20,34,52,0.5)'; c.lineWidth = 1.6;
-    c.beginPath(); c.arc(x, y, R, 0, TAU); c.stroke();
-    // stud ring around the rim — the basin is built, not carved
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * TAU;
-      const sx = x + Math.cos(a) * R * 0.9, sy = y + Math.sin(a) * R * 0.9;
-      c.fillStyle = '#aeb8c2'; c.beginPath(); c.ellipse(sx, sy, s * 0.14, s * 0.09, 0, 0, TAU); c.fill();
+  /* The town fountain. `R` is the BASIN radius, and on Fountain Square that
+     is the map's pool radius — the pool IS the fountain, rather than a small
+     ornament dropped into the middle of a lake.
+
+     Built as a fountain is built and read from above: a stone kerb ring with
+     studs on it, then tiers stepping up to the middle. The old version put a
+     side-on pedestal in the centre of a top-down board, which is why it read
+     as a manhole cover. Every tier here is a circle seen from overhead, and
+     depth comes from the lit rim on each one. */
+  function drawFountain(c, x, y, R, meta) {
+    // the stone kerb, laid over the pool's own rim
+    c.fillStyle = '#8b959f';
+    c.beginPath(); c.arc(x, y, R + 10, 0, TAU); c.fill();
+    c.fillStyle = '#a6b0ba';
+    c.beginPath(); c.arc(x, y, R + 10, Math.PI * 0.92, Math.PI * 1.92); c.fill();
+    c.fillStyle = '#5db4e4'; c.beginPath(); c.arc(x, y, R - 2, 0, TAU); c.fill();
+    c.strokeStyle = 'rgba(20,34,52,0.55)'; c.lineWidth = 2;
+    c.beginPath(); c.arc(x, y, R + 10, 0, TAU); c.stroke();
+    c.beginPath(); c.arc(x, y, R - 2, 0, TAU); c.stroke();
+    // studs around the kerb — the basin is built, not carved
+    const n = Math.max(12, Math.round(R / 9));
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU;
+      const sx = x + Math.cos(a) * (R + 4), sy = y + Math.sin(a) * (R + 4);
+      c.fillStyle = '#c2ccd4';
+      c.beginPath(); c.arc(sx, sy, R * 0.045 + 1.5, 0, TAU); c.fill();
       c.strokeStyle = 'rgba(60,70,84,0.7)'; c.lineWidth = 0.9;
-      c.beginPath(); c.ellipse(sx, sy, s * 0.14, s * 0.09, 0, 0, TAU); c.stroke();
+      c.beginPath(); c.arc(sx, sy, R * 0.045 + 1.5, 0, TAU); c.stroke();
     }
-    brickBlock(c, x, y + s * 0.28, s * 0.6, s * 0.66, '#9aa4ae', 0);
-    c.fillStyle = '#bcd8ee'; c.beginPath(); c.ellipse(x, y - s * 0.42, s * 0.42, s * 0.16, 0, 0, TAU); c.fill();
-    c.strokeStyle = '#6b7580'; c.lineWidth = 1.2;
-    c.beginPath(); c.ellipse(x, y - s * 0.42, s * 0.42, s * 0.16, 0, 0, TAU); c.stroke();
-    if (meta) meta.fountains.push({ x, y: y - s * 0.42, s });
+    // two tiers stepping up out of the water, each a lit disc from above
+    const tier = (rr, top, lip) => {
+      c.fillStyle = 'rgba(12,32,56,0.28)';
+      c.beginPath(); c.ellipse(x + rr * 0.09, y + rr * 0.12, rr, rr, 0, 0, TAU); c.fill();
+      c.fillStyle = lip; c.beginPath(); c.arc(x, y, rr, 0, TAU); c.fill();
+      c.fillStyle = top; c.beginPath(); c.arc(x, y, rr * 0.82, 0, TAU); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 2;
+      c.beginPath(); c.arc(x, y, rr, Math.PI * 0.95, Math.PI * 1.95); c.stroke();
+      c.strokeStyle = 'rgba(30,44,62,0.5)'; c.lineWidth = 1.4;
+      c.beginPath(); c.arc(x, y, rr, 0, TAU); c.stroke();
+    };
+    tier(R * 0.56, '#4fa8dc', '#9aa4ae');
+    tier(R * 0.3, '#63bce8', '#b4bec8');
+    // the spout the water actually comes out of
+    c.fillStyle = '#c2ccd4';
+    c.beginPath(); c.arc(x, y, R * 0.12, 0, TAU); c.fill();
+    c.strokeStyle = 'rgba(60,70,84,0.75)'; c.lineWidth = 1.2;
+    c.beginPath(); c.arc(x, y, R * 0.12, 0, TAU); c.stroke();
+    c.fillStyle = '#e8f6ff';
+    c.beginPath(); c.arc(x - R * 0.03, y - R * 0.03, R * 0.06, 0, TAU); c.fill();
+    if (meta) meta.fountains.push({ x, y, s: R });
   }
 
   // planks out over the water, on posts, going somewhere worth going
@@ -1284,7 +1322,10 @@
      opts: { dark, roof: colour|false, glow } */
   function drawCastleTower(c, x, y, s, opts) {
     opts = opts || {};
-    const col = opts.dark ? '#4a4550' : '#9aa4ae';
+    /* The dark stone used to be #4a4550, which on the black-plate maps it was
+       invented for disappeared into the board — a keep nobody could see is
+       not a landmark. Lifted until it separates while still reading black. */
+    const col = opts.dark ? '#6b6478' : '#9aa4ae';
     const w = s * 1.35, h = s * 1.9;
     propShadow(c, x, y + 2, w * 0.6);
     c.fillStyle = shade(col, -34); c.fillRect(x - w / 2, y - h, w, h);
@@ -1326,7 +1367,7 @@
 
   // a run of curtain wall between two points, courses offset like real brickwork
   function drawCurtainWall(c, x1, y1, x2, y2, s, dark) {
-    const col = dark ? '#4a4550' : '#9aa4ae';
+    const col = dark ? '#6b6478' : '#9aa4ae';
     const len = Math.hypot(x2 - x1, y2 - y1), ang = Math.atan2(y2 - y1, x2 - x1);
     c.save();
     c.translate(x1, y1); c.rotate(ang);
@@ -1661,10 +1702,159 @@
      landmark's footprint, `skin` restyles a hand-placed blocker (the Old
      Quarter's no-build houses become houses), `paint` places the builds.
      Coordinates are world-space, chosen against each level's path list. */
+  /* A roof, printed flat and painted UNDER the track (the `under` hook), so
+     the road visibly climbs over the building rather than round it. Dark
+     tile, a lit parapet on the sunward edges, and a grid of tile seams. */
+  function drawRoofArea(c, x0, y0, w, h, col) {
+    col = col || '#5d5350';
+    c.save();
+    c.fillStyle = shade(col, -18); c.fillRect(x0, y0, w, h);
+    // tile seams
+    c.strokeStyle = 'rgba(20,24,32,0.28)'; c.lineWidth = 1;
+    for (let x = x0 + 34; x < x0 + w; x += 34) { c.beginPath(); c.moveTo(x, y0); c.lineTo(x, y0 + h); c.stroke(); }
+    for (let y = y0 + 34; y < y0 + h; y += 34) { c.beginPath(); c.moveTo(x0, y); c.lineTo(x0 + w, y); c.stroke(); }
+    // the parapet wall running right around, lit top-left
+    const P = 13;
+    c.fillStyle = shade(col, 20); c.fillRect(x0, y0, w, P); c.fillRect(x0, y0, P, h);
+    c.fillStyle = shade(col, -34); c.fillRect(x0, y0 + h - P, w, P); c.fillRect(x0 + w - P, y0, P, h);
+    c.strokeStyle = 'rgba(255,255,255,0.30)'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x0, y0 + h); c.lineTo(x0, y0); c.lineTo(x0 + w, y0); c.stroke();
+    c.strokeStyle = 'rgba(14,18,26,0.45)'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x0 + w, y0); c.lineTo(x0 + w, y0 + h); c.lineTo(x0, y0 + h); c.stroke();
+    // studs along the parapet crest
+    c.fillStyle = shade(col, 34);
+    for (let x = x0 + 16; x < x0 + w; x += 32) {
+      c.beginPath(); c.ellipse(x, y0 + 5, 5.5, 2.8, 0, 0, TAU); c.fill();
+      c.beginPath(); c.ellipse(x, y0 + h - 5, 5.5, 2.8, 0, 0, TAU); c.fill();
+    }
+    c.restore();
+  }
+
+  /* A station platform beside the running track, printed flat: pale tile,
+     the yellow safety line every platform in the world has, and a name board
+     on two posts. This is what makes a dark serpentine read as The Subway. */
+  function drawPlatform(c, x0, y, w, h) {
+    c.save();
+    c.fillStyle = '#8b8478'; c.fillRect(x0, y - h / 2, w, h);
+    c.fillStyle = '#a49c8e'; c.fillRect(x0, y - h / 2, w, h * 0.55);
+    c.strokeStyle = 'rgba(18,22,30,0.55)'; c.lineWidth = 1.6;
+    c.strokeRect(x0, y - h / 2, w, h);
+    c.strokeStyle = 'rgba(30,34,42,0.3)'; c.lineWidth = 1;
+    for (let x = x0 + 32; x < x0 + w; x += 32) { c.beginPath(); c.moveTo(x, y - h / 2); c.lineTo(x, y + h / 2); c.stroke(); }
+    // safety line down both edges
+    c.fillStyle = '#e8b93c';
+    c.fillRect(x0, y - h / 2 + 5, w, 5);
+    c.fillRect(x0, y + h / 2 - 10, w, 5);
+    // the name board
+    const sx = x0 + w * 0.5;
+    c.strokeStyle = '#5a636d'; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(sx - 26, y + 6); c.lineTo(sx - 26, y - 12); c.stroke();
+    c.beginPath(); c.moveTo(sx + 26, y + 6); c.lineTo(sx + 26, y - 12); c.stroke();
+    c.fillStyle = '#2f5fa8'; c.fillRect(sx - 34, y - 26, 68, 17);
+    c.strokeStyle = '#f2f4f6'; c.lineWidth = 1.4; c.strokeRect(sx - 34, y - 26, 68, 17);
+    c.fillStyle = '#f2f4f6';
+    for (let i = 0; i < 4; i++) c.fillRect(sx - 25 + i * 13, y - 20, 8, 5);
+    // benches
+    for (const bx of [x0 + w * 0.22, x0 + w * 0.78]) {
+      c.fillStyle = '#7a5535'; c.fillRect(bx - 13, y - 5, 26, 8);
+      c.fillStyle = '#8f6540'; c.fillRect(bx - 13, y - 5, 26, 3);
+    }
+    c.restore();
+  }
+
+  /* A recessed service pit with a hazard border, and coolant that got out of
+     it. Flat print — it takes nothing away from the ground, it just explains
+     why the yard is called what it is. */
+  function drawServicePit(c, x, y, w, h, spill) {
+    c.save();
+    c.fillStyle = 'rgba(24,30,40,0.82)'; c.fillRect(x - w / 2, y - h / 2, w, h);
+    c.fillStyle = 'rgba(46,56,70,0.9)'; c.fillRect(x - w / 2, y - h / 2, w, 6);
+    c.strokeStyle = '#e8b93c'; c.lineWidth = 4;
+    c.strokeRect(x - w / 2, y - h / 2, w, h);
+    c.strokeStyle = '#2f3b47'; c.lineWidth = 4;
+    c.setLineDash([9, 9]);
+    c.strokeRect(x - w / 2, y - h / 2, w, h);
+    c.setLineDash([]);
+    // the grating over it
+    c.strokeStyle = 'rgba(150,162,178,0.5)'; c.lineWidth = 1.6;
+    for (let d = x - w / 2 + 12; d < x + w / 2; d += 12) {
+      c.beginPath(); c.moveTo(d, y - h / 2 + 4); c.lineTo(d, y + h / 2 - 4); c.stroke();
+    }
+    if (spill) {
+      c.fillStyle = 'rgba(64,214,180,0.42)';
+      c.beginPath();
+      c.ellipse(x + w * 0.62, y + h * 0.36, w * 0.42, h * 0.5, 0.3, 0, TAU); c.fill();
+      c.fillStyle = 'rgba(120,240,210,0.3)';
+      c.beginPath();
+      c.ellipse(x + w * 0.52, y + h * 0.26, w * 0.2, h * 0.24, 0.3, 0, TAU); c.fill();
+    }
+    c.restore();
+  }
+
+  /* Concentric plate rings stepping down — the sunless bowl the battlefield
+     is named for. Printed flat, so it is a shape in the floor, not an object
+     standing on it. */
+  function drawBasinRings(c, x, y, r) {
+    c.save();
+    for (let i = 0; i < 4; i++) {
+      const rr = r * (1 - i * 0.22);
+      c.fillStyle = `rgba(8,12,26,${0.14 + i * 0.09})`;
+      c.beginPath(); c.ellipse(x, y, rr, rr * 0.82, 0, 0, TAU); c.fill();
+      c.strokeStyle = 'rgba(190,205,240,0.16)'; c.lineWidth = 2;
+      c.beginPath(); c.ellipse(x, y - 1.5, rr, rr * 0.82, 0, Math.PI * 0.92, Math.PI * 1.92); c.stroke();
+      c.strokeStyle = 'rgba(4,8,20,0.4)'; c.lineWidth = 2;
+      c.beginPath(); c.ellipse(x, y + 1.5, rr, rr * 0.82, 0, Math.PI * -0.08, Math.PI * 0.92); c.stroke();
+    }
+    c.restore();
+  }
+
+  // a grey tank wall laid around a pool rim — the pool becomes a storage tank
+  function drawTankRim(c, x, y, r) {
+    c.save();
+    c.strokeStyle = '#8b959f'; c.lineWidth = 11;
+    c.beginPath(); c.arc(x, y, r + 5, 0, TAU); c.stroke();
+    c.strokeStyle = '#aab4be'; c.lineWidth = 4;
+    c.beginPath(); c.arc(x, y, r + 2, Math.PI * 0.9, Math.PI * 1.9); c.stroke();
+    c.strokeStyle = 'rgba(40,50,62,0.75)'; c.lineWidth = 1.6;
+    c.beginPath(); c.arc(x, y, r + 10.5, 0, TAU); c.stroke();
+    c.beginPath(); c.arc(x, y, r - 0.5, 0, TAU); c.stroke();
+    // bolt plates around the wall
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * TAU;
+      c.fillStyle = '#c2ccd4';
+      c.beginPath(); c.arc(x + Math.cos(a) * (r + 5), y + Math.sin(a) * (r + 5), 2.6, 0, TAU); c.fill();
+    }
+    c.restore();
+  }
+
+  // a brick gatehouse: two pillars and a lintel, framing where a pack comes in
+  function drawGateArch(c, x, y, s, col) {
+    col = col || '#b4bec8';
+    const gap = G.PATH_HALF + 12;
+    for (const side of [-1, 1]) {
+      const py = y + side * (gap + s * 0.5);
+      c.fillStyle = shade(col, -34); c.fillRect(x - s * 0.55, py - s * 0.62, s * 1.1, s * 1.24);
+      c.fillStyle = col; c.fillRect(x - s * 0.55, py - s * 0.62, s * 1.1, s * 0.5);
+      c.strokeStyle = shade(col, -60); c.lineWidth = 1.3;
+      c.strokeRect(x - s * 0.55, py - s * 0.62, s * 1.1, s * 1.24);
+      c.fillStyle = shade(col, 26);
+      c.beginPath(); c.ellipse(x - s * 0.22, py - s * 0.72, s * 0.2, s * 0.1, 0, 0, TAU); c.fill();
+      c.beginPath(); c.ellipse(x + s * 0.22, py - s * 0.72, s * 0.2, s * 0.1, 0, 0, TAU); c.fill();
+    }
+    // the lintel spanning the gap, with a keystone
+    c.fillStyle = shade(col, -20);
+    c.fillRect(x - s * 0.32, y - gap, s * 0.64, gap * 2);
+    c.fillStyle = 'rgba(255,255,255,0.16)';
+    c.fillRect(x - s * 0.32, y - gap, s * 0.2, gap * 2);
+    c.strokeStyle = shade(col, -60); c.lineWidth = 1.2;
+    c.strokeRect(x - s * 0.32, y - gap, s * 0.64, gap * 2);
+    c.fillStyle = '#e8b93c';
+    c.fillRect(x - s * 0.2, y - s * 0.32, s * 0.4, s * 0.64);
+  }
+
   const DECOS = {
     /* -- tier 1, Brick City -- */
     shores: {
-      zones: [{ x: 780, y: 690, r: 70 }, { x: 900, y: 670, r: 60 }],
       paint(c, L, rnd, meta) {
         drawHouse(c, 760, 710, 24, rnd);
         drawHouse(c, 890, 686, 20, rnd);
@@ -1672,7 +1862,6 @@
       },
     },
     pass: {
-      zones: [{ x: 1205, y: 420, r: 90 }, { x: 60, y: 500, r: 70 }],
       paint(c, L, rnd, meta) {
         // Main Street's shops line the kerb on both margins
         drawHouse(c, 1205, 250, 22, rnd);
@@ -1683,7 +1872,6 @@
       },
     },
     river: {
-      zones: [{ x: 300, y: 415, r: 60 }, { x: 680, y: 415, r: 55 }],
       paint(c, L, rnd, meta) {
         const pts = L.paths[0];
         // parapets where the track fords the canal, and traffic on the water
@@ -1695,57 +1883,77 @@
       },
     },
     alley: {
-      zones: [{ x: 30, y: 150, r: 70 }, { x: 30, y: 650, r: 70 }],
       paint(c, L, rnd, meta) {
-        // the two gates themselves
-        drawTunnelMouth(c, 14, 150, 0);
-        drawTunnelMouth(c, 14, 650, 0);
-        drawCastleTower(c, 30, 78, 15, { roof: '#3f7fd4' });
-        drawCastleTower(c, 30, 262, 15, { roof: '#3f7fd4' });
-        drawCastleTower(c, 30, 578, 15, { roof: '#c8443c' });
-        drawCastleTower(c, 30, 762, 15, { roof: '#c8443c' });
+        // the two gates the battlefield is named for, built as gatehouses
+        drawGateArch(c, 40, 150, 26, '#b4bec8');
+        drawGateArch(c, 40, 650, 26, '#c9b28c');
+        drawHouse(c, 118, 62, 20, rnd);
+        drawHouse(c, 96, 748, 21, rnd);
       },
     },
     village: {
+      /* The no-build houses ARE the quarter, so they are drawn at full
+         blocker size rather than the two-thirds that made them doll's
+         houses inside a 650px loop. */
       skin(c, b, rnd) {
         if (b.kind !== 'fort' || b.gen) return false;
-        drawHouse(c, b.x, b.y + b.r * 0.5, b.r * 0.62, rnd);
+        drawHouse(c, b.x, b.y + b.r * 0.5, b.r, rnd);
         return true;
       },
-      zones: [{ x: 640, y: 96, r: 55 }],
       paint(c, L, rnd, meta) {
-        drawSnowman(c, 640, 96, 13, rnd);   // the statue in the square
+        // a second row of houses along the top of the loop's inner ground
+        drawHouse(c, 410, 344, 25, rnd);
+        drawHouse(c, 640, 350, 27, rnd);
+        drawHouse(c, 865, 342, 24, rnd);
+        drawSnowman(c, 640, 96, 15, rnd);   // the statue in the square
+        drawTuft(c, 545, 352, 7, rnd); drawTuft(c, 745, 350, 7, rnd);
         drawTuft(c, 585, 108, 7, rnd); drawTuft(c, 697, 104, 7, rnd);
       },
     },
     caves: {
-      zones: [],
+      under(c, L, rnd, meta) {
+        drawPlatform(c, 350, 196, 540, 74);   // flat print, so the track owns it
+      },
       paint(c, L, rnd, meta) {
-        drawTunnelMouth(c, 14, 120, 0);
-        drawTunnelMouth(c, 1266, 700, Math.PI);
+        drawTunnelMouth(c, 34, 120, 0);       // the mouth the pack pours out of
+        // platform lamps, on the safe side of the line
+        for (const lx of [400, 540, 700, 840]) drawTorchBase(c, lx, 186);
+        for (const lx of [400, 540, 700, 840]) meta.torches.push({ x: lx, y: 186 });
       },
     },
     ridge: {
-      zones: [{ x: 640, y: 400, r: 80 }],
       paint(c, L, rnd, meta) {
-        drawFountain(c, 640, 400, 26, meta);  // the fountain the square is named for
+        drawFountain(c, 640, 400, 105, meta); // the pool IS the fountain here
         drawTuft(c, 570, 262, 7, rnd); drawTuft(c, 712, 258, 7, rnd);
         drawTuft(c, 570, 545, 7, rnd); drawTuft(c, 712, 542, 7, rnd);
       },
     },
     bay: {
-      zones: [{ x: 420, y: 520, r: 80 }, { x: 940, y: 330, r: 60 }, { x: 770, y: 470, r: 55 }],
       paint(c, L, rnd, meta) {
-        drawJetty(c, 392, 528, 15, 0.45);
-        drawBoat(c, 500, 480, 14, rnd);
-        drawBoat(c, 940, 372, 12, rnd);
-        drawGantry(c, 770, 480, 17, -1);      // the dock crane
+        // real piers, long enough to read as a waterfront from across the board
+        drawJetty(c, 372, 505, 26, 0.30);     // out into the central pool
+        drawJetty(c, 812, 258, 22, 2.55);     // out into the eastern pool
+        drawJetty(c, 1058, 742, 20, -0.55);
+        drawBoat(c, 545, 470, 16, rnd);
+        drawBoat(c, 928, 372, 13, rnd);
+        drawGantry(c, 762, 486, 19, -1);      // the dock crane
+        drawBarrel(c, 700, 512, 11, rnd); drawBarrel(c, 726, 522, 10, rnd);
       },
     },
     peak: {
-      zones: [{ x: 200, y: 452, r: 50 }, { x: 1150, y: 258, r: 50 }, { x: 500, y: 200, r: 45 }],
+      /* The track chevrons up to (640,420) and back down, and the board is
+         named for what it climbs over — so the building goes down first and
+         the road runs across its roof. */
+      under(c, L, rnd, meta) {
+        drawRoofArea(c, 330, 216, 620, 400);
+      },
       paint(c, L, rnd, meta) {
         // rooftop furniture: this board is the top of a building
+        drawACUnit(c, 432, 306, 30);
+        drawACUnit(c, 828, 302, 28);
+        drawACUnit(c, 430, 545, 24);
+        drawChimneyBlock(c, 620, 282, 26);
+        drawChimneyBlock(c, 836, 552, 22);
         drawACUnit(c, 200, 460, 15);
         drawACUnit(c, 1150, 268, 14);
         c.strokeStyle = '#8b959f'; c.lineWidth = 2.4; c.lineCap = 'round';
@@ -1763,7 +1971,6 @@
         drawHouse(c, b.x, b.y + b.r * 0.5, b.r * 0.6, rnd);
         return true;
       },
-      zones: [{ x: 1120, y: 100, r: 110 }],
       paint(c, L, rnd, meta) {
         drawCityHall(c, 1120, 118, 26);       // city hall itself, flags flying
         drawTuft(c, 1000, 125, 7, rnd); drawTuft(c, 1245, 120, 7, rnd);
@@ -1772,7 +1979,6 @@
 
     /* -- tier 2, Star Port -- */
     flats: {
-      zones: [{ x: 850, y: 690, r: 100 }, { x: 1250, y: 730, r: 60 }, { x: 1290, y: 170, r: 60 }],
       paint(c, L, rnd, meta) {
         drawLandingPad(c, 850, 690, 80, meta);
         drawLandingPad(c, 1250, 730, 44, meta);
@@ -1781,7 +1987,6 @@
       },
     },
     fjord: {
-      zones: [{ x: 640, y: 150, r: 60 }, { x: 200, y: 150, r: 45 }],
       paint(c, L, rnd, meta) {
         drawPipeRun(c, 925, 372, 1135, 372, 14);   // over the coolant channel
         drawTank(c, 640, 168, 22, '#2fa4a8');
@@ -1789,7 +1994,6 @@
       },
     },
     cataracts: {
-      zones: [{ x: 890, y: 490, r: 80 }, { x: 80, y: 320, r: 50 }],
       paint(c, L, rnd, meta) {
         const pts = L.paths[0];
         drawBridgeRails(c, pts, 215, 160, rnd);    // x=200 over the north run
@@ -1800,7 +2004,6 @@
       },
     },
     shelf: {
-      zones: [{ x: 180, y: 610, r: 75 }, { x: 1250, y: 690, r: 85 }, { x: 700, y: 80, r: 70 }],
       paint(c, L, rnd, meta) {
         drawContainers(c, 160, 620, 16, rnd);
         drawContainers(c, 1230, 700, 17, rnd);
@@ -1814,33 +2017,40 @@
         drawHangar(c, b.x, b.y + b.r * 0.45, b.r * 0.62, rnd);
         return true;
       },
-      zones: [{ x: 200, y: 840, r: 60 }, { x: 1000, y: 300, r: 40 }],
       paint(c, L, rnd, meta) {
         drawHangar(c, 200, 848, 20, rnd);
         drawWindsock(c, 1000, 306, 14);
       },
     },
     basin: {
-      zones: [{ x: 200, y: 148, r: 60 }, { x: 1435, y: 305, r: 55 }],
+      under(c, L, rnd, meta) {
+        drawBasinRings(c, 1060, 470, 172);   // the sunless bowl itself
+      },
       paint(c, L, rnd, meta) {
         drawDome(c, 200, 152, 22, '#8fb4ff');
         drawDish(c, 1435, 310, 18);
+        drawObelisk(c, 1060, 400, 14, '#8fb4ff');
       },
     },
     sable: {
-      zones: [{ x: 660, y: 828, r: 130 }, { x: 250, y: 255, r: 50 }],
+      under(c, L, rnd, meta) {
+        drawServicePit(c, 660, 782, 250, 84, true);   // the pit, and what left it
+      },
       paint(c, L, rnd, meta) {
         // the fuel yard: three tanks and the pipework that feeds them
-        drawTank(c, 560, 836, 22, '#e8b93c');
-        drawTank(c, 660, 842, 25, '#c8443c');
-        drawTank(c, 762, 836, 22, '#e8b93c');
-        drawPipeRun(c, 530, 848, 790, 848, 11);
+        drawTank(c, 545, 700, 23, '#e8b93c');
+        drawTank(c, 660, 706, 26, '#c8443c');
+        drawTank(c, 775, 700, 23, '#e8b93c');
+        drawPipeRun(c, 512, 716, 808, 716, 12);
+        drawBarrel(c, 470, 800, 12, rnd); drawBarrel(c, 498, 812, 11, rnd);
+        drawBarrel(c, 845, 800, 12, rnd);
         drawTank(c, 250, 262, 16, '#77808a');
       },
     },
     floes: {
-      zones: [{ x: 985, y: 95, r: 75 }, { x: 148, y: 762, r: 70 }],
       paint(c, L, rnd, meta) {
+        // the pools ARE the tank farm — give each a bolted steel wall
+        for (const wt of L.water) if (!wt.rect) drawTankRim(c, wt.x, wt.y, wt.r);
         drawTank(c, 945, 100, 20, '#3f7fd4');
         drawTank(c, 1030, 112, 17, '#2fa4a8');
         drawTank(c, 118, 770, 18, '#3f7fd4');
@@ -1848,7 +2058,6 @@
       },
     },
     stormwall: {
-      zones: [{ x: 100, y: 85, r: 55 }, { x: 1380, y: 802, r: 55 }, { x: 620, y: 55, r: 40 }],
       paint(c, L, rnd, meta) {
         drawDish(c, 100, 90, 19);
         drawDish(c, 1380, 808, 17);
@@ -1856,7 +2065,6 @@
       },
     },
     longdark: {
-      zones: [{ x: 1150, y: 135, r: 90 }, { x: 300, y: 108, r: 55 }],
       paint(c, L, rnd, meta) {
         // the deep space dock: a gantry with a ship on the pad beside it
         drawLandingPad(c, 300, 110, 46, meta);
@@ -1867,7 +2075,6 @@
 
     /* -- tier 3, Castle Realm -- */
     approach: {
-      zones: [{ x: 400, y: 872, r: 140 }, { x: 155, y: 880, r: 80 }, { x: 645, y: 880, r: 80 }],
       paint(c, L, rnd, meta) {
         // the procession to the gate...
         const cols = ['#c8443c', '#3f7fd4', '#e8b93c'];
@@ -1883,46 +2090,46 @@
       },
     },
     causeway: {
-      zones: [{ x: 450, y: 390, r: 45 }, { x: 545, y: 605, r: 45 }],
       paint(c, L, rnd, meta) {
         const pts = L.paths[0];
         // the causeway crossings, in ruins
         drawBridgeRails(c, pts, 1115, 150, rnd, true);   // x=700 ford
         drawBridgeRails(c, pts, 1985, 150, rnd, true);   // x=1160 ford
         drawBridgeRails(c, pts, 2775, 150, rnd, true);   // x=1560 ford
-        // what fell off it
-        drawArches(c, 415, 395, 15, 2, true);
-        brickBit(c, 560, 600, 13, 8, '#b9a88a');
-        brickBit(c, 520, 618, 11, 7, '#9aa4ae');
+        // the span that did not survive, standing clear of the road
+        drawArches(c, 360, 296, 20, 3, true);
+        brickBit(c, 560, 622, 13, 8, '#b9a88a');
+        brickBit(c, 522, 638, 11, 7, '#9aa4ae');
         drawFloe(c, 610, 495, 14, rnd);
       },
     },
     trench: {
-      zones: [{ x: 660, y: 660, r: 120 }],
       paint(c, L, rnd, meta) {
         // the enormous thing in the water is a drowned keep
-        drawCastleTower(c, 660, 700, 26, { glow: '#6f9ce8' });
-        drawCastleTower(c, 590, 645, 15, {});
-        drawCastleTower(c, 736, 650, 15, {});
-        drawCurtainWall(c, 588, 668, 738, 672, 13);
+        drawCurtainWall(c, 556, 690, 772, 694, 20);
+        drawCastleTower(c, 572, 706, 24, {});
+        drawCastleTower(c, 764, 710, 24, {});
+        drawCastleTower(c, 664, 726, 40, { glow: '#6f9ce8' });
       },
     },
     obsidian: {
-      zones: [{ x: 760, y: 82, r: 110 }, { x: 1545, y: 128, r: 60 }],
       paint(c, L, rnd, meta) {
-        // the Black Keep on its ridge
-        drawCurtainWall(c, 620, 92, 900, 92, 17, true);
-        drawCastleTower(c, 640, 104, 21, { dark: true, glow: '#8fb4ff' });
-        drawCastleTower(c, 760, 112, 27, { dark: true, glow: '#8fb4ff' });
-        drawCastleTower(c, 880, 104, 21, { dark: true, glow: '#8fb4ff' });
+        /* The keep wall runs ACROSS the top track and stops either side of
+           it: the gap the pack pours through is the breach the tagline
+           promises, instead of a strip of dark-on-dark along the edge. */
+        drawCurtainWall(c, 786, 40, 786, 152, 34, true);
+        drawCurtainWall(c, 786, 256, 786, 400, 34, true);
+        drawCastleTower(c, 762, 176, 28, { dark: true, glow: '#8fb4ff' });
+        drawCastleTower(c, 762, 300, 28, { dark: true, glow: '#8fb4ff' });
+        drawCastleTower(c, 762, 424, 22, { dark: true });
+        // what came out of the breach, spilled across the lane
+        brickBit(c, 706, 212, 17, 10, '#6b6478');
+        brickBit(c, 836, 224, 15, 9, '#6b6478');
+        brickBit(c, 742, 236, 13, 8, '#8a8298');
         drawCastleTower(c, 1545, 138, 18, { dark: true, glow: '#8fb4ff' });
       },
     },
     cathedral: {
-      zones: [
-        { x: 700, y: 255, r: 45 }, { x: 960, y: 255, r: 45 },
-        { x: 700, y: 672, r: 45 }, { x: 960, y: 672, r: 45 },
-      ],
       paint(c, L, rnd, meta) {
         // the colonnade of the roofless great hall, flanking the pool
         drawColumn(c, 700, 258, 15); drawColumn(c, 960, 258, 15);
@@ -1932,7 +2139,6 @@
       },
     },
     maelstrom: {
-      zones: [{ x: 745, y: 320, r: 65 }, { x: 838, y: 348, r: 55 }],
       paint(c, L, rnd, meta) {
         // the mill: house on the bank, wheel turning in the race. The wheel
         // is baked stopped so thumbnails have it; in battle the animated one
@@ -1944,7 +2150,6 @@
       },
     },
     icefall: {
-      zones: [{ x: 235, y: 88, r: 120 }, { x: 935, y: 85, r: 100 }, { x: 500, y: 775, r: 100 }],
       paint(c, L, rnd, meta) {
         // the aqueduct, in three stranded runs
         drawArches(c, 150, 95, 21, 3, false);
@@ -1953,14 +2158,12 @@
       },
     },
     blackice: {
-      zones: [{ x: 450, y: 62, r: 45 }, { x: 1500, y: 598, r: 45 }],
       paint(c, L, rnd, meta) {
         drawObelisk(c, 450, 68, 16, '#5f92e2');
         drawObelisk(c, 1500, 605, 16, '#5f92e2');
       },
     },
     throne: {
-      zones: [{ x: 855, y: 588, r: 90 }, { x: 700, y: 302, r: 45 }, { x: 1000, y: 302, r: 45 }],
       paint(c, L, rnd, meta) {
         drawThrone(c, 855, 570, 24);          // the old seat itself
         drawColumn(c, 700, 305, 14); drawColumn(c, 1000, 305, 14);
@@ -1968,7 +2171,6 @@
       },
     },
     worldsend: {
-      zones: [{ x: 1050, y: 95, r: 150 }, { x: 330, y: 855, r: 50 }, { x: 470, y: 855, r: 50 }],
       paint(c, L, rnd, meta) {
         // the Last Wall, and fire beside the door it guards
         drawCurtainWall(c, 880, 100, 1230, 104, 20);
@@ -2093,17 +2295,25 @@
        two battlefields — the point is that the board's namesake moves. */
     for (let i = 0; i < (meta.fountains || []).length; i++) {
       const f = meta.fountains[i];
-      // droplets rising off the pedestal basin and falling back
-      ctx.fillStyle = 'rgba(235,248,255,0.75)';
+      /* Droplets thrown up from the spout and falling back. `f.s` is the
+         basin radius, so the jet is sized as a fraction of it — the spray
+         belongs to the middle tier, not to the whole pool. */
+      const j = f.s * 0.42;
+      ctx.fillStyle = 'rgba(235,248,255,0.8)';
       ctx.beginPath();
-      for (let d = 0; d < 6; d++) {
-        const u = (t * 0.55 + d / 6) % 1;
-        const sx = Math.sin(d * 2.4 + 1) * f.s * 0.5 * u;
-        const dy = -f.s * 1.05 * u + f.s * 1.35 * u * u;
-        ctx.moveTo(f.x + sx + 1.5, f.y + dy - f.s * 0.35);
-        ctx.arc(f.x + sx, f.y + dy - f.s * 0.35, 1.5 + (1 - u), 0, TAU);
+      for (let d = 0; d < 10; d++) {
+        const u = (t * 0.7 + d / 10) % 1;
+        const sx = Math.sin(d * 2.4 + 1) * j * 0.62 * u;
+        const dy = -j * 1.0 * u + j * 1.3 * u * u;
+        const r = 1.6 + (1 - u) * 1.6;
+        ctx.moveTo(f.x + sx + r, f.y + dy);
+        ctx.arc(f.x + sx, f.y + dy, r, 0, TAU);
       }
       ctx.fill();
+      // and the ring the falling water makes on the tier below
+      ctx.strokeStyle = `rgba(255,255,255,${0.16 + 0.12 * Math.sin(t * 3 + i)})`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.s * (0.34 + 0.06 * ((t * 0.5 + i) % 1)), 0, TAU); ctx.stroke();
       const tw = (Math.sin(t * 2.2 + i) + 1) / 2;
       ctx.fillStyle = `rgba(255,255,255,${0.2 + tw * 0.35})`;
       ctx.beginPath();
@@ -2238,18 +2448,55 @@
       return;
     }
     if (b.kind === 'wreck') {
-      ctx.rotate(-0.25);
-      ctx.fillStyle = '#6b4f35';
+      /* A hull up on timber blocks, not a sailboat sitting on grass. Every
+         wreck blocker in the game stands on dry land — that is what a no-build
+         obstacle is — so it was drawn afloat in a field on five battlefields.
+         Propped in a cradle, the same shape reads as a boat out of the water,
+         which is exactly what a dockyard looks like. */
+      ctx.restore();
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      propShadow(ctx, 0, b.r * 0.5, b.r * 1.1);
+      // the cradle it rests in
+      ctx.fillStyle = '#5d4a38';
+      for (const bx of [-b.r * 0.55, b.r * 0.5]) ctx.fillRect(bx - b.r * 0.1, -b.r * 0.06, b.r * 0.2, b.r * 0.5);
+      ctx.rotate(-0.12);
+      // hull, keel down, seen from the side the way a cradled boat is
+      ctx.fillStyle = '#7d5f42';
       ctx.beginPath();
-      ctx.moveTo(-b.r, 0); ctx.quadraticCurveTo(0, b.r * 0.9, b.r, 0);
-      ctx.lineTo(b.r * 0.75, -b.r * 0.45); ctx.lineTo(-b.r * 0.75, -b.r * 0.45); ctx.closePath(); ctx.fill();
+      ctx.moveTo(-b.r, -b.r * 0.42); ctx.quadraticCurveTo(0, b.r * 0.62, b.r, -b.r * 0.42);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#9a7550';
+      ctx.beginPath();
+      ctx.moveTo(-b.r, -b.r * 0.42); ctx.quadraticCurveTo(0, b.r * 0.2, b.r, -b.r * 0.42);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#4f3b26'; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(-b.r, -b.r * 0.42); ctx.quadraticCurveTo(0, b.r * 0.62, b.r, -b.r * 0.42);
+      ctx.closePath(); ctx.stroke();
+      // planking, a red boot stripe, and the ribs showing where she opened up
+      ctx.strokeStyle = 'rgba(70,50,30,0.5)'; ctx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(-b.r * (1 - i * 0.13), -b.r * 0.42 + i * b.r * 0.12);
+        ctx.quadraticCurveTo(0, b.r * (0.5 - i * 0.1), b.r * (1 - i * 0.13), -b.r * 0.42 + i * b.r * 0.12);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#a03830';
+      ctx.fillRect(-b.r * 0.94, -b.r * 0.46, b.r * 1.88, b.r * 0.14);
+      ctx.fillStyle = '#c9b9a2'; ctx.fillRect(-b.r * 0.9, -b.r * 0.6, b.r * 1.8, b.r * 0.16);
+      // the broken mast, snapped off short
       ctx.fillStyle = '#57402b';
-      ctx.fillRect(-4, -b.r * 1.3, 5, b.r * 0.9);
-      ctx.fillStyle = '#c9b9a2';
-      ctx.beginPath(); ctx.moveTo(1, -b.r * 1.3); ctx.lineTo(b.r * 0.7, -b.r * 0.8); ctx.lineTo(1, -b.r * 0.6); ctx.closePath(); ctx.fill();
+      ctx.fillRect(-b.r * 0.06, -b.r * 1.15, b.r * 0.14, b.r * 0.58);
+      ctx.fillStyle = '#4a3624';
+      ctx.beginPath();
+      ctx.moveTo(b.r * 0.08, -b.r * 1.15); ctx.lineTo(b.r * 0.5, -b.r * 1.34); ctx.lineTo(b.r * 0.16, -b.r * 0.98);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+      return;
     } else if (b.kind === 'crack') {
       ctx.restore();
-      drawCrackedIce(ctx, b.x, b.y, b.r, mulberry32(b.x * 31 + b.y * 7));
+      drawPlateGap(ctx, b.x, b.y, b.r, mulberry32(b.x * 31 + b.y * 7));
       return;
     } else if (b.kind === 'glacier') {
       ctx.restore();
@@ -2263,53 +2510,58 @@
     ctx.restore();
   }
 
-  /* Cracked ice: a dark fracture pool with plates tilted out of it. Reads as
-     "you cannot stand here" without looking like another boulder. */
-  function drawCrackedIce(c, x, y, r, rnd) {
+  /* A hole in the baseplate. This was a cracked-ice pool with white fracture
+     lines scribbled across it — a snow-game leftover that, on a green brick
+     plate, read as a rendering fault rather than a place. Five separate
+     battlefields carried one.
+
+     What a missing floor actually looks like in a brick build: the plate
+     simply is not there. So this cuts a RECTANGULAR bite snapped to the stud
+     grid, shows the dark underside below, gives the surviving plate a lit
+     top edge and a shadowed inner wall, and tips a couple of loose plates in.
+     Square, because bricks break along their seams, and the squareness is
+     what says "assembled" instead of "smudge". */
+  function drawPlateGap(c, x, y, r, rnd) {
+    const P = 32;                                   // the baseplate stud pitch
+    const gw = Math.max(2, Math.round(r * 1.8 / P)) * P;
+    const gh = Math.max(2, Math.round(r * 1.5 / P)) * P;
+    const x0 = Math.round((x - gw / 2) / P) * P, y0 = Math.round((y - gh / 2) / P) * P;
+
     c.save();
-    // the hole itself
-    const g = c.createRadialGradient(x, y, r * 0.15, x, y, r);
-    g.addColorStop(0, 'rgba(16,42,74,0.85)');
-    g.addColorStop(0.65, 'rgba(30,72,116,0.6)');
-    g.addColorStop(1, 'rgba(120,170,210,0.12)');
-    c.fillStyle = g;
-    c.beginPath();
-    const n = 9;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * TAU;
-      const rr = r * (0.72 + rnd() * 0.34);
-      const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr * 0.82;
-      i ? c.lineTo(px, py) : c.moveTo(px, py);
+    // the void under the board
+    c.fillStyle = '#10151f';
+    c.fillRect(x0, y0, gw, gh);
+    // the inner wall of the plate, thicker on the sunward sides
+    c.fillStyle = 'rgba(46,56,72,0.95)';
+    c.fillRect(x0, y0, gw, 7);
+    c.fillRect(x0, y0, 5, gh);
+    c.fillStyle = 'rgba(24,30,42,0.9)';
+    c.fillRect(x0, y0 + gh - 4, gw, 4);
+    c.fillRect(x0 + gw - 3, y0, 3, gh);
+    // the lit lip where the surviving plate stops
+    c.strokeStyle = 'rgba(255,255,255,0.34)'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x0, y0 + gh); c.lineTo(x0, y0); c.lineTo(x0 + gw, y0); c.stroke();
+    c.strokeStyle = 'rgba(12,18,28,0.5)'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x0 + gw, y0); c.lineTo(x0 + gw, y0 + gh); c.lineTo(x0, y0 + gh); c.stroke();
+
+    // a stud or two clinging to the broken edge, and plates fallen in
+    c.fillStyle = 'rgba(255,255,255,0.16)';
+    for (let gx = x0 + P / 2; gx < x0 + gw; gx += P) {
+      if (rnd() > 0.55) continue;
+      c.beginPath(); c.arc(gx, y0 + 3, 6, Math.PI, TAU); c.fill();
     }
-    c.closePath(); c.fill();
-    // fracture lines radiating out
-    c.strokeStyle = 'rgba(226,240,252,0.55)';
-    c.lineWidth = 1.3;
-    for (let i = 0; i < 6; i++) {
-      const a = rnd() * TAU;
-      c.beginPath();
-      c.moveTo(x + Math.cos(a) * r * 0.3, y + Math.sin(a) * r * 0.25);
-      const mx = x + Math.cos(a + 0.3) * r * 0.8, my = y + Math.sin(a + 0.3) * r * 0.65;
-      c.lineTo(mx, my);
-      c.lineTo(x + Math.cos(a - 0.2) * r * 1.25, y + Math.sin(a - 0.2) * r * 1.0);
-      c.stroke();
-    }
-    // plates prised up around the rim, where the board has come apart
-    for (let i = 0; i < 4; i++) {
-      const a = rnd() * TAU, rr = r * (0.72 + rnd() * 0.3);
-      const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr * 0.82;
-      const s = r * (0.26 + rnd() * 0.2);
-      c.fillStyle = ['#9aa4ae', '#c8443c', '#3f7fd4'][(rnd() * 3) | 0];
-      c.strokeStyle = 'rgba(40,54,70,0.8)'; c.lineWidth = 1.2;
-      c.beginPath();
-      c.moveTo(px - s, py); c.lineTo(px - s * 0.3, py - s * 0.75);
-      c.lineTo(px + s * 0.9, py - s * 0.35); c.lineTo(px + s * 0.4, py + s * 0.4);
-      c.closePath(); c.fill(); c.stroke();
-      c.fillStyle = 'rgba(255,255,255,0.35)';
-      c.beginPath();
-      c.moveTo(px - s, py); c.lineTo(px - s * 0.3, py - s * 0.75);
-      c.lineTo(px + s * 0.2, py - s * 0.52); c.lineTo(px - s * 0.5, py - s * 0.16);
-      c.closePath(); c.fill();
+    const cols = ['#9aa4ae', '#c8443c', '#3f7fd4', '#e8b93c'];
+    for (let i = 0; i < 3; i++) {
+      const px = x0 + 10 + rnd() * (gw - 20), py = y0 + 10 + rnd() * (gh - 20);
+      c.save();
+      c.translate(px, py); c.rotate((rnd() - 0.5) * 1.6);
+      c.globalAlpha = 0.5 + rnd() * 0.3;
+      const bw = 9 + rnd() * 9;
+      c.fillStyle = cols[(rnd() * cols.length) | 0];
+      c.fillRect(-bw / 2, -3.5, bw, 7);
+      c.fillStyle = 'rgba(255,255,255,0.28)';
+      c.fillRect(-bw / 2, -3.5, bw, 2.2);
+      c.restore();
     }
     c.restore();
   }
