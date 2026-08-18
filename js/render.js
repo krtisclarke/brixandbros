@@ -321,11 +321,15 @@
         : (dk ? 'rgba(6,12,34,0.16)' : 'rgba(30,48,74,0.12)');
       c.fillRect(px, py, wide, SEAM);
     }
-    // and two warm-tinted plates, because real boards never come colour-matched
+    /* Two odd-coloured plates, because real boards never come colour-matched.
+       The warm tint is skipped on the dark maps: a butterscotch square on
+       black stone doesn't read as a mismatched plate, it reads as a board
+       from a different set. Those get a cool tint or nothing. */
     for (let i = 0; i < 2; i++) {
       const px = Math.floor(rnd() * (G.W / SEAM)) * SEAM;
       const py = Math.floor(rnd() * (G.H / SEAM)) * SEAM;
-      c.fillStyle = rnd() > 0.5 ? 'rgba(232,185,60,0.10)' : 'rgba(120,180,255,0.09)';
+      c.fillStyle = dk ? 'rgba(120,150,235,0.07)'
+        : (rnd() > 0.5 ? 'rgba(232,185,60,0.10)' : 'rgba(120,180,255,0.09)');
       c.fillRect(px, py, SEAM, SEAM);
     }
 
@@ -1432,9 +1436,10 @@
   // dais, gold seat, red velvet — the chair the whole tier is marching on
   function drawThrone(c, x, y, s) {
     // red carpet running toward the seat, gold-edged, printed flat
-    c.fillStyle = 'rgba(160,44,40,0.55)'; c.fillRect(x - s * 0.55, y, s * 1.1, s * 2.6);
+    const carpet = s * 1.7;   // stops short of the pool below the dais
+    c.fillStyle = 'rgba(160,44,40,0.55)'; c.fillRect(x - s * 0.55, y, s * 1.1, carpet);
     c.strokeStyle = 'rgba(232,185,60,0.7)'; c.lineWidth = 2;
-    c.strokeRect(x - s * 0.55, y, s * 1.1, s * 2.6);
+    c.strokeRect(x - s * 0.55, y, s * 1.1, carpet);
     // two stepped dais plates, studs along the leading edge
     brickBlock(c, x, y + s * 0.4, s * 2.6, s * 0.34, '#b4bec8', 5);
     brickBlock(c, x, y + s * 0.08, s * 2.0, s * 0.3, '#d6d9dc', 4);
@@ -1898,23 +1903,65 @@
     c.fillRect(x - s * 0.2, y - s * 0.32, s * 0.4, s * 0.64);
   }
 
+  /* A city block seen from above: roof, plant, and a lit face on the two
+     sunward sides so it has height. Tier 1 is called Brick City and had no
+     buildings taller than a cottage anywhere on it. */
+  function drawTowerBlock(c, x, y, w, h, col) {
+    col = col || '#b9563f';
+    c.fillStyle = 'rgba(25,42,62,0.22)';
+    c.fillRect(x - w / 2 + 7, y - h / 2 + 9, w, h);
+    c.fillStyle = shade(col, -30); c.fillRect(x - w / 2, y - h / 2, w, h);
+    c.fillStyle = col; c.fillRect(x - w / 2, y - h / 2, w * 0.82, h * 0.84);
+    c.strokeStyle = shade(col, -58); c.lineWidth = 1.6;
+    c.strokeRect(x - w / 2, y - h / 2, w, h);
+    // window rows, printed on the roof face the way a top-down build shows them
+    c.fillStyle = 'rgba(150,205,240,0.75)';
+    for (let wy = y - h / 2 + 12; wy < y + h / 2 - 10; wy += 17) {
+      for (let wx = x - w / 2 + 11; wx < x + w / 2 - 12; wx += 16) c.fillRect(wx, wy, 8, 8);
+    }
+    // the roof itself, inset, with its furniture
+    c.fillStyle = shade(col, -46);
+    c.fillRect(x - w * 0.3, y - h * 0.3, w * 0.6, h * 0.6);
+    c.fillStyle = shade(col, -18);
+    c.fillRect(x - w * 0.3, y - h * 0.3, w * 0.6, h * 0.12);
+    c.strokeStyle = shade(col, -62); c.lineWidth = 1.2;
+    c.strokeRect(x - w * 0.3, y - h * 0.3, w * 0.6, h * 0.6);
+    c.fillStyle = '#8b959f';
+    c.fillRect(x - w * 0.16, y - h * 0.14, w * 0.16, h * 0.16);
+    c.fillStyle = '#c8443c';
+    c.beginPath(); c.arc(x + w * 0.18, y + h * 0.16, 3.4, 0, TAU); c.fill();
+    // studs along the parapet
+    c.fillStyle = shade(col, 26);
+    for (let sx2 = x - w / 2 + 9; sx2 < x + w / 2 - 6; sx2 += 18) {
+      c.beginPath(); c.ellipse(sx2, y - h / 2 + 5, 5, 2.6, 0, 0, TAU); c.fill();
+    }
+  }
+
   const DECOS = {
     /* -- tier 1, Brick City -- */
     shores: {
       paint(c, L, rnd, meta) {
-        drawHouse(c, 760, 710, 24, rnd);
-        drawHouse(c, 890, 686, 20, rnd);
-        drawTuft(c, 690, 716, 7, rnd); drawTuft(c, 950, 700, 6, rnd);
+        // a small yard inside the upper bend, where the eye actually goes
+        drawHouse(c, 455, 322, 27, rnd);
+        drawHouse(c, 570, 318, 24, rnd);
+        drawTuft(c, 512, 330, 7, rnd); drawTuft(c, 625, 326, 7, rnd);
+        drawHouse(c, 790, 706, 24, rnd);
+        drawHouse(c, 905, 686, 20, rnd);
+        drawTuft(c, 862, 712, 6, rnd);
       },
     },
     pass: {
       paint(c, L, rnd, meta) {
-        // Main Street's shops line the kerb on both margins
+        // the tower blocks the switchbacks run between
+        drawTowerBlock(c, 400, 205, 150, 78, '#b9563f');
+        drawTowerBlock(c, 800, 205, 138, 74, '#4a6f9c');
+        drawTowerBlock(c, 430, 395, 146, 74, '#4a6f9c');
+        drawTowerBlock(c, 850, 395, 152, 76, '#c8a13c');
+        drawTowerBlock(c, 620, 585, 158, 74, '#b9563f');
+        // and the shops along the kerb
         drawHouse(c, 1205, 250, 22, rnd);
         drawHouse(c, 1200, 425, 24, rnd);
-        drawHouse(c, 1208, 600, 21, rnd);
         drawHouse(c, 62, 430, 20, rnd);
-        drawHouse(c, 58, 590, 22, rnd);
       },
     },
     river: {
@@ -1926,6 +1973,12 @@
         drawBridgeRails(c, pts, 1895, 170, rnd);   // x=1150 crossing
         drawBoat(c, 300, 412, 13, rnd);
         drawBoat(c, 680, 418, 11, rnd);
+        // the terrace along the north bank — the Street half of Canal Street
+        drawHouse(c, 250, 232, 26, rnd);
+        drawHouse(c, 350, 236, 24, rnd);
+        drawHouse(c, 640, 230, 27, rnd);
+        drawHouse(c, 742, 234, 25, rnd);
+        drawTowerBlock(c, 980, 640, 140, 74, '#4a6f9c');
       },
     },
     alley: {
@@ -1948,11 +2001,11 @@
       },
       paint(c, L, rnd, meta) {
         // a second row of houses along the top of the loop's inner ground
-        drawHouse(c, 410, 344, 25, rnd);
-        drawHouse(c, 640, 350, 27, rnd);
-        drawHouse(c, 865, 342, 24, rnd);
+        drawHouse(c, 410, 336, 25, rnd);
+        drawHouse(c, 640, 340, 27, rnd);
+        drawHouse(c, 865, 334, 24, rnd);
         drawSnowman(c, 640, 96, 15, rnd);   // the statue in the square
-        drawTuft(c, 545, 352, 7, rnd); drawTuft(c, 745, 350, 7, rnd);
+        drawTuft(c, 545, 344, 7, rnd); drawTuft(c, 745, 342, 7, rnd);
         drawTuft(c, 585, 108, 7, rnd); drawTuft(c, 697, 104, 7, rnd);
       },
     },
@@ -1968,6 +2021,21 @@
       },
     },
     ridge: {
+      /* The square itself, printed under the track: a town square is paved.
+         The fountain was standing in a meadow. */
+      under(c, L, rnd, meta) {
+        c.save();
+        c.fillStyle = 'rgba(150,150,142,0.5)';
+        c.beginPath();
+        c.moveTo(255, 400); c.lineTo(452, 168); c.lineTo(828, 168);
+        c.lineTo(1025, 400); c.lineTo(828, 632); c.lineTo(452, 632);
+        c.closePath(); c.fill();
+        c.clip();
+        c.strokeStyle = 'rgba(70,74,80,0.22)'; c.lineWidth = 1.2;
+        for (let x = 256; x < 1030; x += 48) { c.beginPath(); c.moveTo(x, 150); c.lineTo(x, 650); c.stroke(); }
+        for (let y = 168; y < 640; y += 48) { c.beginPath(); c.moveTo(250, y); c.lineTo(1030, y); c.stroke(); }
+        c.restore();
+      },
       paint(c, L, rnd, meta) {
         drawFountain(c, 640, 400, 105, meta); // the pool IS the fountain here
         drawTuft(c, 570, 262, 7, rnd); drawTuft(c, 712, 258, 7, rnd);
@@ -2018,8 +2086,12 @@
         return true;
       },
       paint(c, L, rnd, meta) {
-        drawCityHall(c, 1120, 118, 26);       // city hall itself, flags flying
-        drawTuft(c, 1000, 125, 7, rnd); drawTuft(c, 1245, 120, 7, rnd);
+        /* City Hall stands BEHIND the base, at the end of the last stretch —
+           it is the thing the whole tier is defending, so it belongs where
+           the player is looking, at the size of a civic building. */
+        drawCityHall(c, 660, 768, 40);
+        drawTuft(c, 452, 800, 8, rnd); drawTuft(c, 872, 796, 8, rnd);
+        drawTowerBlock(c, 375, 225, 140, 74, '#4a6f9c');   // clear of the NW pool and both lanes
       },
     },
 
@@ -2046,7 +2118,7 @@
         drawBridgeRails(c, pts, 2635, 170, rnd);   // x=1400 over the south run
         drawTank(c, 860, 500, 20, '#2fa4a8');
         drawTank(c, 925, 512, 16, '#3f7fd4');
-        drawPipeRun(c, 120, 330, 330, 330, 13);
+        drawPipeRun(c, 120, 348, 320, 348, 13);
       },
     },
     shelf: {
@@ -2057,7 +2129,7 @@
         drawContainers(c, 545, 622, 34, rnd);
         drawContainers(c, 760, 628, 34, rnd);
         drawContainers(c, 968, 620, 32, rnd);
-        drawGantry(c, 1040, 648, 32, -1);
+        drawGantry(c, 1006, 648, 32, -1);
         drawContainers(c, 160, 620, 18, rnd);
         drawContainers(c, 1250, 700, 19, rnd);
       },
@@ -2073,10 +2145,10 @@
       },
       paint(c, L, rnd, meta) {
         // clear of the western pool (its right edge is x=195) and of the bay row
-        drawHangar(c, 312, 350, 58, rnd);      // the big bay in the coil's eye
+        drawHangar(c, 312, 342, 58, rnd);      // the big bay in the coil's eye
         drawHangar(c, 210, 838, 46, rnd);
         drawWindsock(c, 1000, 306, 16);
-        drawWindsock(c, 424, 348, 15);
+        drawWindsock(c, 424, 340, 15);
       },
     },
     basin: {
@@ -2146,9 +2218,10 @@
         }
         // ...and the castle wall it ends at
         drawCurtainWall(c, 30, 880, 260, 880, 22);
-        drawCurtainWall(c, 545, 880, 770, 880, 22);
+        drawCurtainWall(c, 545, 880, 782, 880, 22);
         drawCastleTower(c, 280, 892, 19, { roof: '#3f7fd4' });
         drawCastleTower(c, 525, 892, 19, { roof: '#3f7fd4' });
+        drawCastleTower(c, 792, 892, 19, { roof: '#c8443c' });   // the wall has to END somewhere
       },
     },
     causeway: {
@@ -2158,11 +2231,13 @@
         drawBridgeRails(c, pts, 1115, 150, rnd, true);   // x=700 ford
         drawBridgeRails(c, pts, 1985, 150, rnd, true);   // x=1160 ford
         drawBridgeRails(c, pts, 2775, 150, rnd, true);   // x=1560 ford
-        // the span that did not survive, standing clear of the road
-        drawArches(c, 360, 296, 20, 3, true);
-        brickBit(c, 560, 622, 13, 8, '#b9a88a');
-        brickBit(c, 522, 638, 11, 7, '#9aa4ae');
-        drawFloe(c, 610, 495, 14, rnd);
+        /* The span that did not survive, standing IN the ditch it used to
+           cross — which is the only place a broken bridge means anything. */
+        drawArches(c, 800, 545, 40, 5, true);
+        brickBit(c, 1010, 512, 17, 10, '#b9a88a');
+        brickBit(c, 1048, 528, 14, 9, '#9aa4ae');
+        brickBit(c, 985, 544, 12, 8, '#b9a88a');
+        drawFloe(c, 1075, 500, 15, rnd);
       },
     },
     trench: {
@@ -2193,11 +2268,16 @@
     },
     cathedral: {
       paint(c, L, rnd, meta) {
-        // the colonnade of the roofless great hall, flanking the pool
-        drawColumn(c, 700, 258, 15); drawColumn(c, 960, 258, 15);
-        drawColumn(c, 700, 675, 15); drawColumn(c, 960, 675, 15);
-        drawBanner(c, 618, 250, 12, '#c8443c'); drawBanner(c, 1042, 250, 12, '#3f7fd4');
-        drawBanner(c, 618, 668, 12, '#3f7fd4'); drawBanner(c, 1042, 668, 12, '#c8443c');
+        /* Two colonnades running the hall's long axis, either side of the
+           great pool — a hall is a room, and a room needs walls you can
+           follow. Four 15px columns in a 700px hexagon was a garden. */
+        for (let i = 0; i < 5; i++) {
+          const cx = 660 + i * 92;
+          drawColumn(c, cx, 262, 26);
+          drawColumn(c, cx, 668, 26);
+        }
+        drawBanner(c, 596, 250, 17, '#c8443c'); drawBanner(c, 1128, 254, 17, '#3f7fd4');
+        drawBanner(c, 596, 664, 17, '#3f7fd4'); drawBanner(c, 1128, 668, 17, '#c8443c');
       },
     },
     maelstrom: {
@@ -2205,10 +2285,10 @@
         // the mill: house on the bank, wheel turning in the race. The wheel
         // is baked stopped so thumbnails have it; in battle the animated one
         // draws over this exact spot and it turns.
-        drawHouse(c, 845, 352, 21, rnd);
-        brickBlock(c, 742, 330, 10, 26, '#5d4a38', 0);
-        drawStaticWheel(c, 728, 312, 34);
-        if (meta) meta.wheels.push({ x: 728, y: 312, r: 34 });
+        drawHouse(c, 880, 330, 34, rnd);
+        brickBlock(c, 790, 330, 14, 40, '#5d4a38', 0);
+        drawStaticWheel(c, 748, 300, 68);
+        if (meta) meta.wheels.push({ x: 748, y: 300, r: 68 });
       },
     },
     icefall: {
@@ -2223,8 +2303,17 @@
     },
     blackice: {
       paint(c, L, rnd, meta) {
-        drawObelisk(c, 450, 68, 16, '#5f92e2');
-        drawObelisk(c, 1500, 605, 16, '#5f92e2');
+        /* Black stone walls running WITH the lanes, so the three packs read
+           as picking their way through a maze rather than across a car park.
+           Hard against the lane edges, never across them. */
+        drawCurtainWall(c, 300, 236, 720, 236, 22, true);
+        drawCurtainWall(c, 980, 236, 1300, 236, 22, true);
+        drawCurtainWall(c, 420, 560, 860, 560, 22, true);
+        drawCurtainWall(c, 1000, 745, 1330, 745, 22, true);
+        drawCastleTower(c, 740, 250, 22, { dark: true, glow: '#5f92e2' });
+        drawCastleTower(c, 960, 250, 22, { dark: true, glow: '#5f92e2' });
+        drawObelisk(c, 450, 68, 20, '#5f92e2');
+        drawObelisk(c, 1500, 605, 20, '#5f92e2');
       },
     },
     throne: {
@@ -2631,21 +2720,37 @@
     c.restore();
   }
 
-  /* A built brick wall. Was a glacier slab, and it does the same job: drawn
-     tall and squared off so a chain of them reads as one wall running across
-     the board, with the courses offset like real brickwork. */
+  /* One SLICE of a built brick wall.
+
+     The obstacle generator lays a wall as a chain of lumps stepping r*0.8
+     apart — close together on purpose, so shots cannot thread between the
+     sight circles. This function used to draw a full three-brick-wide block
+     at every one of those lumps, so a five-lump wall was five 2r-wide blocks
+     stamped 0.8r apart: they buried each other, their courses never lined up
+     across the seams, and the result read as a grey smear rather than a wall.
+     It was the largest build on some boards.
+
+     So a lump now draws only its own slice — roughly as wide as the step —
+     and consecutive lumps tile into one continuous run. The running bond is
+     keyed off the slice's own world position rather than a loop index, so
+     neighbouring slices alternate their course offset and the brickwork
+     carries across the joins. Gameplay is untouched: the blocker radius, and
+     therefore what it blocks, is exactly what it was. */
   function drawGlacierWall(c, x, y, r, rnd) {
     c.save();
-    propShadow(c, x + r * 0.15, y + r * 0.5, r * 0.95);
+    propShadow(c, x + r * 0.15, y + r * 0.5, r * 0.72);
     const cols = ['#9aa4ae', '#8b959f', '#a6b0ba'];
     const courses = 4;
     const ch = r * 0.42;
+    const bw = r * 0.92;                       // ≈ the generator's r*0.8 step
+    // running bond, alternating on the slice's own position in the world
+    const band = Math.round(x / (r * 0.8) + y / (r * 0.8));
     for (let i = 0; i < courses; i++) {
       const cy = y + r * 0.5 - i * ch;
-      const off = (i % 2) * r * 0.34;               // running bond
+      const off = ((i + band) % 2) * bw * 0.5;
       for (let k = -1; k <= 1; k++) {
-        const bx = x + k * r * 0.68 + off - r * 0.17;
-        const bw = r * 0.66;
+        const bx = x + k * bw + off - bw * 0.25;
+        if (Math.abs(bx - x) > bw * 0.62) continue;   // keep to this slice
         const col = cols[(rnd() * cols.length) | 0];
         c.fillStyle = shade(col, -34);
         c.fillRect(bx - bw / 2, cy - ch, bw, ch);
@@ -2657,14 +2762,14 @@
         c.strokeRect(bx - bw / 2, cy - ch, bw, ch);
       }
     }
-    // studs along the crest, so it is plainly a wall you could build on
+    // studs along the crest of this slice
     const topY = y + r * 0.5 - courses * ch;
-    for (let k = -2; k <= 2; k++) {
-      const sx = x + k * r * 0.34;
+    for (let k = -1; k <= 1; k++) {
+      const sx = x + k * bw * 0.34;
       c.fillStyle = 'rgba(200,210,220,0.95)';
-      c.beginPath(); c.ellipse(sx, topY - r * 0.06, r * 0.14, r * 0.07, 0, 0, TAU); c.fill();
+      c.beginPath(); c.ellipse(sx, topY - r * 0.06, bw * 0.16, r * 0.07, 0, 0, TAU); c.fill();
       c.strokeStyle = 'rgba(70,80,92,0.8)'; c.lineWidth = 1;
-      c.beginPath(); c.ellipse(sx, topY - r * 0.06, r * 0.14, r * 0.07, 0, 0, TAU); c.stroke();
+      c.beginPath(); c.ellipse(sx, topY - r * 0.06, bw * 0.16, r * 0.07, 0, 0, TAU); c.stroke();
     }
     c.restore();
   }
@@ -5101,13 +5206,22 @@
     G.setDims(level);
     const terr = getTerrain(level, canvas.width);
     ctx.drawImage(terr.canvas, 0, 0, canvas.width, canvas.height);
-    const p0 = level.paths[0];
     const sx = canvas.width / G.W, sy = canvas.height / G.H;
-    ctx.fillStyle = '#d9534f';
-    ctx.beginPath(); ctx.arc(Math.max(5, Math.min(canvas.width - 5, p0[0].x * sx)), Math.max(5, Math.min(canvas.height - 5, p0[0].y * sy)), 3.5, 0, TAU); ctx.fill();
+    const dot = (wx, wy, col) => {
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(Math.max(5, Math.min(canvas.width - 5, wx * sx)),
+        Math.max(5, Math.min(canvas.height - 5, wy * sy)), 3.5, 0, TAU);
+      ctx.fill();
+    };
+    /* A dot per ENTRANCE, not one for the board. Two- and three-gate
+       battlefields were advertising a single way in on the level-select
+       screen, which is the one screen where a player picks a board by
+       reading its shape. */
+    for (const pl of level.paths) dot(pl[0].x, pl[0].y, '#d9534f');
+    const p0 = level.paths[0];
     const pe = p0[p0.length - 1];
-    ctx.fillStyle = '#5fc26e';
-    ctx.beginPath(); ctx.arc(Math.max(5, Math.min(canvas.width - 5, pe.x * sx)), Math.max(5, Math.min(canvas.height - 5, pe.y * sy)), 3.5, 0, TAU); ctx.fill();
+    dot(pe.x, pe.y, '#5fc26e');
     G.W = keepW; G.H = keepH;
   };
 })();
