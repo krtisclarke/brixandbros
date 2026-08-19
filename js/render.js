@@ -33,6 +33,48 @@
     return out;
   }
 
+  /* shade() adds a FLAT amount to every channel. That is fine on the muted
+     palette it was written for, but it destroys a saturated one: bright red is
+     (196,40,28), so knocking 28 off each channel takes green and blue to zero
+     and the "shaded side" of a red brick comes out pure black — which is
+     exactly what the stepped roofs were doing. These two scale instead, so a
+     dark red stays red and a lit red stays red. */
+  /* These take a hex OR an rgb() string, because they get nested: a roof
+     course is mul(roof, 0.92) and then its own shaded cheek is mul(that, 0.79).
+     Parsing only hex meant the nested call returned rgb(NaN,NaN,NaN), canvas
+     silently kept the previous fill, and every other roof course came out
+     wearing the outline colour — the black staircase down the side of every
+     house. */
+  function chan(col) {
+    if (col[0] === '#') {
+      const n = parseInt(col.slice(1), 16);
+      return [n >> 16, (n >> 8) & 0xff, n & 0xff];
+    }
+    const m = col.match(/-?\d+/g);
+    return [+m[0], +m[1], +m[2]];
+  }
+  const mulCache = new Map();
+  function mul(col, f) {
+    const key = col + '*' + f;
+    const hit = mulCache.get(key);
+    if (hit !== undefined) return hit;
+    const [r, g, b] = chan(col);
+    const out = `rgb(${Math.round(r * f)},${Math.round(g * f)},${Math.round(b * f)})`;
+    mulCache.set(key, out);
+    return out;
+  }
+  const litCache = new Map();
+  function lit(col, f) {
+    const key = col + '+' + f;
+    const hit = litCache.get(key);
+    if (hit !== undefined) return hit;
+    const [r, g, b] = chan(col);
+    const m = (v) => Math.round(v + (255 - v) * f);
+    const out = `rgb(${m(r)},${m(g)},${m(b)})`;
+    litCache.set(key, out);
+    return out;
+  }
+
   /* A soft round glow, drawn once and kept. The crystal and torch glows sit at
      fixed positions with fixed radii and only their opacity moves, but each one
      was building a fresh radial gradient every frame — on a cavern level that is
@@ -293,16 +335,27 @@
     for (let x = SEAM; x < G.W; x += SEAM) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, G.H); c.stroke(); }
     for (let y = SEAM; y < G.H; y += SEAM) { c.beginPath(); c.moveTo(0, y); c.lineTo(G.W, y); c.stroke(); }
 
+    /* A stud has to read as a cylinder standing UP off the plate, and that
+       needs four things in this order: the shadow it drops, the wall of the
+       cylinder, a top face offset toward the sun, and a hard specular arc on
+       that face. Drawn as one soft disc — which is what this was — the board
+       looks perforated instead of studded, which was the single thing making
+       the plate read as a texture rather than as a piece. */
     for (let gy = STUD_PITCH / 2; gy < G.H; gy += STUD_PITCH) {
       for (let gx = STUD_PITCH / 2; gx < G.W; gx += STUD_PITCH) {
-        // the shadow the stud casts down-right, then the stud, then its highlight
-        c.fillStyle = dk ? 'rgba(6,10,26,0.42)' : 'rgba(24,38,58,0.20)';
-        c.beginPath(); c.arc(gx + 1.6, gy + 2.0, STUD_R, 0, TAU); c.fill();
-        c.fillStyle = dk ? 'rgba(190,205,240,0.10)' : 'rgba(255,255,255,0.20)';
-        c.beginPath(); c.arc(gx, gy, STUD_R, 0, TAU); c.fill();
-        c.strokeStyle = dk ? 'rgba(210,225,255,0.16)' : 'rgba(255,255,255,0.42)';
+        c.fillStyle = dk ? 'rgba(4,8,22,0.44)' : 'rgba(18,30,46,0.22)';
+        c.beginPath(); c.arc(gx + 1.8, gy + 2.4, STUD_R, 0, TAU); c.fill();
+        c.fillStyle = dk ? 'rgba(8,14,32,0.26)' : 'rgba(26,42,62,0.15)';
+        c.beginPath(); c.arc(gx, gy + 0.8, STUD_R, 0, TAU); c.fill();
+        // a WHISPER of white only — the stud has to stay the plate's colour
+        c.fillStyle = dk ? 'rgba(198,214,250,0.09)' : 'rgba(255,255,255,0.12)';
+        c.beginPath(); c.arc(gx - 0.7, gy - 1.0, STUD_R - 0.5, 0, TAU); c.fill();
+        c.strokeStyle = dk ? 'rgba(226,238,255,0.34)' : 'rgba(255,255,255,0.62)';
         c.lineWidth = 1.4;
-        c.beginPath(); c.arc(gx - 0.4, gy - 0.6, STUD_R - 0.8, Math.PI * 0.85, Math.PI * 1.85); c.stroke();
+        c.beginPath(); c.arc(gx - 0.7, gy - 1.0, STUD_R - 1.5, Math.PI * 0.78, Math.PI * 1.66); c.stroke();
+        c.strokeStyle = dk ? 'rgba(4,8,22,0.34)' : 'rgba(20,34,52,0.26)';
+        c.lineWidth = 1.2;
+        c.beginPath(); c.arc(gx - 0.7, gy - 1.0, STUD_R - 1.0, Math.PI * -0.2, Math.PI * 0.66); c.stroke();
       }
     }
 
@@ -317,8 +370,8 @@
       const py = Math.floor(rnd() * (G.H / SEAM)) * SEAM;
       const wide = SEAM * (1 + (rnd() * 2 | 0));
       c.fillStyle = rnd() > 0.5
-        ? (dk ? 'rgba(200,215,250,0.10)' : 'rgba(255,255,255,0.16)')
-        : (dk ? 'rgba(6,12,34,0.16)' : 'rgba(30,48,74,0.12)');
+        ? (dk ? 'rgba(200,215,250,0.06)' : 'rgba(255,255,255,0.075)')
+        : (dk ? 'rgba(6,12,34,0.09)' : 'rgba(20,38,60,0.06)');
       c.fillRect(px, py, wide, SEAM);
     }
     /* Two odd-coloured plates, because real boards never come colour-matched.
@@ -328,8 +381,8 @@
     for (let i = 0; i < 2; i++) {
       const px = Math.floor(rnd() * (G.W / SEAM)) * SEAM;
       const py = Math.floor(rnd() * (G.H / SEAM)) * SEAM;
-      c.fillStyle = dk ? 'rgba(120,150,235,0.07)'
-        : (rnd() > 0.5 ? 'rgba(232,185,60,0.10)' : 'rgba(120,180,255,0.09)');
+      c.fillStyle = dk ? 'rgba(120,150,235,0.05)'
+        : (rnd() > 0.5 ? 'rgba(232,185,60,0.055)' : 'rgba(120,180,255,0.05)');
       c.fillRect(px, py, SEAM, SEAM);
     }
 
@@ -442,7 +495,7 @@
     c.restore(); // back to device pixels
     c.save();
     c.globalCompositeOperation = 'soft-light';
-    c.globalAlpha = 0.26;
+    c.globalAlpha = 0.13;
     c.fillStyle = c.createPattern(getNoiseTile(), 'repeat');
     c.fillRect(0, 0, w, h);
     c.restore();
@@ -871,6 +924,72 @@
     }
   }
 
+  /* ---------- the brick vocabulary ----------
+     Everything on the board is supposed to look like it was ASSEMBLED, and
+     the reference for that is a real brick build: you can count the pieces,
+     every upward-facing surface carries studs, the colours are saturated
+     primaries rather than muted naturalistic ones, and every edge is hard.
+
+     The props here failed all four. A house was one smooth white box with a
+     triangle on it — no course lines, no studs, nothing to count — and it
+     read as a clip-art cottage sitting on a brick board. These three
+     primitives are the fix: a stud that stands UP, a wall you can count the
+     bricks in, and a block built out of both. */
+  const BRICK = {
+    red: '#C4281C', blue: '#0B5BA8', yellow: '#F0C23C', green: '#4B9F4A',
+    dgreen: '#2C6B34', white: '#F2F3F2', lgrey: '#A3A2A4', dgrey: '#5F6266',
+    black: '#1B2A34', brown: '#7A5230', tan: '#DCC48E', glass: '#9FD2EC',
+  };
+
+  /* A row of studs standing on a top edge. Three parts, and all three have to
+     be there or it reads as a printed dot: the little cylinder wall, its
+     shaded right-hand side, and the lit top face. */
+  function studRow(c, x0, yTop, w, n, col) {
+    const sw = w / n;
+    const rx = Math.min(sw * 0.33, sw * 0.33);
+    const ry = Math.max(1, rx * 0.44);
+    const hh = Math.max(1.7, rx * 0.9);
+    for (let i = 0; i < n; i++) {
+      const sx = x0 + sw * (i + 0.5), ty = yTop - hh;
+      c.fillStyle = mul(col, 0.94);
+      c.fillRect(sx - rx, ty, rx * 2, hh + 0.5);
+      c.fillStyle = mul(col, 0.79);
+      c.fillRect(sx + rx * 0.3, ty, rx * 0.7, hh + 0.5);
+      c.fillStyle = lit(col, 0.3);
+      c.beginPath(); c.ellipse(sx, ty, rx, ry, 0, 0, TAU); c.fill();
+      c.strokeStyle = mul(col, 0.58); c.lineWidth = 0.85;
+      c.beginPath(); c.ellipse(sx, ty, rx, ry, 0, 0, TAU); c.stroke();
+    }
+  }
+
+  /* A wall you can count the bricks in: courses with a lit lip on each, and
+     vertical joints offset course to course the way anyone actually stacks
+     them. This is the single biggest difference between "a build" and "a
+     shape that is the colour of a build". */
+  function brickWall(c, x0, y0, w, h, rows, col) {
+    c.fillStyle = col;
+    c.fillRect(x0, y0, w, h);
+    c.fillStyle = mul(col, 0.86);            // the cheek turned away from the sun
+    c.fillRect(x0 + w * 0.74, y0, w * 0.26, h);
+    const ch = h / rows;
+    const per = Math.max(2, Math.round(w / (ch * 1.6)));
+    const step = w / per;
+    for (let i = 0; i < rows; i++) {
+      const cy = y0 + i * ch;
+      c.fillStyle = lit(col, 0.18);           // every course catches light on top
+      c.fillRect(x0, cy, w, Math.max(0.9, ch * 0.15));
+      c.strokeStyle = mul(col, 0.75); c.lineWidth = 1;
+      if (i) { c.beginPath(); c.moveTo(x0, cy); c.lineTo(x0 + w, cy); c.stroke(); }
+      const off = (i % 2) * step * 0.5;
+      for (let jx = x0 + off + (off ? 0 : step); jx < x0 + w - 1.5; jx += step) {
+        if (jx <= x0 + 1) continue;
+        c.beginPath(); c.moveTo(jx, cy + 1); c.lineTo(jx, cy + ch - 0.5); c.stroke();
+      }
+    }
+    c.strokeStyle = mul(col, 0.54); c.lineWidth = 1.2;
+    c.strokeRect(x0, y0, w, h);
+  }
+
   function propShadow(c, x, y, rx) {
     c.fillStyle = 'rgba(25,42,62,0.10)';
     c.beginPath(); c.ellipse(x + rx * 0.4, y + 2, rx * 1.15, rx * 0.4, 0, 0, TAU); c.fill();
@@ -881,62 +1000,83 @@
      top face, a lit front edge and two studs. Every prop below is built out of
      these, which is the point — the scenery has to look assembled, not grown. */
   function brickBlock(c, x, y, w, h, col, studs) {
-    const top = shade(col, 26), side = shade(col, -34), edge = shade(col, -62);
-    c.fillStyle = side;
-    c.fillRect(x - w / 2, y - h, w, h);
+    const left = x - w / 2, top = y - h;
     c.fillStyle = col;
-    c.fillRect(x - w / 2, y - h, w, h * 0.62);
-    c.fillStyle = top;
-    c.fillRect(x - w / 2, y - h, w, h * 0.22);
-    c.strokeStyle = edge; c.lineWidth = 1.1;
-    c.strokeRect(x - w / 2, y - h, w, h);
-    if (studs !== 0) {
-      const n = studs || 2;
-      for (let i = 0; i < n; i++) {
-        const sx = x - w / 2 + w * ((i + 0.5) / n);
-        c.fillStyle = top;
-        c.beginPath(); c.ellipse(sx, y - h - h * 0.16, w / (n * 2.7), h * 0.16, 0, 0, TAU); c.fill();
-        c.strokeStyle = edge; c.lineWidth = 0.9;
-        c.beginPath(); c.ellipse(sx, y - h - h * 0.16, w / (n * 2.7), h * 0.16, 0, 0, TAU); c.stroke();
+    c.fillRect(left, top, w, h);
+    c.fillStyle = lit(col, 0.21);                        // lit top edge
+    c.fillRect(left, top, w, h * 0.2);
+    c.fillStyle = mul(col, 0.8);                       // shaded right cheek
+    c.fillRect(left + w * 0.75, top, w * 0.25, h);
+    c.fillStyle = mul(col, 0.86);                       // the underside
+    c.fillRect(left, top + h * 0.8, w, h * 0.2);
+    c.strokeStyle = mul(col, 0.54); c.lineWidth = 1.1;
+    c.strokeRect(left, top, w, h);
+    if (studs !== 0) studRow(c, left, top, w, studs || 2, col);
+  }
+
+  /* A brick tree: a stacked brown trunk under three chunky tiers of foliage.
+     The tiers used to be drawn with studs explicitly turned OFF, which is
+     exactly why they read as three dark bars on a stick. Every tier that
+     leaves a shoulder exposed now puts a stud on it. */
+  function drawPine(c, x, y, s0, rnd) {
+    const s = s0 * 1.3;
+    propShadow(c, x, y + s * 0.92, s * 0.76);
+    // brighter greens: the old set went nearly black against the plate
+    const g = [BRICK.green, '#3E8C3F', '#5DAE4E'][(rnd() * 3) | 0];
+    const tw = s * 0.38;
+    brickWall(c, x - tw / 2, y + s * 0.42, tw, s * 0.56, 2, BRICK.brown);
+    for (let i = 0; i < 3; i++) {
+      const fw = s * (1.34 - i * 0.35), fh = s * 0.43;
+      const fy = y + s * 0.46 - (i + 1) * fh;
+      const col = i === 1 ? mul(g, 0.91) : g;
+      c.fillStyle = col; c.fillRect(x - fw / 2, fy, fw, fh);
+      c.fillStyle = lit(col, 0.23); c.fillRect(x - fw / 2, fy, fw, fh * 0.24);
+      c.fillStyle = mul(col, 0.82); c.fillRect(x + fw * 0.23, fy, fw * 0.27, fh);
+      c.strokeStyle = mul(col, 0.58); c.lineWidth = 1.1;
+      c.strokeRect(x - fw / 2, fy, fw, fh);
+      const nextW = s * (1.34 - (i + 1) * 0.35);
+      const sh = (fw - nextW) / 2;
+      if (i < 2 && sh > s * 0.13) {
+        studRow(c, x - fw / 2, fy, sh, 1, col);
+        studRow(c, x + nextW / 2, fy, sh, 1, col);
       }
     }
+    const topW = s * 0.32, topY = y + s * 0.46 - 3 * s * 0.43;
+    studRow(c, x - topW / 2, topY, topW, 1, g);
   }
 
-  // a brick tree: a stacked trunk under three plates of foliage
-  function drawPine(c, x, y, s, rnd) {
-    propShadow(c, x, y + s * 0.9, s * 0.8);
-    const green = ['#2f7c56', '#399165', '#2b6d4c'][(rnd() * 3) | 0];
-    brickBlock(c, x, y + s * 0.95, s * 0.34, s * 0.5, '#7a5535', 1);
+  /* Flowers. These were a thin green stem with a solid circle on top, which
+     is a lollipop — there is no reading of that shape that is not a lollipop.
+     A brick flower is a round plate with a contrasting centre, sitting low in
+     a green plate, so that is what this builds now. */
+  function drawTuft(c, x, y, s0, rnd) {
+    const s = s0 * 1.35;
+    const petals = [BRICK.red, BRICK.yellow, BRICK.white, '#D9629C'];
+    const gw = s * 1.8, gh = s * 0.36;
+    c.fillStyle = BRICK.green; c.fillRect(x - gw / 2, y - gh, gw, gh);
+    c.fillStyle = lit(BRICK.green, 0.23); c.fillRect(x - gw / 2, y - gh, gw, gh * 0.3);
+    c.fillStyle = mul(BRICK.green, 0.8); c.fillRect(x + gw * 0.76, y - gh, gw * 0.24, gh);
+    c.strokeStyle = mul(BRICK.green, 0.6); c.lineWidth = 1;
+    c.strokeRect(x - gw / 2, y - gh, gw, gh);
     for (let i = 0; i < 3; i++) {
-      const w = s * (1.28 - i * 0.34), yy = y + s * 0.5 - i * s * 0.44;
-      brickBlock(c, x, yy, w, s * 0.34, green, 0);
-    }
-    // the topper: one stud standing proud, like a real plate tree
-    c.fillStyle = shade(green, 34);
-    c.beginPath(); c.ellipse(x, y - s * 0.60, s * 0.13, s * 0.07, 0, 0, TAU); c.fill();
-  }
-
-  // brick flowers: a stem plate with a coloured stud on top
-  function drawTuft(c, x, y, s, rnd) {
-    const petals = ['#c8443c', '#e8b93c', '#f2f4f6', '#d96fa8'];
-    for (let i = -1; i <= 1; i++) {
-      const h = s * (1.1 + rnd() * 0.5);
-      const px = x + i * s * 0.62;
-      c.strokeStyle = '#3fae6a'; c.lineWidth = Math.max(1.4, s * 0.16); c.lineCap = 'round';
-      c.beginPath(); c.moveTo(px, y); c.lineTo(px, y - h); c.stroke();
+      const fx = x - gw / 2 + gw * ((i + 0.5) / 3);
       const col = petals[(rnd() * petals.length) | 0];
+      const rx = s * 0.25, ry = rx * 0.46, hh = s * 0.28, ty = y - gh - hh;
+      c.fillStyle = mul(col, 0.9); c.fillRect(fx - rx, ty, rx * 2, hh + 0.5);
+      c.fillStyle = mul(col, 0.78); c.fillRect(fx + rx * 0.3, ty, rx * 0.7, hh + 0.5);
       c.fillStyle = col;
-      c.beginPath(); c.arc(px, y - h, s * 0.34, 0, TAU); c.fill();
-      c.strokeStyle = shade(col, -50); c.lineWidth = 1; c.stroke();
-      c.fillStyle = shade(col, 40);
-      c.beginPath(); c.arc(px, y - h - s * 0.06, s * 0.14, 0, TAU); c.fill();
+      c.beginPath(); c.ellipse(fx, ty, rx, ry, 0, 0, TAU); c.fill();
+      c.strokeStyle = mul(col, 0.58); c.lineWidth = 0.9;
+      c.beginPath(); c.ellipse(fx, ty, rx, ry, 0, 0, TAU); c.stroke();
+      c.fillStyle = col === BRICK.yellow ? BRICK.red : BRICK.yellow;
+      c.beginPath(); c.ellipse(fx, ty, rx * 0.34, ry * 0.38, 0, 0, TAU); c.fill();
     }
   }
 
   // a pile of loose bricks nobody put away
   function drawStone(c, x, y, s, rnd) {
     propShadow(c, x, y + s * 0.4, s);
-    const cols = ['#98a2ab', '#c8443c', '#3f7fd4', '#e8b93c'];
+    const cols = [BRICK.lgrey, BRICK.red, BRICK.blue, BRICK.yellow, BRICK.green];
     for (let i = 0; i < 3; i++) {
       brickBlock(c,
         x + (rnd() - 0.5) * s * 0.9,
@@ -1080,42 +1220,94 @@
      carpets, tunnel mouths, craters) are exempt — paint on the plate never
      blocks anything, and never looks like it should. */
 
-  const HOUSE_WALLS = ['#f2f4f6', '#e8b93c', '#7ec8e8', '#f2f4f6'];
-  const HOUSE_ROOFS = ['#c8443c', '#3f7fd4', '#c8443c', '#d9822b'];
+  const HOUSE_ROOFS = ['#C4281C', '#0B5BA8', '#C4281C', '#D2711F', '#2C6B34'];
 
-  // the classic set-piece: bright walls, sloped roof, chimney — home in two bricks
-  function drawHouse(c, x, y, s, rnd) {
-    const pick = (rnd() * HOUSE_WALLS.length) | 0;
-    const wall = HOUSE_WALLS[pick], roof = HOUSE_ROOFS[pick];
-    const w = s * 2.2, wh = s * 1.05, rh = s * 0.85;
-    propShadow(c, x, y + 2, w * 0.55);
-    // walls with a lit face and a shaded side
-    c.fillStyle = shade(wall, -30); c.fillRect(x - w / 2, y - wh, w, wh);
-    c.fillStyle = wall; c.fillRect(x - w / 2, y - wh, w * 0.82, wh);
-    c.strokeStyle = shade(wall, -58); c.lineWidth = 1.2; c.strokeRect(x - w / 2, y - wh, w, wh);
-    // door and two windows
-    c.fillStyle = '#7a5535';
-    c.fillRect(x - s * 0.22, y - wh * 0.62, s * 0.44, wh * 0.62);
-    c.fillStyle = shade('#7a5535', 30);
-    c.fillRect(x - s * 0.22, y - wh * 0.62, s * 0.44, wh * 0.1);
-    for (const wx of [x - w * 0.32, x + w * 0.3]) {
-      c.fillStyle = '#f2f4f6'; c.fillRect(wx - s * 0.19, y - wh * 0.82, s * 0.38, s * 0.34);
-      c.fillStyle = '#8fd0f0'; c.fillRect(wx - s * 0.14, y - wh * 0.82 + s * 0.05, s * 0.28, s * 0.24);
-      c.strokeStyle = 'rgba(30,40,54,0.6)'; c.lineWidth = 1;
-      c.beginPath(); c.moveTo(wx, y - wh * 0.82 + s * 0.05); c.lineTo(wx, y - wh * 0.82 + s * 0.29); c.stroke();
+  /* The cottage — the set piece the whole board is judged on.
+
+     It was a white box with a triangle on top: one smooth rectangle, one flat
+     gradient roof, details painted on. Nothing about it could be counted, so
+     it read as a picture of a house standing on a brick board rather than a
+     house built out of bricks.
+
+     What a real one shows, and what this now draws:
+       · a wall of countable courses with staggered joints
+       · a roof of STEPPED slope courses — the shingle staircase is the whole
+         silhouette, and smoothing it into a triangle is what killed it
+       · a framed door with a round knob, and framed windows with a bar
+       · a chimney that is a little stack of bricks with a stud on top
+       · a doorstep plate, because a build always has one */
+  function drawHouse(c, x, y, s0, rnd) {
+    /* Scaled up from the call sites: at the old size a cottage was barely two
+       studs across, and brick courses you cannot count are the same as none. */
+    const s = s0 * 1.3;
+    const roof = HOUSE_ROOFS[(rnd() * HOUSE_ROOFS.length) | 0];
+    const wall = BRICK.white;
+    const w = s * 2.2, wallH = s * 1.02, roofH = s * 0.95;
+    const left = x - w / 2, top = y - wallH;
+
+    propShadow(c, x, y + 1, w * 0.56);
+    brickWall(c, left, top, w, wallH, 3, wall);
+
+    // the doorstep, then the door in its frame with a round knob
+    const dw = s * 0.48, dh = wallH * 0.6;
+    c.fillStyle = BRICK.lgrey;
+    c.fillRect(x - dw * 0.8, y - s * 0.09, dw * 1.6, s * 0.09);
+    c.strokeStyle = mul(BRICK.lgrey, 0.6); c.lineWidth = 0.9;
+    c.strokeRect(x - dw * 0.8, y - s * 0.09, dw * 1.6, s * 0.09);
+    c.fillStyle = mul(BRICK.white, 0.75);
+    c.fillRect(x - dw / 2 - 1.6, y - dh - 1.6, dw + 3.2, dh + 1.6);
+    c.fillStyle = BRICK.blue;
+    c.fillRect(x - dw / 2, y - dh, dw, dh);
+    c.fillStyle = lit(BRICK.blue, 0.23);
+    c.fillRect(x - dw / 2, y - dh, dw * 0.32, dh);
+    c.fillStyle = mul(BRICK.blue, 0.78);
+    c.fillRect(x + dw * 0.22, y - dh, dw * 0.28, dh);
+    c.fillStyle = BRICK.yellow;
+    c.beginPath(); c.arc(x + dw * 0.27, y - dh * 0.48, Math.max(1.1, s * 0.06), 0, TAU); c.fill();
+
+    // windows: white frame, pale glass, one cross bar
+    const ww = s * 0.46, wht = s * 0.42, wy = y - wallH * 0.88;
+    for (const wx of [x - w * 0.3, x + w * 0.3]) {
+      c.fillStyle = BRICK.white; c.fillRect(wx - ww / 2, wy, ww, wht);
+      c.strokeStyle = mul(BRICK.white, 0.62); c.lineWidth = 1;
+      c.strokeRect(wx - ww / 2, wy, ww, wht);
+      c.fillStyle = BRICK.glass;
+      c.fillRect(wx - ww * 0.33, wy + wht * 0.17, ww * 0.66, wht * 0.64);
+      c.strokeStyle = mul(BRICK.white, 0.79); c.lineWidth = 0.9;
+      c.beginPath();
+      c.moveTo(wx, wy + wht * 0.17); c.lineTo(wx, wy + wht * 0.81);
+      c.moveTo(wx - ww * 0.33, wy + wht * 0.49); c.lineTo(wx + ww * 0.33, wy + wht * 0.49);
+      c.stroke();
+      c.fillStyle = 'rgba(255,255,255,0.5)';
+      c.fillRect(wx - ww * 0.33, wy + wht * 0.17, ww * 0.28, wht * 0.28);
     }
-    // the roof: two slope courses stepping in, then a ridge that catches the sun
-    c.fillStyle = shade(roof, -26);
-    c.beginPath(); c.moveTo(x - w * 0.58, y - wh); c.lineTo(x - w * 0.38, y - wh - rh * 0.55); c.lineTo(x + w * 0.38, y - wh - rh * 0.55); c.lineTo(x + w * 0.58, y - wh); c.closePath(); c.fill();
-    c.fillStyle = roof;
-    c.beginPath(); c.moveTo(x - w * 0.38, y - wh - rh * 0.55); c.lineTo(x - w * 0.2, y - wh - rh); c.lineTo(x + w * 0.2, y - wh - rh); c.lineTo(x + w * 0.38, y - wh - rh * 0.55); c.closePath(); c.fill();
-    c.strokeStyle = shade(roof, 32); c.lineWidth = 1.6;
-    c.beginPath(); c.moveTo(x - w * 0.2, y - wh - rh); c.lineTo(x + w * 0.2, y - wh - rh); c.stroke();
-    // chimney with its one proud stud
-    c.fillStyle = shade(roof, -40); c.fillRect(x + w * 0.24, y - wh - rh - s * 0.28, s * 0.24, s * 0.34);
-    c.fillStyle = shade(roof, -12); c.fillRect(x + w * 0.24, y - wh - rh - s * 0.28, s * 0.24, s * 0.1);
-    c.beginPath(); c.ellipse(x + w * 0.24 + s * 0.12, y - wh - rh - s * 0.3, s * 0.08, s * 0.04, 0, 0, TAU);
-    c.fillStyle = shade(roof, -30); c.fill();
+
+    /* The roof, as four stepped courses of slope brick. Each is narrower than
+       the one below it, so the staircase reads from across the board. */
+    const steps = 4, rh = roofH / steps;
+    for (let i = 0; i < steps; i++) {
+      const rw = w * (1.16 - (i / steps) * 0.88);
+      const ry0 = top - roofH * (i / steps);
+      const col = i % 2 ? mul(roof, 0.92) : roof;
+      c.fillStyle = col; c.fillRect(x - rw / 2, ry0 - rh, rw, rh);
+      c.fillStyle = lit(col, 0.27); c.fillRect(x - rw / 2, ry0 - rh, rw, rh * 0.26);
+      c.fillStyle = mul(col, 0.79); c.fillRect(x + rw * 0.24, ry0 - rh, rw * 0.26, rh);
+      c.strokeStyle = mul(roof, 0.56); c.lineWidth = 1;
+      c.strokeRect(x - rw / 2, ry0 - rh, rw, rh);
+    }
+    // the ridge cap, with its studs
+    const rw2 = w * 0.3, ridgeY = top - roofH;
+    c.fillStyle = lit(roof, 0.12);
+    c.fillRect(x - rw2 / 2, ridgeY - s * 0.11, rw2, s * 0.13);
+    c.strokeStyle = mul(roof, 0.56); c.lineWidth = 1;
+    c.strokeRect(x - rw2 / 2, ridgeY - s * 0.11, rw2, s * 0.13);
+    studRow(c, x - rw2 / 2, ridgeY - s * 0.11, rw2, 2, roof);
+
+    // the chimney: a short stack of white brick, poking out of the slope
+    const cw = s * 0.32, cx = x + w * 0.3;
+    const cBot = top - roofH * 0.56, cH = s * 0.62;
+    brickWall(c, cx - cw / 2, cBot - cH, cw, cH, 2, wall);
+    studRow(c, cx - cw / 2, cBot - cH, cw, 1, wall);
   }
 
   // a barrel-roofed shed wide enough to park a shuttle in
@@ -2285,7 +2477,7 @@
         // the mill: house on the bank, wheel turning in the race. The wheel
         // is baked stopped so thumbnails have it; in battle the animated one
         // draws over this exact spot and it turns.
-        drawHouse(c, 880, 330, 34, rnd);
+        drawHouse(c, 880, 350, 34, rnd);   // clear of the y=220 lane at the new scale
         brickBlock(c, 790, 330, 14, 40, '#5d4a38', 0);
         drawStaticWheel(c, 748, 300, 68);
         if (meta) meta.wheels.push({ x: 748, y: 300, r: 68 });

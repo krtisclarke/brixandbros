@@ -1654,16 +1654,16 @@
      bricks rather than three shades of the same one. */
   const THEME_EXTRAS = {
     /* ---- tier 1, Brick City: green plate, grey road ---- */
-    shores:  { snow: '#57a05a', ice: '#3f7d45', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2f8fd6', shore: '#79c8ee', props: 'pines' },
-    pass:    { snow: '#549a57', ice: '#3c7742', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2f79c2', shore: '#74c0ea', props: 'pines' },
-    river:   { snow: '#52a05e', ice: '#3a7c49', pathColor: '#6e737a', pathEdge: '#4c5158', pathCore: '#80858c', deep: '#1391b8', shore: '#6fcfe0', props: 'reeds' },
-    alley:   { snow: '#4f9a58', ice: '#387644', pathColor: '#686d73', pathEdge: '#474c52', pathCore: '#797e85', deep: '#1f78c4', shore: '#72c4ee', props: 'floes' },
-    village: { snow: '#5cab60', ice: '#428549', pathColor: '#72777e', pathEdge: '#50555c', pathCore: '#848990', deep: '#2f8fd6', shore: '#79c8ee', props: 'village' },
+    shores:  { snow: '#4E9E48', ice: '#357B36', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2f8fd6', shore: '#79c8ee', props: 'pines' },
+    pass:    { snow: '#4B9945', ice: '#327433', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2f79c2', shore: '#74c0ea', props: 'pines' },
+    river:   { snow: '#4A9E4E', ice: '#317A3B', pathColor: '#6e737a', pathEdge: '#4c5158', pathCore: '#80858c', deep: '#1391b8', shore: '#6fcfe0', props: 'reeds' },
+    alley:   { snow: '#479747', ice: '#2F7334', pathColor: '#686d73', pathEdge: '#474c52', pathCore: '#797e85', deep: '#1f78c4', shore: '#72c4ee', props: 'floes' },
+    village: { snow: '#53A94F', ice: '#38833B', pathColor: '#72777e', pathEdge: '#50555c', pathCore: '#848990', deep: '#2f8fd6', shore: '#79c8ee', props: 'village' },
     caves:   { snow: '#3e4657', ice: '#262d3c', pathColor: '#4a505a', pathEdge: '#2e343c', pathCore: '#5a606a', deep: '#23407c', shore: '#456a9e', props: 'crystals', glow: '#7fd8f5', dark: true },
-    ridge:   { snow: '#56a05c', ice: '#3d7c45', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2b6cc0', shore: '#74bcea', props: 'pines' },
-    bay:     { snow: '#4e9c66', ice: '#377a4c', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#0f83a6', shore: '#6ccbd2', props: 'bay' },
-    peak:    { snow: '#5aa05e', ice: '#3f7d46', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2f79c2', shore: '#74c0ea', props: 'dead' },
-    workshop: { snow: '#4c9455', ice: '#357140', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2361b4', shore: '#6eb6ea', props: 'workshop' },
+    ridge:   { snow: '#4D9E4A', ice: '#337A37', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2b6cc0', shore: '#74bcea', props: 'pines' },
+    bay:     { snow: '#469A54', ice: '#2E783E', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#0f83a6', shore: '#6ccbd2', props: 'bay' },
+    peak:    { snow: '#519E4C', ice: '#357B38', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2f79c2', shore: '#74c0ea', props: 'dead' },
+    workshop: { snow: '#449243', ice: '#2C6E33', pathColor: '#6b7076', pathEdge: '#4a4f55', pathCore: '#7c8188', deep: '#2361b4', shore: '#6eb6ea', props: 'workshop' },
 
     /* ---- tier 2, Star Port: grey plate, blue-white deck markings ---- */
     flats:     { snow: '#9aa4ae', ice: '#6e7883', pathColor: '#5a6068', pathEdge: '#3c4148', pathCore: '#6c727a', deep: '#2270c0', shore: '#7cc0ea', props: 'pines' },
