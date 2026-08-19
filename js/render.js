@@ -75,6 +75,108 @@
     return out;
   }
 
+  /* ================= THE CONSTRUCTION SYSTEM =================
+
+     Everything visible on a battlefield comes out of ONE grid. Before this,
+     the ground had studs at one pitch and every prop invented its own: a
+     house's studs were a different size from the plate's, its width was
+     2.2 x whatever random number the scatter handed it, and nothing lined up
+     with anything. That is the difference between a board built out of pieces
+     and a board with a brick texture painted on it.
+
+     U is the stud pitch and the only dimension in the game. Every other
+     measurement here is derived from it, and every piece is an INTEGER number
+     of studs wide and an integer number of plates tall.
+
+     Why U = 20: a Bro's footprint radius is 20px, so a Bro now stands on
+     exactly 2x2 studs — which is what a minifig stands on. That one
+     coincidence sets the scale for the whole game: at this pitch a figure is
+     about 1.3 studs across the shoulders, a tier 1 board is 64x40 studs, and
+     a four-stud cottage comes out about the size the old drawn-on one was.
+     Proportion is now a property of the system rather than of each drawing.
+
+     The real-world millimetres do not matter. The RATIOS do, and these are
+     the real ones: a brick is three plates tall, a stud is 0.6 of a stud
+     pitch across, and a stud stands about a fifth of a pitch proud. */
+  const U = 20;
+  const STUD_R = U * 0.30;        // stud radius — identical on every piece
+  const STUD_UP = U * 0.22;       // how far a stud stands proud
+  const PLATE_H = U * 0.40;       // one plate
+  const BRICK_H = PLATE_H * 3;    // a brick is exactly three plates
+  const CHAMFER = U * 0.10;       // the moulded edge, same on every piece
+
+  // a piece can only ever start on the grid — this is what makes the studs of
+  // a house line up with the studs of the ground it stands on
+  const snapU = (x) => Math.round(x / U) * U;
+  const studsFor = (px, lo, hi) => Math.max(lo, Math.min(hi, Math.round(px / U)));
+
+  function chamfer(c, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  /* One stud, standing on a top face. Same size, same shape, same shading
+     everywhere in the game — a stud on a flower is the stud on a castle. */
+  function studUp(c, cx, yTop, col) {
+    const r = STUD_R, ry = r * 0.40, h = STUD_UP, ty = yTop - h;
+    c.fillStyle = mul(col, 0.90);
+    c.fillRect(cx - r, ty, r * 2, h + 0.4);
+    c.fillStyle = mul(col, 0.74);
+    c.fillRect(cx + r * 0.32, ty, r * 0.68, h + 0.4);
+    c.fillStyle = lit(col, 0.24);
+    c.beginPath(); c.ellipse(cx, ty, r, ry, 0, 0, TAU); c.fill();
+    c.strokeStyle = mul(col, 0.55); c.lineWidth = 0.8;
+    c.beginPath(); c.ellipse(cx, ty, r, ry, 0, 0, TAU); c.stroke();
+    c.strokeStyle = lit(col, 0.6); c.lineWidth = 0.8;
+    c.beginPath();
+    c.ellipse(cx, ty - ry * 0.16, r * 0.66, ry * 0.6, 0, Math.PI * 0.9, Math.PI * 1.85);
+    c.stroke();
+  }
+
+  /* One moulded piece: wStuds wide, hPlates tall, drawn from its BOTTOM-LEFT.
+     No internal seams — a 2x4 brick is one piece, not four boxes — so the way
+     you show a wall is by laying real pieces beside each other. */
+  function piece(c, xLeft, yBase, wStuds, hPlates, col, opts) {
+    opts = opts || {};
+    const w = wStuds * U, h = hPlates * PLATE_H, top = yBase - h;
+    chamfer(c, xLeft, top, w, h, CHAMFER);
+    c.fillStyle = col; c.fill();
+    c.save();
+    chamfer(c, xLeft, top, w, h, CHAMFER); c.clip();
+    c.fillStyle = lit(col, 0.26); c.fillRect(xLeft, top, w, h * 0.2);        // lit top edge
+    c.fillStyle = mul(col, 0.80); c.fillRect(xLeft + w - w * 0.16, top, w * 0.16, h);
+    c.fillStyle = mul(col, 0.88); c.fillRect(xLeft, yBase - h * 0.14, w, h * 0.14);
+    c.fillStyle = lit(col, 0.42);                                            // the gloss streak
+    c.fillRect(xLeft + w * 0.06, top + h * 0.16, w * 0.07, h * 0.62);
+    c.restore();
+    c.strokeStyle = mul(col, 0.5); c.lineWidth = 1;
+    chamfer(c, xLeft, top, w, h, CHAMFER); c.stroke();
+    if (!opts.tile) {
+      for (let i = 0; i < wStuds; i++) studUp(c, xLeft + U * (i + 0.5), top, col);
+    }
+  }
+
+  /* A wall laid as actual bricks, in a running bond. Courses are one brick
+     tall and the joints stagger by a stud, so what you see is a stack of
+     2x pieces rather than a rectangle with lines ruled on it. Studs are drawn
+     on every course and then buried by the course above, which is what
+     happens when you build one. */
+  function brickRun(c, xLeft, yBase, wStuds, courses, col) {
+    for (let r = 0; r < courses; r++) {
+      const by = yBase - r * BRICK_H;
+      let i = 0;
+      if (r % 2 === 1 && wStuds > 1) { piece(c, xLeft, by, 1, 3, col); i = 1; }
+      while (i + 2 <= wStuds) { piece(c, xLeft + i * U, by, 2, 3, col); i += 2; }
+      if (i < wStuds) piece(c, xLeft + i * U, by, wStuds - i, 3, col);
+    }
+  }
+
   /* A soft round glow, drawn once and kept. The crystal and torch glows sit at
      fixed positions with fixed radii and only their opacity moves, but each one
      was building a fresh radial gradient every frame — on a cavern level that is
@@ -325,11 +427,11 @@
     c.fillStyle = sun;
     c.fillRect(0, 0, G.W, G.H);
 
-    const STUD_PITCH = 32, STUD_R = 9.5;
+    const STUD_PITCH = U;   // the ground is the same grid as every piece on it
     /* Plate seams every eight studs. Real plates come in fixed sizes and butt
        up against each other, and the seam is the difference between "a board
        built out of plates" and "a green rectangle with dots on it". */
-    const SEAM = STUD_PITCH * 8;
+    const SEAM = STUD_PITCH * 16;   // plates butt every 16 studs
     c.strokeStyle = dk ? 'rgba(8,14,34,0.30)' : 'rgba(20,32,50,0.13)';
     c.lineWidth = 1.5;
     for (let x = SEAM; x < G.W; x += SEAM) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, G.H); c.stroke(); }
@@ -388,7 +490,7 @@
 
     // scattered loose bricks, dropped on the plate and never tidied away
     const looseCols = ['#c8443c', '#3f7fd4', '#e8b93c', '#3fae6a', '#f2f4f6'];
-    const nLoose = Math.round(26 * (G.W * G.H) / (1280 * 800));
+    const nLoose = Math.round(15 * (G.W * G.H) / (1280 * 800));
     for (let i = 0; i < nLoose; i++) {
       const x = rnd() * G.W, y = rnd() * G.H;
       // not on a roof, a platform or down a service pit
@@ -535,7 +637,7 @@
      glitter. Those were painting a liquid. Everything here is a flat plate with
      a highlight on the stud, exactly like the green around it. */
   function studGrid(c, x0, y0, x1, y1, clip, col, alpha) {
-    const P = 32, R = 9.5;
+    const P = U, R = STUD_R;
     const gx0 = Math.floor((x0 - P) / P) * P + P / 2;
     const gy0 = Math.floor((y0 - P) / P) * P + P / 2;
     for (let gy = gy0; gy < y1 + P; gy += P) {
@@ -565,7 +667,7 @@
          rather than waving. Straight edges are what make it read as assembled;
          a wobbly bank is a river, and there are no rivers on a building
          plate. */
-      const P = 32;
+      const P = U;
       const top = Math.round(y / P) * P, bot = Math.round((y + h) / P) * P;
 
       // the shallow band along each bank, one plate wide
@@ -752,7 +854,7 @@
 
        So this draws the tiles themselves — a butt joint every tile length, and
        one running down the middle where two rows of tile meet. */
-    const TILE = 26;
+    const TILE = U;   // the track is tiled on the same grid as the plate
     c.strokeStyle = 'rgba(20,26,34,0.22)';
     c.lineWidth = 1.2;
     for (let d = TILE; d < total; d += TILE) {
@@ -812,7 +914,9 @@
     const place = (n, minPath, fn, sizeMin, sizeVar) => {
       for (let i = 0; i < n; i++) {
         for (let tries = 0; tries < 40; tries++) {
-          const x = 30 + rnd() * (G.W - 60), y = 40 + rnd() * (G.H - 80);
+          // snapped to the stud grid: a piece can only start where a stud is
+          const x = snapU(30 + rnd() * (G.W - 60));
+          const y = Math.round((40 + rnd() * (G.H - 80)) / PLATE_H) * PLATE_H;
           const size = sizeMin + rnd() * sizeVar;
           if (!pathDistOk(level.paths, x, y, minPath)) continue;
           /* Padded by the prop's own size: every one of these draws UPWARD
@@ -830,7 +934,7 @@
     };
 
     if (kind === 'pines') {
-      place(13, G.PATH_HALF + 42, drawPine, 16, 14);
+      place(9, G.PATH_HALF + 42, drawPine, 16, 14);
       place(15, G.PATH_HALF + 34, drawTuft, 5, 4);
       place(6, G.PATH_HALF + 34, drawStone, 5, 6);
     } else if (kind === 'reeds') {
@@ -907,7 +1011,7 @@
       : kind === 'dead' ? drawDeadTree
       : kind === 'industrial' ? drawStone   // a yard is fenced with dropped brick, not pines
       : drawPine;
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 10; i++) {
       for (let tries = 0; tries < 30; tries++) {
         const side = (rnd() * 4) | 0;
         let x, y;
@@ -944,22 +1048,13 @@
   /* A row of studs standing on a top edge. Three parts, and all three have to
      be there or it reads as a printed dot: the little cylinder wall, its
      shaded right-hand side, and the lit top face. */
-  function studRow(c, x0, yTop, w, n, col) {
-    const sw = w / n;
-    const rx = Math.min(sw * 0.33, sw * 0.33);
-    const ry = Math.max(1, rx * 0.44);
-    const hh = Math.max(1.7, rx * 0.9);
-    for (let i = 0; i < n; i++) {
-      const sx = x0 + sw * (i + 0.5), ty = yTop - hh;
-      c.fillStyle = mul(col, 0.94);
-      c.fillRect(sx - rx, ty, rx * 2, hh + 0.5);
-      c.fillStyle = mul(col, 0.79);
-      c.fillRect(sx + rx * 0.3, ty, rx * 0.7, hh + 0.5);
-      c.fillStyle = lit(col, 0.3);
-      c.beginPath(); c.ellipse(sx, ty, rx, ry, 0, 0, TAU); c.fill();
-      c.strokeStyle = mul(col, 0.58); c.lineWidth = 0.85;
-      c.beginPath(); c.ellipse(sx, ty, rx, ry, 0, 0, TAU); c.stroke();
-    }
+  function studRow(c, x0, yTop, w, _n, col) {
+    /* The count is derived from the width at the universal pitch, never from
+       whatever the caller felt like. Passing n was how a house ended up with
+       studs a different size from the plate it stood on. */
+    const n = Math.max(1, Math.round(w / U));
+    const inset = (w - n * U) / 2;
+    for (let i = 0; i < n; i++) studUp(c, x0 + inset + U * (i + 0.5), yTop, col);
   }
 
   /* A wall you can count the bricks in: courses with a lit lip on each, and
@@ -967,27 +1062,10 @@
      them. This is the single biggest difference between "a build" and "a
      shape that is the colour of a build". */
   function brickWall(c, x0, y0, w, h, rows, col) {
-    c.fillStyle = col;
-    c.fillRect(x0, y0, w, h);
-    c.fillStyle = mul(col, 0.86);            // the cheek turned away from the sun
-    c.fillRect(x0 + w * 0.74, y0, w * 0.26, h);
-    const ch = h / rows;
-    const per = Math.max(2, Math.round(w / (ch * 1.6)));
-    const step = w / per;
-    for (let i = 0; i < rows; i++) {
-      const cy = y0 + i * ch;
-      c.fillStyle = lit(col, 0.18);           // every course catches light on top
-      c.fillRect(x0, cy, w, Math.max(0.9, ch * 0.15));
-      c.strokeStyle = mul(col, 0.75); c.lineWidth = 1;
-      if (i) { c.beginPath(); c.moveTo(x0, cy); c.lineTo(x0 + w, cy); c.stroke(); }
-      const off = (i % 2) * step * 0.5;
-      for (let jx = x0 + off + (off ? 0 : step); jx < x0 + w - 1.5; jx += step) {
-        if (jx <= x0 + 1) continue;
-        c.beginPath(); c.moveTo(jx, cy + 1); c.lineTo(jx, cy + ch - 0.5); c.stroke();
-      }
-    }
-    c.strokeStyle = mul(col, 0.54); c.lineWidth = 1.2;
-    c.strokeRect(x0, y0, w, h);
+    // superseded by brickRun; kept so older callers keep building
+    const wS = Math.max(1, Math.round(w / U));
+    const courses = Math.max(1, Math.round(h / BRICK_H));
+    brickRun(c, snapU(x0), y0 + h, wS, courses, col);
   }
 
   function propShadow(c, x, y, rx) {
@@ -1000,18 +1078,12 @@
      top face, a lit front edge and two studs. Every prop below is built out of
      these, which is the point — the scenery has to look assembled, not grown. */
   function brickBlock(c, x, y, w, h, col, studs) {
-    const left = x - w / 2, top = y - h;
-    c.fillStyle = col;
-    c.fillRect(left, top, w, h);
-    c.fillStyle = lit(col, 0.21);                        // lit top edge
-    c.fillRect(left, top, w, h * 0.2);
-    c.fillStyle = mul(col, 0.8);                       // shaded right cheek
-    c.fillRect(left + w * 0.75, top, w * 0.25, h);
-    c.fillStyle = mul(col, 0.86);                       // the underside
-    c.fillRect(left, top + h * 0.8, w, h * 0.2);
-    c.strokeStyle = mul(col, 0.54); c.lineWidth = 1.1;
-    c.strokeRect(left, top, w, h);
-    if (studs !== 0) studRow(c, left, top, w, studs || 2, col);
+    /* Kept for the many callers written before the grid existed. It now
+       ROUNDS to whole studs and whole plates and snaps to the grid, so every
+       one of those old builds inherits the system without being rewritten. */
+    const wS = Math.max(1, Math.round(w / U));
+    const hP = Math.max(1, Math.round(h / PLATE_H));
+    piece(c, snapU(x - wS * U / 2), y, wS, hP, col, { tile: studs === 0 });
   }
 
   /* A brick tree: a stacked brown trunk under three chunky tiers of foliage.
@@ -1019,30 +1091,37 @@
      exactly why they read as three dark bars on a stick. Every tier that
      leaves a shoulder exposed now puts a stud on it. */
   function drawPine(c, x, y, s0, rnd) {
-    const s = s0 * 1.3;
-    propShadow(c, x, y + s * 0.92, s * 0.76);
-    // brighter greens: the old set went nearly black against the plate
-    const g = [BRICK.green, '#3E8C3F', '#5DAE4E'][(rnd() * 3) | 0];
-    const tw = s * 0.38;
-    brickWall(c, x - tw / 2, y + s * 0.42, tw, s * 0.56, 2, BRICK.brown);
-    for (let i = 0; i < 3; i++) {
-      const fw = s * (1.34 - i * 0.35), fh = s * 0.43;
-      const fy = y + s * 0.46 - (i + 1) * fh;
-      const col = i === 1 ? mul(g, 0.91) : g;
-      c.fillStyle = col; c.fillRect(x - fw / 2, fy, fw, fh);
-      c.fillStyle = lit(col, 0.23); c.fillRect(x - fw / 2, fy, fw, fh * 0.24);
-      c.fillStyle = mul(col, 0.82); c.fillRect(x + fw * 0.23, fy, fw * 0.27, fh);
-      c.strokeStyle = mul(col, 0.58); c.lineWidth = 1.1;
-      c.strokeRect(x - fw / 2, fy, fw, fh);
-      const nextW = s * (1.34 - (i + 1) * 0.35);
-      const sh = (fw - nextW) / 2;
-      if (i < 2 && sh > s * 0.13) {
-        studRow(c, x - fw / 2, fy, sh, 1, col);
-        studRow(c, x + nextW / 2, fy, sh, 1, col);
+    /* Trunk of brown brick, foliage of plates stepping in one stud a side.
+       Odd widths only, so the trunk sits on a whole stud and every tier
+       centres on it. */
+    const g = [BRICK.green, '#3E8C3F', '#2F7A38'][(rnd() * 3) | 0];
+    const wS = studsFor(s0 * 1.7, 3, 5) | 1;
+    const left = snapU(x - (wS * U) / 2);
+    const at = (i) => left + i * U;
+    const mid = (wS - 1) / 2;
+    propShadow(c, at(wS / 2), y + 1, wS * U * 0.4);
+    /* Trunk height follows the tree's width. Fixing it at six plates made
+       every small edge-framing tree as tall as a full one, and they ran off
+       the top of the board. */
+    const trunkPlates = wS === 3 ? 3 : 6;
+    piece(c, at(mid), y, 1, trunkPlates, BRICK.brown, { tile: true });
+    let fy = y - trunkPlates * PLATE_H;
+    const tiers = [];
+    for (let fw = wS; fw >= 1; fw -= 2) tiers.push(fw);
+    if (tiers.length < 3) tiers.splice(1, 0, wS);   // a fuller crown on small trees
+    for (const fw of tiers) {
+      const off = (wS - fw) / 2;
+      const col = fw === wS ? g : lit(g, 0.05);
+      piece(c, at(off), fy, fw, 2, col, { tile: true });
+      const shelfY = fy - PLATE_H * 2;
+      if (fw - 2 >= 1) {
+        studUp(c, at(off) + U * 0.5, shelfY, col);
+        studUp(c, at(off + fw - 1) + U * 0.5, shelfY, col);
+      } else {
+        for (let i = 0; i < fw; i++) studUp(c, at(off + i) + U * 0.5, shelfY, col);
       }
+      fy = shelfY;
     }
-    const topW = s * 0.32, topY = y + s * 0.46 - 3 * s * 0.43;
-    studRow(c, x - topW / 2, topY, topW, 1, g);
   }
 
   /* Flowers. These were a thin green stem with a solid circle on top, which
@@ -1050,39 +1129,34 @@
      A brick flower is a round plate with a contrasting centre, sitting low in
      a green plate, so that is what this builds now. */
   function drawTuft(c, x, y, s0, rnd) {
-    const s = s0 * 1.35;
     const petals = [BRICK.red, BRICK.yellow, BRICK.white, '#D9629C'];
-    const gw = s * 1.8, gh = s * 0.36;
-    c.fillStyle = BRICK.green; c.fillRect(x - gw / 2, y - gh, gw, gh);
-    c.fillStyle = lit(BRICK.green, 0.23); c.fillRect(x - gw / 2, y - gh, gw, gh * 0.3);
-    c.fillStyle = mul(BRICK.green, 0.8); c.fillRect(x + gw * 0.76, y - gh, gw * 0.24, gh);
-    c.strokeStyle = mul(BRICK.green, 0.6); c.lineWidth = 1;
-    c.strokeRect(x - gw / 2, y - gh, gw, gh);
-    for (let i = 0; i < 3; i++) {
-      const fx = x - gw / 2 + gw * ((i + 0.5) / 3);
+    const cx = snapU(x);
+    piece(c, cx - U, y, 2, 1, BRICK.green, { tile: true });
+    for (let i = 0; i < 2; i++) {
       const col = petals[(rnd() * petals.length) | 0];
-      const rx = s * 0.25, ry = rx * 0.46, hh = s * 0.28, ty = y - gh - hh;
-      c.fillStyle = mul(col, 0.9); c.fillRect(fx - rx, ty, rx * 2, hh + 0.5);
-      c.fillStyle = mul(col, 0.78); c.fillRect(fx + rx * 0.3, ty, rx * 0.7, hh + 0.5);
-      c.fillStyle = col;
-      c.beginPath(); c.ellipse(fx, ty, rx, ry, 0, 0, TAU); c.fill();
-      c.strokeStyle = mul(col, 0.58); c.lineWidth = 0.9;
-      c.beginPath(); c.ellipse(fx, ty, rx, ry, 0, 0, TAU); c.stroke();
+      const fx = cx - U + i * U;
+      piece(c, fx, y - PLATE_H, 1, 1, col, { tile: true });
+      studUp(c, fx + U / 2, y - PLATE_H * 2, col);
       c.fillStyle = col === BRICK.yellow ? BRICK.red : BRICK.yellow;
-      c.beginPath(); c.ellipse(fx, ty, rx * 0.34, ry * 0.38, 0, 0, TAU); c.fill();
+      c.beginPath();
+      c.ellipse(fx + U / 2, y - PLATE_H * 2 - STUD_UP, STUD_R * 0.36, STUD_R * 0.15, 0, 0, TAU);
+      c.fill();
     }
   }
 
   // a pile of loose bricks nobody put away
-  function drawStone(c, x, y, s, rnd) {
-    propShadow(c, x, y + s * 0.4, s);
+  function drawStone(c, x, y, s0, rnd) {
+    /* Loose pieces. Real sizes only — 1x1, 1x2, 1x3 — every one starting on a
+       stud, so a pile reads as pieces you could pick up and use. */
     const cols = [BRICK.lgrey, BRICK.red, BRICK.blue, BRICK.yellow, BRICK.green];
-    for (let i = 0; i < 3; i++) {
-      brickBlock(c,
-        x + (rnd() - 0.5) * s * 0.9,
-        y + s * 0.4 - i * s * 0.42,
-        s * (1.0 + rnd() * 0.5), s * 0.4,
-        cols[(rnd() * cols.length) | 0], 2);
+    const cx = snapU(x);
+    propShadow(c, cx, y + 1, U * 1.1);
+    const n = 2 + ((rnd() * 2) | 0);
+    for (let i = 0; i < n; i++) {
+      const wS = 1 + ((rnd() * 3) | 0);
+      const off = Math.round((rnd() - 0.5) * 2) * U;
+      piece(c, snapU(cx - (wS * U) / 2) + off, y - i * BRICK_H, wS, 3,
+        cols[(rnd() * cols.length) | 0]);
     }
   }
 
@@ -1237,77 +1311,82 @@
        · a chimney that is a little stack of bricks with a stud on top
        · a doorstep plate, because a build always has one */
   function drawHouse(c, x, y, s0, rnd) {
-    /* Scaled up from the call sites: at the old size a cottage was barely two
-       studs across, and brick courses you cannot count are the same as none. */
-    const s = s0 * 1.3;
+    /* A cottage, assembled from real pieces.
+
+       Everything below is worked out in STUD INDICES and only turned into
+       pixels at the last moment. Doing it the other way — centring in pixels
+       and snapping afterwards — is what broke the first attempt: a roof one
+       stud wider than its wall wants to sit half a stud off centre, and
+       snapping that half stud away shunted every roof course sideways.
+
+       So every roof course keeps the PARITY of the wall. An eave two studs
+       wider, then courses stepping in one stud a side: 6, 4, 2 on a 4-wide
+       house. All of them land on whole studs. */
     const roof = HOUSE_ROOFS[(rnd() * HOUSE_ROOFS.length) | 0];
     const wall = BRICK.white;
-    const w = s * 2.2, wallH = s * 1.02, roofH = s * 0.95;
-    const left = x - w / 2, top = y - wallH;
+    const wS = studsFor(s0 * 2.4, 3, 6);
+    const left = snapU(x - (wS * U) / 2);
+    const at = (i) => left + i * U;
+    const courses = wS >= 5 ? 3 : 2;
+    const wallTop = y - courses * BRICK_H;
 
-    propShadow(c, x, y + 1, w * 0.56);
-    brickWall(c, left, top, w, wallH, 3, wall);
+    propShadow(c, at(wS / 2), y + 1, wS * U * 0.5);
+    brickRun(c, left, y, wS, courses, wall);
 
-    // the doorstep, then the door in its frame with a round knob
-    const dw = s * 0.48, dh = wallH * 0.6;
-    c.fillStyle = BRICK.lgrey;
-    c.fillRect(x - dw * 0.8, y - s * 0.09, dw * 1.6, s * 0.09);
-    c.strokeStyle = mul(BRICK.lgrey, 0.6); c.lineWidth = 0.9;
-    c.strokeRect(x - dw * 0.8, y - s * 0.09, dw * 1.6, s * 0.09);
-    c.fillStyle = mul(BRICK.white, 0.75);
-    c.fillRect(x - dw / 2 - 1.6, y - dh - 1.6, dw + 3.2, dh + 1.6);
-    c.fillStyle = BRICK.blue;
-    c.fillRect(x - dw / 2, y - dh, dw, dh);
-    c.fillStyle = lit(BRICK.blue, 0.23);
-    c.fillRect(x - dw / 2, y - dh, dw * 0.32, dh);
-    c.fillStyle = mul(BRICK.blue, 0.78);
-    c.fillRect(x + dw * 0.22, y - dh, dw * 0.28, dh);
+    // door — one stud wide, because a door is a one-stud piece
+    const dIdx = Math.floor((wS - 1) / 2);
+    const dPlates = Math.min(courses * 3 - 1, 5);
+    piece(c, at(dIdx), y, 1, dPlates, BRICK.blue, { tile: true });
     c.fillStyle = BRICK.yellow;
-    c.beginPath(); c.arc(x + dw * 0.27, y - dh * 0.48, Math.max(1.1, s * 0.06), 0, TAU); c.fill();
+    c.beginPath();
+    c.arc(at(dIdx) + U * 0.75, y - dPlates * PLATE_H * 0.5, U * 0.07, 0, TAU);
+    c.fill();
 
-    // windows: white frame, pale glass, one cross bar
-    const ww = s * 0.46, wht = s * 0.42, wy = y - wallH * 0.88;
-    for (const wx of [x - w * 0.3, x + w * 0.3]) {
-      c.fillStyle = BRICK.white; c.fillRect(wx - ww / 2, wy, ww, wht);
-      c.strokeStyle = mul(BRICK.white, 0.62); c.lineWidth = 1;
-      c.strokeRect(wx - ww / 2, wy, ww, wht);
+    // windows — one stud each, set into the top course
+    const wBase = wallTop + BRICK_H;
+    for (const wi of [0, wS - 1]) {
+      if (wi === dIdx) continue;
+      const wx = at(wi);
+      piece(c, wx, wBase, 1, 2, wall, { tile: true });
       c.fillStyle = BRICK.glass;
-      c.fillRect(wx - ww * 0.33, wy + wht * 0.17, ww * 0.66, wht * 0.64);
-      c.strokeStyle = mul(BRICK.white, 0.79); c.lineWidth = 0.9;
+      c.fillRect(wx + U * 0.18, wBase - PLATE_H * 1.66, U * 0.64, PLATE_H * 1.3);
+      c.strokeStyle = mul(wall, 0.6); c.lineWidth = 0.9;
+      c.strokeRect(wx + U * 0.18, wBase - PLATE_H * 1.66, U * 0.64, PLATE_H * 1.3);
       c.beginPath();
-      c.moveTo(wx, wy + wht * 0.17); c.lineTo(wx, wy + wht * 0.81);
-      c.moveTo(wx - ww * 0.33, wy + wht * 0.49); c.lineTo(wx + ww * 0.33, wy + wht * 0.49);
-      c.stroke();
-      c.fillStyle = 'rgba(255,255,255,0.5)';
-      c.fillRect(wx - ww * 0.33, wy + wht * 0.17, ww * 0.28, wht * 0.28);
+      c.moveTo(wx + U * 0.5, wBase - PLATE_H * 1.66);
+      c.lineTo(wx + U * 0.5, wBase - PLATE_H * 0.36); c.stroke();
+      c.fillStyle = 'rgba(255,255,255,0.55)';
+      c.fillRect(wx + U * 0.2, wBase - PLATE_H * 1.62, U * 0.26, PLATE_H * 0.52);
     }
 
-    /* The roof, as four stepped courses of slope brick. Each is narrower than
-       the one below it, so the staircase reads from across the board. */
-    const steps = 4, rh = roofH / steps;
-    for (let i = 0; i < steps; i++) {
-      const rw = w * (1.16 - (i / steps) * 0.88);
-      const ry0 = top - roofH * (i / steps);
-      const col = i % 2 ? mul(roof, 0.92) : roof;
-      c.fillStyle = col; c.fillRect(x - rw / 2, ry0 - rh, rw, rh);
-      c.fillStyle = lit(col, 0.27); c.fillRect(x - rw / 2, ry0 - rh, rw, rh * 0.26);
-      c.fillStyle = mul(col, 0.79); c.fillRect(x + rw * 0.24, ry0 - rh, rw * 0.26, rh);
-      c.strokeStyle = mul(roof, 0.56); c.lineWidth = 1;
-      c.strokeRect(x - rw / 2, ry0 - rh, rw, rh);
+    /* The roof. Each course steps in one stud a side, and the shoulder it
+       leaves exposed carries studs — without those the staircase reads as a
+       stack of smooth shelves rather than as courses of brick. */
+    // a thin eave lip: the overhang detail, without the slab it used to be
+    piece(c, at(-1), wallTop, wS + 2, 1, mul(roof, 0.88), { tile: true });
+    /* Courses a full BRICK tall, flush with the wall. Two plates and a
+       two-stud overhang made the roof a stack of shelves: the rise was half
+       the width, so the silhouette came out flat. A brick per course puts the
+       pitch at roughly 50 degrees, which is a roof. */
+    let ry = wallTop - PLATE_H, k = 0;
+    for (let rw = wS; rw >= 1; rw -= 2, k++) {
+      const off = (wS - rw) / 2;
+      const col = k % 2 ? mul(roof, 0.93) : roof;
+      piece(c, at(off), ry, rw, 3, col, { tile: true });
+      const shelfY = ry - BRICK_H;
+      if (rw - 2 >= 1) {
+        studUp(c, at(off) + U * 0.5, shelfY, col);
+        studUp(c, at(off + rw - 1) + U * 0.5, shelfY, col);
+      } else {
+        for (let i = 0; i < rw; i++) studUp(c, at(off + i) + U * 0.5, shelfY, col);
+      }
+      ry = shelfY;
     }
-    // the ridge cap, with its studs
-    const rw2 = w * 0.3, ridgeY = top - roofH;
-    c.fillStyle = lit(roof, 0.12);
-    c.fillRect(x - rw2 / 2, ridgeY - s * 0.11, rw2, s * 0.13);
-    c.strokeStyle = mul(roof, 0.56); c.lineWidth = 1;
-    c.strokeRect(x - rw2 / 2, ridgeY - s * 0.11, rw2, s * 0.13);
-    studRow(c, x - rw2 / 2, ridgeY - s * 0.11, rw2, 2, roof);
-
-    // the chimney: a short stack of white brick, poking out of the slope
-    const cw = s * 0.32, cx = x + w * 0.3;
-    const cBot = top - roofH * 0.56, cH = s * 0.62;
-    brickWall(c, cx - cw / 2, cBot - cH, cw, cH, 2, wall);
-    studRow(c, cx - cw / 2, cBot - cH, cw, 1, wall);
+    /* Chimney: one stud wide, sitting ON the slope and poking two plates
+       above the ridge. Sizing it off the whole roof rise, as it was, grew a
+       white column taller than the house. */
+    const ridgeY = wallTop - PLATE_H - Math.ceil(wS / 2) * BRICK_H;
+    piece(c, at(wS - 1), ridgeY + BRICK_H, 1, 5, wall);
   }
 
   // a barrel-roofed shed wide enough to park a shuttle in
@@ -2188,14 +2267,14 @@
          houses inside a 650px loop. */
       skin(c, b, rnd) {
         if (b.kind !== 'fort' || b.gen) return false;
-        drawHouse(c, b.x, b.y + b.r * 0.5, b.r, rnd);
+        drawHouse(c, b.x, b.y + b.r * 0.5, b.r * 0.8, rnd);
         return true;
       },
       paint(c, L, rnd, meta) {
         // a second row of houses along the top of the loop's inner ground
-        drawHouse(c, 410, 336, 25, rnd);
-        drawHouse(c, 640, 340, 27, rnd);
-        drawHouse(c, 865, 334, 24, rnd);
+        drawHouse(c, 410, 344, 34, rnd);
+        drawHouse(c, 640, 348, 34, rnd);
+        drawHouse(c, 865, 342, 34, rnd);
         drawSnowman(c, 640, 96, 15, rnd);   // the statue in the square
         drawTuft(c, 545, 344, 7, rnd); drawTuft(c, 745, 342, 7, rnd);
         drawTuft(c, 585, 108, 7, rnd); drawTuft(c, 697, 104, 7, rnd);
@@ -4277,12 +4356,102 @@
   function vacGeom(spec) {
     const f = (spec && spec.form) || 'upright';
     const b = (spec && spec.bulk) || 1;
-    if (f === 'hand')  return { f, b, headX0: 0.30, headX1: 1.00, topX: 0.22, botX: 0.62, halfT: 0.24, halfB: 0.28, top: -0.10 };
-    if (f === 'stick') return { f, b, headX0: 0.20, headX1: 1.14, topX: 0.20, botX: 0.60, halfT: 0.20, halfB: 0.28, top: -0.68 };
-    if (f === 'can')   return { f, b, tubW: 0.62 * b, tubH: 0.50 * b };
-    if (f === 'drum')  return { f, b, tubW: 0.74 * b, tubH: 0.66 * b };
-    if (f === 'robo')  return { f, b };
-    return { f, b, headX0: 0.20, headX1: 1.26, topX: 0.20, botX: 0.66, halfT: 0.30 * b, halfB: 0.42 * b, top: -0.58 };
+    /* headX0/headX1  the floor head, along the ground
+       tx0,ty0/tx1,ty1  the handle tube, from the head up to the grip
+       bagX,bagY        where the soft parts hang off the tube
+       cx,cy            the middle of the biggest mass, for the species mark */
+    if (f === 'hand')  return { f, b, cx: -0.16, cy: GY - 0.60 };
+    if (f === 'stick') return { f, b, headX0: 0.12, headX1: 1.22, crown: 0.46, tx0: 0.56, ty0: GY - 0.36, tx1: -0.16, ty1: -1.24, bagX: 0.02, bagY: -0.70, cx: 0.02, cy: -0.70 };
+    if (f === 'can')   return { f, b, tubW: 0.62 * b, tubH: 0.50 * b, cx: -0.10, cy: GY - 0.50 * 0.5 * b - 0.06 };
+    if (f === 'drum')  return { f, b, tubW: 0.74 * b, tubH: 0.66 * b, cx: -0.10, cy: GY - 0.66 * 0.5 * b - 0.06 };
+    if (f === 'robo')  return { f, b, cx: 0.10, cy: GY - 0.22 };
+    return { f, b, headX0: 0.06, headX1: 1.44, crown: 0.60, tx0: 0.66, ty0: GY - 0.42, tx1: -0.30, ty1: -1.28, bagX: -0.08, bagY: -1.01, cx: -0.08 - 0.14 * b, cy: -0.13 };
+  }
+
+  /* The floor head: the powered nozzle the machine rides on. A low wedge that
+     rises toward the nose over the motor, because that hump is what stops it
+     reading as a doorstop. */
+  function vacHead(ctx, r, g) {
+    const x0 = g.headX0, x1 = g.headX1, c = g.crown;
+    ctx.beginPath();
+    ctx.moveTo(r * x0, r * GY);
+    ctx.lineTo(r * x0, r * (GY - 0.22));
+    ctx.quadraticCurveTo(r * x0, r * (GY - 0.36), r * (x0 + 0.20), r * (GY - 0.38));
+    ctx.lineTo(r * (x1 - 0.60), r * (GY - c + 0.10));
+    ctx.quadraticCurveTo(r * (x1 - 0.16), r * (GY - c), r * (x1 - 0.02), r * (GY - c * 0.45));
+    ctx.quadraticCurveTo(r * (x1 + 0.06), r * (GY - 0.06), r * (x1 - 0.12), r * GY);
+    ctx.closePath();
+  }
+
+  /* The dust bag, hanging off the handle — the shape that makes the whole
+     thing read as a vacuum from across the board rather than as a wedge with a
+     stick in it. One fat teardrop: narrow where it clips to the tube, widest
+     low and to the back, bottom clear of the floor.
+
+     `bulk` only widens it. Growing it downward as well put a heavy machine's
+     bag through the floor, and a fatter bag reads as heavier anyway. */
+  function vacBag(ctx, r, g) {
+    const x = g.bagX, y = g.bagY, w = g.b;
+    const px = (dx) => r * (x + dx * w), py = (dy) => r * (y + dy);
+    ctx.beginPath();
+    ctx.moveTo(px(0), py(0));
+    ctx.quadraticCurveTo(px(0.21), py(0.54), px(0.50), py(1.30));   // right edge, along the tube
+    ctx.quadraticCurveTo(px(0.50), py(1.66), px(0.14), py(1.72));   // bottom, just off the floor
+    ctx.quadraticCurveTo(px(-0.26), py(1.80), px(-0.53), py(1.52));
+    ctx.quadraticCurveTo(px(-0.81), py(1.32), px(-0.83), py(0.98)); // widest, low and back
+    ctx.quadraticCurveTo(px(-0.79), py(0.52), px(-0.45), py(0.24));
+    ctx.quadraticCurveTo(px(-0.24), py(0.02), px(0), py(0));        // the neck, back to the tube
+    ctx.closePath();
+  }
+
+  /* The handheld. One shell with the grip hole punched clean through it,
+     which is the whole read: a body you hold in one hand. Drawn as an outer
+     outline plus an inner loop and filled even-odd, so the hole is part of the
+     silhouette rather than a black ring parked behind it. */
+  function vacHandShell(ctx, r) {
+    const y = (v) => r * (GY - v);
+    ctx.beginPath();
+    ctx.moveTo(r * -0.96, y(0.72));
+    ctx.quadraticCurveTo(r * -0.96, y(1.14), r * -0.44, y(1.14));
+    ctx.quadraticCurveTo(r * 0.06, y(1.20), r * 0.44, y(0.94));
+    ctx.quadraticCurveTo(r * 0.62, y(0.80), r * 0.66, y(0.58));
+    ctx.lineTo(r * 1.18, y(0.30));                                  // the snout
+    ctx.quadraticCurveTo(r * 1.34, y(0.18), r * 1.20, y(0));        // the nose
+    ctx.lineTo(r * 0.70, y(0));                                     // the mouth
+    ctx.lineTo(r * 0.54, y(0.34));                                  // step back up to the body
+    ctx.quadraticCurveTo(r * 0.10, y(0.32), r * -0.34, y(0.34));
+    ctx.quadraticCurveTo(r * -0.72, y(0.34), r * -0.84, y(0.20));
+    ctx.quadraticCurveTo(r * -1.02, y(0.02), r * -1.16, y(0.18));
+    ctx.quadraticCurveTo(r * -1.24, y(0.42), r * -0.96, y(0.72));
+    ctx.closePath();
+    // the hand hole, wound as its own subpath so even-odd cuts it out
+    ctx.moveTo(r * -0.36, y(0.68));
+    ctx.ellipse(r * -0.60, y(0.68), r * 0.24, r * 0.30, 0, 0, TAU);
+  }
+
+  /* The handle: a raked steel tube with a walking-stick grip on top. Stroked
+     dark and then bright down the middle, which is the cheapest way to get a
+     round metal pole out of two lines. */
+  function vacTube(ctx, r, g, LW) {
+    const ang = Math.atan2(g.tx1 - g.tx0, -(g.ty1 - g.ty0));
+    ctx.lineCap = 'round';
+    for (const pass of [0, 1]) {
+      ctx.strokeStyle = pass ? '#c3ced9' : OUTLINE;
+      ctx.lineWidth = pass ? LW * 0.95 : LW * 1.9;
+      ctx.beginPath();
+      ctx.moveTo(r * g.tx0, r * g.ty0);
+      ctx.lineTo(r * g.tx1, r * g.ty1);
+      ctx.stroke();
+    }
+    // the grip, curling back over the top the way a real one does
+    const k = Math.min(1, Math.hypot(g.tx1 - g.tx0, g.ty1 - g.ty0) / 1.9);
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = LW * 1.9;
+    ctx.beginPath();
+    ctx.moveTo(r * g.tx1, r * g.ty1);
+    ctx.quadraticCurveTo(r * (g.tx1 + 0.06 * k), r * (g.ty1 - 0.34 * k), r * (g.tx1 - 0.26 * k), r * (g.ty1 - 0.36 * k));
+    ctx.quadraticCurveTo(r * (g.tx1 - 0.56 * k), r * (g.ty1 - 0.38 * k), r * (g.tx1 - 0.50 * k), r * (g.ty1 - 0.08 * k));
+    ctx.stroke();
+    return ang;
   }
 
   /* The body shell — the one shape the fill, the clip and the outline share, so
@@ -4299,20 +4468,28 @@
       ctx.ellipse(-r * 0.10, r * (GY - g.tubH * 0.5 - 0.06), r * g.tubW, r * g.tubH * 0.5, 0, 0, TAU);
       return;
     }
-    /* upright: the foot and the leaning body as ONE closed path. Drawing them
-       as a single outline rather than two overlapping boxes is most of what
-       makes this treatment read — the machine is one object with one edge. */
-    const bot = GY - 0.26;
-    ctx.beginPath();
-    ctx.moveTo(r * g.headX0, r * GY);
-    ctx.lineTo(r * g.headX1, r * GY);
-    ctx.lineTo(r * g.headX1, r * (GY - 0.30));
-    ctx.lineTo(r * (g.botX + g.halfB), r * (GY - 0.30));
-    ctx.lineTo(r * (g.topX + g.halfT), r * g.top);
-    ctx.lineTo(r * (g.topX - g.halfT), r * g.top);
-    ctx.lineTo(r * (g.botX - g.halfB), r * (GY - 0.30));
-    ctx.lineTo(r * g.headX0, r * (GY - 0.30));
-    ctx.closePath();
+    /* The big soft mass, which is what the eye actually catches: the bag on an
+       upright, the motor pod on a stick vac, the shell of a handheld. */
+    if (g.f === 'stick') {
+      /* Built under a rotation so it lies along the tube. Canvas keeps path
+         points in device space, so restoring the transform afterwards leaves
+         the path exactly where it was drawn. */
+      const ang = Math.atan2(g.tx1 - g.tx0, -(g.ty1 - g.ty0));
+      const w = r * 0.32 * g.b, h = r * 0.52 * g.b, rad = r * 0.16;
+      ctx.save();
+      ctx.translate(r * g.bagX, r * g.bagY); ctx.rotate(ang);
+      ctx.beginPath();
+      ctx.moveTo(-w + rad, -h);
+      ctx.arcTo(w, -h, w, h, rad);
+      ctx.arcTo(w, h, -w, h, rad);
+      ctx.arcTo(-w, h, -w, -h, rad);
+      ctx.arcTo(-w, -h, w, -h, rad);
+      ctx.closePath();
+      ctx.restore();
+      return;
+    }
+    if (g.f === 'hand') { vacHandShell(ctx, r); return; }
+    vacBag(ctx, r, g);
   }
 
   /* Nothing rotates any more, so this only answers "which way round". Keyed on
@@ -4348,29 +4525,45 @@
       }
     }
 
-    /* ---- UPRIGHT: handle first, so the body's outline closes over its root ---- */
-    if (f === 'upright' || f === 'stick' || f === 'hand') {
-      if (f === 'hand') {
-        ctx.strokeStyle = OUTLINE; ctx.lineWidth = LW * 1.7;
-        ctx.beginPath(); ctx.moveTo(r * 0.34, r * 0.06); ctx.lineTo(r * 0.02, r * 0.40); ctx.stroke();
-      } else {
-        const hx = g.topX - 0.26, hy = g.top - 0.58;
-        ctx.strokeStyle = OUTLINE; ctx.lineWidth = LW * 1.15;
-        ctx.beginPath(); ctx.moveTo(r * g.topX, r * g.top); ctx.lineTo(r * hx, r * hy); ctx.stroke();
-        ctx.lineWidth = LW * 1.55;                                  // the grip
-        ctx.beginPath();
-        ctx.moveTo(r * (hx - 0.20), r * (hy - 0.08)); ctx.lineTo(r * (hx + 0.20), r * (hy + 0.10));
-        ctx.stroke();
-      }
+    /* ---- UPRIGHT: tube first, then the bag over it, then the head over both.
+       That order is the whole trick — the tube disappears behind the bag where
+       a real one does, and the head's outline closes over the bag's bottom, so
+       three parts read as one machine instead of three stickers. ---- */
+    if (f === 'upright' || f === 'stick') {
+      vacTube(ctx, r, g, LW);
 
+      // the bag on an upright, the motor pod on a stick vac
       ctx.fillStyle = col; ctx.strokeStyle = OUTLINE; ctx.lineWidth = LW;
       vacBody(ctx, r, spec); ctx.fill(); ctx.stroke();
 
+      /* One crease down the front of the bag. A flat blob of colour looks
+         moulded; cloth needs a fold, and one line is enough to say so. */
+      if (f === 'upright') {
+        ctx.strokeStyle = shade(col, -34); ctx.lineWidth = LW * 0.55;
+        ctx.beginPath();
+        ctx.moveTo(r * (g.bagX - 0.06 * g.b), r * (g.bagY + 0.34));
+        ctx.quadraticCurveTo(r * (g.bagX - 0.36 * g.b), r * (g.bagY + 0.98), r * (g.bagX - 0.18 * g.b), r * (g.bagY + 1.56));
+        ctx.stroke();
+      }
+
+      // the floor head, drawn last so it sits in front of everything
+      ctx.fillStyle = col; ctx.strokeStyle = OUTLINE; ctx.lineWidth = LW;
+      vacHead(ctx, r, g); ctx.fill(); ctx.stroke();
+
       // the intake: the one mark every machine carries, because it is the mouth
       ctx.fillStyle = OUTLINE;
-      ctx.fillRect(r * (g.headX0 + 0.08), r * (GY - 0.15), r * (g.headX1 - g.headX0 - 0.16), r * 0.15);
-      // the wheel, as a solid disc rather than a rendered one
-      ctx.beginPath(); ctx.arc(r * (g.headX0 + 0.14), r * (GY - 0.15), r * 0.15, 0, TAU); ctx.fill();
+      ctx.fillRect(r * (g.headX0 + 0.16), r * (GY - 0.11), r * (g.headX1 - g.headX0 - 0.46), r * 0.11);
+      // wheels, as solid discs rather than rendered ones
+      ctx.beginPath(); ctx.arc(r * (g.headX0 + 0.22), r * (GY - 0.11), r * 0.11, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(r * (g.headX1 - 0.34), r * (GY - 0.11), r * 0.10, 0, TAU); ctx.fill();
+    }
+
+    /* ---- HANDHELD: one shell with the grip hole cut out of it, and a mouth ---- */
+    if (f === 'hand') {
+      ctx.fillStyle = col; ctx.strokeStyle = OUTLINE; ctx.lineWidth = LW;
+      vacBody(ctx, r, spec); ctx.fill('evenodd'); ctx.stroke();
+      ctx.fillStyle = OUTLINE;
+      ctx.fillRect(r * 0.68, r * (GY - 0.15), r * 0.46, r * 0.15);
     }
 
     /* ---- CANISTER: tub, hose, wand. The hose is the identifying line. ---- */
@@ -4419,10 +4612,7 @@
     }
 
     /* ---- one flat mark per species, and only one ---- */
-    const bodyCx = (f === 'can' || f === 'drum') ? -r * 0.10 : r * (g.topX ? (g.topX + g.botX) / 2 : 0);
-    const bodyCy = (f === 'can' || f === 'drum')
-      ? r * (GY - g.tubH * 0.5 - 0.06)
-      : r * ((g.top + GY - 0.30) / 2);
+    const bodyCx = r * g.cx, bodyCy = r * g.cy;
 
     if (spec.vents) {                          // cooling slots
       ctx.fillStyle = OUTLINE;
@@ -4699,8 +4889,9 @@
        no error at all, and a machine missing a slice reads as a different one:
 
          back    Central Unit's wall pipe −1.85r
-         front   the canister wand +1.35r
-         top     the Extractor's exhaust stacks, and the handle grip, −1.60r
+         front   the upright's floor head +1.50r
+         top     the upright's grip, −1.66r, and it is stroked at LW*1.9, so
+                 the box has to clear another half-outline past that
          floor   GY at +0.80r, plus the cord
 
        `r` IS IN THE KEY. It is constant per species today, so this adds no
@@ -4710,7 +4901,7 @@
     const variant = ((e.wob * 1000) | 0) % 3;
     const key = 'vac|' + e.type + '|' + Math.round(r) + '|' + (hidden ? 'h' : '') + variant;
     ctx.globalAlpha = 1;
-    blitSprite(ctx, sprite(key, [r * 2.05, r * 1.65, r * 1.70, r * 1.05],
+    blitSprite(ctx, sprite(key, [r * 2.05, r * 1.65, r * 1.85, r * 1.05],
       (c) => paintVac(c, e.type, r, hidden, variant)));
 
     /* The brush roll, turning under the mouth of the floor head. In profile it
