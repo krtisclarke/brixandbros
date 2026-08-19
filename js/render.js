@@ -224,6 +224,16 @@
      covers whole studs. `lift` is how much of its near wall shows, which is
      the only cue for height in this view — plates show less of it than
      bricks. */
+  /* While a battlefield's terrain is baked, every piece that goes down records
+     the studs it covers. That set becomes the ground a Bro may NOT stand on:
+     a minifig stands on the baseplate, or on the water plates, never on top of
+     a brick that is already sitting there.
+
+     Collected here rather than declared per-prop because it then cannot go out
+     of date — anything drawn as a piece blocks, including every landmark,
+     without a single one of them having to remember to say so. */
+  let occupyInto = null;
+
   function brickAt(c, cx, cy, wS, hS, col, opts) {
     opts = opts || {};
     const w = wS * U, h = hS * U;
@@ -235,6 +245,14 @@
     const y = opts.free ? cy - h / 2 : snapU(cy - h / 2);
     const lift = opts.plate ? U * 0.10 : U * 0.24;
     const rad = CHAMFER;
+
+    // claim the studs underneath, so nothing can be stood on top of this
+    if (occupyInto && !opts.free) {
+      const i0 = Math.round(x / U), j0 = Math.round(y / U);
+      for (let j = 0; j < hS; j++) {
+        for (let i = 0; i < wS; i++) occupyInto.add((i0 + i) + ',' + (j0 + j));
+      }
+    }
 
     c.fillStyle = 'rgba(18,28,42,0.30)';
     chamfer(c, x + lift * 0.6, y + lift * 1.1, w, h, rad); c.fill();
@@ -486,6 +504,9 @@
     const th = level.theme;
     const rnd = mulberry32(910 + G.LEVELS.indexOf(level) * 7717);
     const meta = { torches: [], crystals: [], fountains: [], pads: [], wheels: [] };
+    // start claiming studs: everything drawn from here on is a piece on the plate
+    const occupied = new Set();
+    occupyInto = occupied;
 
     /* --- the baseplate ---
        The whole board is one giant building plate, and the studs are what say
@@ -688,7 +709,12 @@
     c.fillStyle = vig;
     c.fillRect(0, 0, w, h);
 
-    return { canvas: cvs, meta };
+    occupyInto = null;
+    /* Published on the level so canPlace can read it. The scenery is baked
+       art, so this is the only place that knows where the pieces actually
+       ended up — the scatter is seeded, so it is the same set every time. */
+    level.occupied = occupied;
+    return { canvas: cvs, meta, occupied };
   }
 
   function pathPoint(pts, d) {
@@ -2050,19 +2076,32 @@
     c.fillRect(x - s * 0.2, y - s * 0.32, s * 0.4, s * 0.64);
   }
 
-  /* A city block seen from above: roof, plant, and a lit face on the two
-     sunward sides so it has height. Tier 1 is called Brick City and had no
-     buildings taller than a cottage anywhere on it. */
+  /* A city block from above: a rectangular footprint with a smaller, darker
+     roof block set on it, and one more step again if it is big enough to
+     carry it. It used to be a roof with printed window rows and a "sunward
+     face" — a building drawn side-on and then laid down flat. */
   function drawTowerBlock(c, x, y, w, h, col) {
-    col = col || BRICK.red;
+    /* Callers hand in the muted wash the side-on drawing wanted. On a brick
+       board there are only brick colours, so the nearest real one wins. */
+    const PAL = [BRICK.red, BRICK.blue, BRICK.yellow, BRICK.white, BRICK.lgrey, BRICK.dgreen];
+    let body = BRICK.red;
+    if (col) {
+      const t = chan(col);
+      let best = Infinity;
+      for (let i = 0; i < PAL.length; i++) {
+        const p = chan(PAL[i]);
+        const d = (p[0] - t[0]) ** 2 + (p[1] - t[1]) ** 2 + (p[2] - t[2]) ** 2;
+        if (d < best) { best = d; body = PAL[i]; }
+      }
+    }
     /* Odd or even, the footprint and every block set on it lose two studs a
        side, so they keep the same parity and stay concentric. */
     const wS = Math.max(4, Math.round(w / U));
     const hS = Math.max(3, Math.round(h / U));
-    brickAt(c, x, y, wS, hS, col);                          // the footprint
-    brickAt(c, x, y, wS - 2, hS - 2, mul(col, 0.72));       // the roof block
+    brickAt(c, x, y, wS, hS, body);                          // the footprint
+    brickAt(c, x, y, wS - 2, hS - 2, mul(body, 0.72));       // the roof block
     // a big block carries one more step, which is the only height there is
-    if (wS >= 8 && hS >= 6) brickAt(c, x, y, wS - 4, hS - 4, mul(col, 0.54));
+    if (wS >= 8 && hS >= 6) brickAt(c, x, y, wS - 4, hS - 4, mul(body, 0.54));
   }
 
   const DECOS = {
@@ -2467,7 +2506,10 @@
     },
   };
 
-  // the mill wheel at rest — same geometry the animated overlay redraws
+  /* The mill wheel at rest, from above: a ring of brown bricks laid round a
+     yellow hub. It was a rim and six spokes, which is a wheel seen edge-on —
+     the one view this board never has. The animated overlay carries the
+     paddle bricks round inside this rim, onto the same 2x2 hub. */
   function drawStaticWheel(c, x, y, r) {
     const R = Math.max(2, Math.round(r * 0.92 / U));   // rim radius, in whole studs
     /* Every piece sits on a stud, so the rim is built by walking the grid and
@@ -2483,7 +2525,9 @@
     brickAt(c, x, y, 2, 2, BRICK.yellow);              // the hub the overlay spins on
   }
 
-  // a chimney for the rooftops — brick red, two studs, a soot-dark flue
+  /* A chimney for the rooftops, seen from above: one red brick standing on
+     the tile. The big ones are a 1x2 stack, which is all the height there is
+     to read from straight overhead. */
   function drawChimneyBlock(c, x, y, s) {
     brickAt(c, x, y, 1, s >= 20 ? 2 : 1, BRICK.red);
   }

@@ -203,6 +203,27 @@
       for (const p of this.paths) if (distToPath(p, x, y) < G.PATH_HALF + G.TOWER_R - 4) return false;
       for (const b of this.level.blockers) if (dist2(x, y, b.x, b.y) < (b.r + G.TOWER_R - 4) ** 2) return false;
       for (const t of this.towers) if (dist2(x, y, t.x, t.y) < (G.TOWER_R * 2 - 6) ** 2) return false;
+      /* A Bro stands on the baseplate, or on the water plates — never on top
+         of a piece that is already down. The scenery used to be decoration the
+         placement rules knew nothing about, so Bros ended up standing on the
+         houses and the loose bricks. */
+      const occ = this.level.occupied;
+      if (occ) {
+        /* Two studs wide, and two deep: the pair the feet stand on plus the
+           row the legs reach into. Only the feet was too little — a Bro one
+           stud above a brick still had its legs lying across it. All three
+           rows was too much: it cost so much ground that the difficulty ramp
+           between tiers went flat.
+
+           The row ABOVE deliberately is not reserved. Terrain is painted
+           before the figures, so a piece up there is drawn BEHIND the Bro,
+           which is what standing in front of something looks like. */
+        const U = G.STUD_U, s = G.snapStand(x, y);
+        const i = Math.round(s.x / U), j = Math.round(s.y / U - 0.5);
+        for (let dj = 0; dj <= 1; dj++) {
+          if (occ.has((i - 1) + ',' + (j + dj)) || occ.has(i + ',' + (j + dj))) return false;
+        }
+      }
       const water = def.stats.water || 'never';
       if (water === 'only' && !this.inWater(x, y)) return false;
       if (water === 'never' && this.inWater(x, y)) return false;
