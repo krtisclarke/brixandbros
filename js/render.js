@@ -102,7 +102,7 @@
      The real-world millimetres do not matter. The RATIOS do, and these are
      the real ones: a brick is three plates tall, a stud is 0.6 of a stud
      pitch across, and a stud stands about a fifth of a pitch proud. */
-  const U = 16;
+  const U = G.STUD_U;   // one definition, in data.js — placement snaps to it too
   const STUD_R = U * 0.30;        // stud radius — identical on every piece
   const STUD_UP = U * 0.22;       // how far a stud stands proud
   const PLATE_H = U * 0.40;       // one plate
@@ -227,7 +227,12 @@
   function brickAt(c, cx, cy, wS, hS, col, opts) {
     opts = opts || {};
     const w = wS * U, h = hS * U;
-    const x = snapU(cx - w / 2), y = snapU(cy - h / 2);
+    /* Normally a piece can only sit where the studs are. `free` is the one
+       exception, for a piece that is MOVING — a paddle going round a mill
+       wheel is not seated on the plate, and snapping it each frame makes it
+       jitter between studs instead of turning. */
+    const x = opts.free ? cx - w / 2 : snapU(cx - w / 2);
+    const y = opts.free ? cy - h / 2 : snapU(cy - h / 2);
     const lift = opts.plate ? U * 0.10 : U * 0.24;
     const rad = CHAMFER;
 
@@ -808,21 +813,19 @@
      they sit at scattered angles, and each one carries its two studs: at any
      size the thing your eye picks up is "brick", not "ice". */
   function drawFloe(c, x, y, r, rnd) {
-    c.save();
-    c.translate(x, y);
-    const cols = ['#c8443c', '#3f7fd4', '#e8b93c', '#3fae6a'];
-    const n = 2 + ((rnd() * 2) | 0);
+    /* Pieces dropped in the pool. They used to be drawn at scattered ANGLES,
+       which from above is the one thing a brick lying in water cannot do — it
+       lies flat, square to the plate underneath. */
+    const cols = [BRICK.red, BRICK.blue, BRICK.yellow, BRICK.green];
+    const n = 1 + ((rnd() * 2) | 0);
     for (let i = 0; i < n; i++) {
-      c.save();
-      c.translate((rnd() - 0.5) * r * 1.4, (rnd() - 0.5) * r * 1.1);
-      c.rotate(rnd() * TAU);
-      const w = r * 0.62, h = r * 0.44;
-      c.fillStyle = 'rgba(10,32,56,0.30)';
-      c.fillRect(-w / 2 + r * 0.06, -h / 2 + r * 0.08, w, h);
-      brickBit(c, 0, 0, w, h, cols[(rnd() * cols.length) | 0]);
-      c.restore();
+      const flip = rnd() > 0.5;
+      brickAt(c,
+        x + Math.round((rnd() - 0.5) * 2) * U,
+        y + Math.round((rnd() - 0.5) * 2) * U,
+        flip ? 2 : 1, flip ? 1 : 2,
+        cols[(rnd() * cols.length) | 0], { plate: true });
     }
-    c.restore();
   }
 
   /* The track as a channel of seawater. Same palette and the same deep→shallow
@@ -1855,56 +1858,35 @@
     brickBlock(c, x, y - s * 1.72, s * 1.0, s * 0.28, '#e8eaec', 2);
   }
 
-  /* The civic centrepiece of tier 1: steps, four columns, a pediment and two
-     wings — the building the other nine battlefields were fighting toward. */
+  /* City Hall from above: the biggest civic footprint on the board. A pale
+     tan slab on its own grey forecourt, a white wing at each end, a blue core
+     down the middle and a gold brick dead centre.
+
+     It was steps, four columns, a pediment and two flags — a building drawn
+     side-on. From straight overhead a hall is a footprint, and the only
+     height there is comes from setting one block on another. */
   function drawCityHall(c, x, y, s) {
-    const w = s * 4.6;
-    propShadow(c, x, y + 3, w * 0.5);
-    // steps
-    brickBlock(c, x, y + s * 0.34, w * 0.72, s * 0.22, '#b4bec8', 0);
-    brickBlock(c, x, y + s * 0.14, w * 0.6, s * 0.2, '#c8ccd2', 0);
-    // wings
-    for (const side of [-1, 1]) {
-      const wx = x + side * w * 0.36;
-      c.fillStyle = shade('#e3d8c2', -32); c.fillRect(wx - w * 0.14, y - s * 1.1, w * 0.28, s * 1.1);
-      c.fillStyle = '#e3d8c2'; c.fillRect(wx - w * 0.14, y - s * 1.1, w * 0.2, s * 1.1);
-      c.strokeStyle = shade('#e3d8c2', -58); c.lineWidth = 1.1;
-      c.strokeRect(wx - w * 0.14, y - s * 1.1, w * 0.28, s * 1.1);
-      c.fillStyle = '#8fd0f0';
-      c.fillRect(wx - s * 0.3, y - s * 0.86, s * 0.24, s * 0.3);
-      c.fillRect(wx + s * 0.08, y - s * 0.86, s * 0.24, s * 0.3);
-      c.strokeStyle = 'rgba(30,40,54,0.5)';
-      c.strokeRect(wx - s * 0.3, y - s * 0.86, s * 0.24, s * 0.3);
-      c.strokeRect(wx + s * 0.08, y - s * 0.86, s * 0.24, s * 0.3);
-    }
-    // central block behind the columns
-    c.fillStyle = shade('#efe6d2', -26); c.fillRect(x - w * 0.24, y - s * 1.5, w * 0.48, s * 1.5);
-    c.fillStyle = '#efe6d2'; c.fillRect(x - w * 0.24, y - s * 1.5, w * 0.38, s * 1.5);
-    c.fillStyle = '#5a4a38'; c.fillRect(x - s * 0.3, y - s * 0.78, s * 0.6, s * 0.78);
-    c.fillStyle = shade('#5a4a38', 30); c.fillRect(x - s * 0.3, y - s * 0.78, s * 0.6, s * 0.12);
-    // four columns
-    for (let i = 0; i < 4; i++) {
-      const cx = x - w * 0.18 + i * w * 0.12;
-      c.fillStyle = '#f5efdf'; c.fillRect(cx - s * 0.09, y - s * 1.42, s * 0.18, s * 1.42);
-      c.strokeStyle = 'rgba(120,105,80,0.6)'; c.lineWidth = 1;
-      c.strokeRect(cx - s * 0.09, y - s * 1.42, s * 0.18, s * 1.42);
-    }
-    // entablature and pediment
-    c.fillStyle = '#e8dfc8'; c.fillRect(x - w * 0.27, y - s * 1.72, w * 0.54, s * 0.3);
-    c.strokeStyle = shade('#e8dfc8', -50); c.lineWidth = 1.1; c.strokeRect(x - w * 0.27, y - s * 1.72, w * 0.54, s * 0.3);
-    c.fillStyle = '#efe6d2';
-    c.beginPath(); c.moveTo(x - w * 0.28, y - s * 1.72); c.lineTo(x, y - s * 2.35); c.lineTo(x + w * 0.28, y - s * 1.72); c.closePath(); c.fill();
-    c.strokeStyle = shade('#efe6d2', -50);
-    c.beginPath(); c.moveTo(x - w * 0.28, y - s * 1.72); c.lineTo(x, y - s * 2.35); c.lineTo(x + w * 0.28, y - s * 1.72); c.closePath(); c.stroke();
-    c.fillStyle = '#e8b93c'; c.beginPath(); c.arc(x, y - s * 1.95, s * 0.16, 0, TAU); c.fill();
-    // rooftop flags
-    for (const side of [-1, 1]) {
-      const fx = x + side * w * 0.36;
-      c.strokeStyle = '#8b98a5'; c.lineWidth = 1.4;
-      c.beginPath(); c.moveTo(fx, y - s * 1.1); c.lineTo(fx, y - s * 1.65); c.stroke();
-      c.fillStyle = '#c8443c';
-      c.beginPath(); c.moveTo(fx, y - s * 1.65); c.lineTo(fx + side * s * 0.4, y - s * 1.55); c.lineTo(fx, y - s * 1.45); c.closePath(); c.fill();
-    }
+    /* Every piece is even-sided, so they all share the same parity and the
+       stacks land dead centre on one another. A bigger `s` buys MORE studs,
+       never bigger ones. */
+    const wS = Math.max(8, Math.round(s * 4.6 / U / 2) * 2);   // ~12 studs at s=40
+    const hS = Math.max(6, Math.round(s * 3.0 / U / 2) * 2);   // ~8 studs
+    const wingW = Math.max(2, Math.round(wS / 3 / 2) * 2);     // the block at each end
+    const coreW = Math.max(2, wS - wingW * 2);                 // what is left between them
+    const wingOff = ((wS - wingW) / 2) * U;
+    /* (x, y) is the front of the building, the way it was when this was drawn
+       in elevation — callers put it hard against the bottom of the board and
+       expect the build to run back up the plate from there. Whole studs. */
+    const cy = y - (hS / 2) * U;
+
+    brickAt(c, x, cy, wS + 4, hS + 4, BRICK.lgrey, { plate: true });  // the forecourt
+    brickAt(c, x, cy, wS, hS, BRICK.tan);                             // the hall itself
+    brickAt(c, x - wingOff, cy, wingW, hS - 4, BRICK.white);          // the two wings
+    brickAt(c, x + wingOff, cy, wingW, hS - 4, BRICK.white);
+    brickAt(c, x, cy, coreW, hS - 2, BRICK.blue);                     // the coloured core
+    brickAt(c, x, cy, 2, 2, BRICK.yellow);                            // the gold centre
+    // the steps, a plate on the forecourt off the front edge
+    brickAt(c, x, cy + (hS / 2 + 1) * U, coreW, 2, BRICK.white, { plate: true });
   }
 
   /* ---------- the dressing table ----------
@@ -2072,34 +2054,15 @@
      sunward sides so it has height. Tier 1 is called Brick City and had no
      buildings taller than a cottage anywhere on it. */
   function drawTowerBlock(c, x, y, w, h, col) {
-    col = col || '#b9563f';
-    c.fillStyle = 'rgba(25,42,62,0.22)';
-    c.fillRect(x - w / 2 + 7, y - h / 2 + 9, w, h);
-    c.fillStyle = shade(col, -30); c.fillRect(x - w / 2, y - h / 2, w, h);
-    c.fillStyle = col; c.fillRect(x - w / 2, y - h / 2, w * 0.82, h * 0.84);
-    c.strokeStyle = shade(col, -58); c.lineWidth = 1.6;
-    c.strokeRect(x - w / 2, y - h / 2, w, h);
-    // window rows, printed on the roof face the way a top-down build shows them
-    c.fillStyle = 'rgba(150,205,240,0.75)';
-    for (let wy = y - h / 2 + 12; wy < y + h / 2 - 10; wy += 17) {
-      for (let wx = x - w / 2 + 11; wx < x + w / 2 - 12; wx += 16) c.fillRect(wx, wy, 8, 8);
-    }
-    // the roof itself, inset, with its furniture
-    c.fillStyle = shade(col, -46);
-    c.fillRect(x - w * 0.3, y - h * 0.3, w * 0.6, h * 0.6);
-    c.fillStyle = shade(col, -18);
-    c.fillRect(x - w * 0.3, y - h * 0.3, w * 0.6, h * 0.12);
-    c.strokeStyle = shade(col, -62); c.lineWidth = 1.2;
-    c.strokeRect(x - w * 0.3, y - h * 0.3, w * 0.6, h * 0.6);
-    c.fillStyle = '#8b959f';
-    c.fillRect(x - w * 0.16, y - h * 0.14, w * 0.16, h * 0.16);
-    c.fillStyle = '#c8443c';
-    c.beginPath(); c.arc(x + w * 0.18, y + h * 0.16, 3.4, 0, TAU); c.fill();
-    // studs along the parapet
-    c.fillStyle = shade(col, 26);
-    for (let sx2 = x - w / 2 + 9; sx2 < x + w / 2 - 6; sx2 += 18) {
-      c.beginPath(); c.ellipse(sx2, y - h / 2 + 5, 5, 2.6, 0, 0, TAU); c.fill();
-    }
+    col = col || BRICK.red;
+    /* Odd or even, the footprint and every block set on it lose two studs a
+       side, so they keep the same parity and stay concentric. */
+    const wS = Math.max(4, Math.round(w / U));
+    const hS = Math.max(3, Math.round(h / U));
+    brickAt(c, x, y, wS, hS, col);                          // the footprint
+    brickAt(c, x, y, wS - 2, hS - 2, mul(col, 0.72));       // the roof block
+    // a big block carries one more step, which is the only height there is
+    if (wS >= 8 && hS >= 6) brickAt(c, x, y, wS - 4, hS - 4, mul(col, 0.54));
   }
 
   const DECOS = {
@@ -2506,28 +2469,23 @@
 
   // the mill wheel at rest — same geometry the animated overlay redraws
   function drawStaticWheel(c, x, y, r) {
-    c.save();
-    c.translate(x, y);
-    c.strokeStyle = '#5d4a38'; c.lineWidth = r * 0.2;
-    c.beginPath(); c.arc(0, 0, r * 0.85, 0, TAU); c.stroke();
-    c.strokeStyle = '#7a5535'; c.lineWidth = r * 0.09;
-    for (let k = 0; k < 6; k++) {
-      const a = (k / 6) * TAU;
-      c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * r * 0.85, Math.sin(a) * r * 0.85); c.stroke();
-      c.beginPath(); c.moveTo(Math.cos(a) * r * 0.85, Math.sin(a) * r * 0.85);
-      c.lineTo(Math.cos(a) * r * 1.08, Math.sin(a) * r * 1.08); c.stroke();
+    const R = Math.max(2, Math.round(r * 0.92 / U));   // rim radius, in whole studs
+    /* Every piece sits on a stud, so the rim is built by walking the grid and
+       keeping the cells that fall on the circle — no arc, no stroke. */
+    for (let j = -R; j <= R; j++) {
+      for (let i = -R; i <= R; i++) {
+        const d = Math.sqrt(i * i + j * j);
+        if (d < R - 0.55 || d > R + 0.55) continue;
+        brickAt(c, x + i * U, y + j * U, 1, 1, ((i + j) & 1) ? BRICK.brown : '#8F6238');
+      }
     }
-    c.fillStyle = '#e8b93c';
-    c.beginPath(); c.arc(0, 0, r * 0.14, 0, TAU); c.fill();
-    c.restore();
+    if (R >= 4) brickAt(c, x, y, 4, 4, BRICK.brown);   // the boss the paddles hang off
+    brickAt(c, x, y, 2, 2, BRICK.yellow);              // the hub the overlay spins on
   }
 
   // a chimney for the rooftops — brick red, two studs, a soot-dark flue
   function drawChimneyBlock(c, x, y, s) {
-    propShadow(c, x, y + 2, s * 0.5);
-    brickBlock(c, x, y, s * 0.9, s * 1.1, '#a03830', 2);
-    c.fillStyle = '#1e2630';
-    c.beginPath(); c.ellipse(x, y - s * 1.28, s * 0.26, s * 0.1, 0, 0, TAU); c.fill();
+    brickAt(c, x, y, 1, s >= 20 ? 2 : 1, BRICK.red);
   }
 
   /* ---------- animated scenery ---------- */
@@ -2654,24 +2612,16 @@
 
     for (let i = 0; i < (meta.wheels || []).length; i++) {
       const wh = meta.wheels[i];
+      /* The mill wheel, from above: paddle bricks carried round a hub. It was
+         drawn as spokes and a rim, which is a wheel seen edge-on — the one
+         view this board never has. */
       const a0 = t * 0.9;
-      ctx.save();
-      ctx.translate(wh.x, wh.y);
-      ctx.strokeStyle = '#5d4a38'; ctx.lineWidth = wh.r * 0.2;
-      ctx.beginPath(); ctx.arc(0, 0, wh.r * 0.85, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = '#7a5535'; ctx.lineWidth = wh.r * 0.09;
-      for (let k = 0; k < 6; k++) {
-        const a = a0 + (k / 6) * TAU;
-        ctx.beginPath(); ctx.moveTo(0, 0);
-        ctx.lineTo(Math.cos(a) * wh.r * 0.85, Math.sin(a) * wh.r * 0.85); ctx.stroke();
-        // paddle at the rim
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(a) * wh.r * 0.85, Math.sin(a) * wh.r * 0.85);
-        ctx.lineTo(Math.cos(a) * wh.r * 1.08, Math.sin(a) * wh.r * 1.08); ctx.stroke();
+      for (let k = 0; k < 8; k++) {
+        const a = a0 + (k / 8) * TAU;
+        brickAt(ctx, wh.x + Math.cos(a) * wh.r * 0.78, wh.y + Math.sin(a) * wh.r * 0.78,
+          1, 1, k % 2 ? BRICK.brown : '#8F6238', { free: true });
       }
-      ctx.fillStyle = '#e8b93c';
-      ctx.beginPath(); ctx.arc(0, 0, wh.r * 0.14, 0, TAU); ctx.fill();
-      ctx.restore();
+      brickAt(ctx, wh.x, wh.y, 2, 2, BRICK.yellow);
     }
 
     for (let i = 0; i < meta.torches.length; i++) {
@@ -5304,9 +5254,15 @@
     }
     if (game.placingType) {
       const def = G.TOWERS[game.placingType];
-      const { x, y } = game.mouse;
-      if (x > -100) {
-        const ok = game.canPlace(game.placingType, x, y);
+      /* The ghost stands where the Bro will ACTUALLY land, not under the
+         pointer. Snapping silently on release would read as the game moving
+         your Bro after you let go; showing the snapped spot the whole time
+         makes it read as clicking into place, which is the point. */
+      const spot = G.nearestStand(game, game.placingType, game.mouse.x, game.mouse.y);
+      const raw = game.mouse;
+      const x = spot ? spot.x : raw.x, y = spot ? spot.y : raw.y;
+      if (raw.x > -100) {
+        const ok = !!spot;
         /* Effective range, not the raw stat — the ghost was drawing the
            pre-nerf circle and promising reach the placed Bro wouldn't have. */
         const range = (G.computeEffective(game.placingType, [0, 0, 0]).range || 60);

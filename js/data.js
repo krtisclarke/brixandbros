@@ -6,6 +6,56 @@
   G.H = 800;
   G.PATH_HALF = 26;      // half-width of the track
   G.TOWER_R = 20;        // tower footprint radius
+
+  /* ---------------- the stud grid ----------------
+     One stud pitch, in pixels. The renderer builds every piece of scenery out
+     of whole multiples of it, and placement snaps to it — so it lives here,
+     where both can see it, rather than inside the painter.
+
+     A minifig's legs straddle TWO studs. Studs sit at U*(i+0.5), so the seam
+     between two side-by-side studs is at U*i — that is where a Bro's centre
+     belongs. Hence: x rounds to a whole stud boundary, y to a stud centre. */
+  G.STUD_U = 16;
+  G.snapStand = function (x, y) {
+    const U = G.STUD_U;
+    return { x: Math.round(x / U) * U, y: (Math.floor(y / U) + 0.5) * U };
+  };
+
+  /* The nearest pair of open studs to where the player let go. They should not
+     have to be accurate — dropping near a legal spot should take it — but the
+     search is deliberately short (three studs) so a drop in the middle of the
+     road fails rather than teleporting a Bro somewhere they did not point. */
+  /* Memoised on the grid cell, because the placement ghost asks this every
+     frame and a miss costs up to 49 canPlace checks — each of which walks the
+     paths, the blockers and the towers. The answer only changes when the
+     pointer crosses into a new cell, or when the board does. */
+  let standMemo = null;
+  G.nearestStand = function (game, typeId, x, y) {
+    const U = G.STUD_U;
+    const base = G.snapStand(x, y);
+    const key = typeId + '@' + base.x + ',' + base.y + '#' + game.towers.length;
+    if (standMemo && standMemo.key === key) return standMemo.val;
+    const val = findStand(game, typeId, x, y, base, U);
+    standMemo = { key, val };
+    return val;
+  };
+  function findStand(game, typeId, x, y, base, U) {
+    if (game.canPlace(typeId, base.x, base.y)) return base;
+    const R = 3;
+    const cands = [];
+    for (let dj = -R; dj <= R; dj++) {
+      for (let di = -R; di <= R; di++) {
+        if (!di && !dj) continue;
+        const cx = base.x + di * U, cy = base.y + dj * U;
+        cands.push({ x: cx, y: cy, d: (cx - x) ** 2 + (cy - y) ** 2 });
+      }
+    }
+    cands.sort((a, b) => a.d - b.d);
+    for (const c of cands) {
+      if (game.canPlace(typeId, c.x, c.y)) return { x: c.x, y: c.y };
+    }
+    return null;
+  };
   G.SELL_RATE = 0.7;
 
   /* ---------------- Difficulty modes ----------------

@@ -221,6 +221,13 @@
     placeTower(typeId, x, y) {
       const def = G.TOWERS[typeId];
       if (def.hero && (this.heroTower || typeId !== this.heroType)) return null; // one hero, the chosen one
+      /* Snap to the studs. A Bro stands on two of them like a minifig does, so
+         the drop point is a suggestion and this is where it actually lands.
+         Every route into placement comes through here, so none of them can
+         put a Bro down off the grid. */
+      const spot = G.nearestStand(this, typeId, x, y);
+      if (!spot) return null;
+      x = spot.x; y = spot.y;
       const cost = this.priceOf(def.cost);
       if (this.cash < cost || !this.canPlace(typeId, x, y)) return null;
       this.cash -= cost;
