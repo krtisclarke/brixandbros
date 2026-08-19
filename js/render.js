@@ -1314,29 +1314,22 @@
 
   // a barrel-roofed shed wide enough to park a shuttle in
   function drawHangar(c, x, y, s, rnd) {
-    const w = s * 2.9, wh = s * 1.25;
-    propShadow(c, x, y + 2, w * 0.55);
-    c.fillStyle = '#77808a'; c.fillRect(x - w / 2, y - wh * 0.55, w, wh * 0.55);
-    c.fillStyle = '#9aa4ae';
-    c.beginPath(); c.moveTo(x - w / 2, y - wh * 0.55);
-    c.quadraticCurveTo(x, y - wh * 1.25, x + w / 2, y - wh * 0.55);
-    c.closePath(); c.fill();
-    c.strokeStyle = '#5a636d'; c.lineWidth = 1.3;
-    c.beginPath(); c.moveTo(x - w / 2, y - wh * 0.55);
-    c.quadraticCurveTo(x, y - wh * 1.25, x + w / 2, y - wh * 0.55);
-    c.lineTo(x + w / 2, y); c.lineTo(x - w / 2, y); c.closePath(); c.stroke();
-    // ribs over the curve, then the big door with its hazard frame
-    for (let i = -1; i <= 1; i++) {
-      c.beginPath(); c.moveTo(x + i * w * 0.3, y - wh * (i ? 0.98 : 1.08) + wh * 0.35);
-      c.lineTo(x + i * w * 0.3, y - wh * 0.55); c.stroke();
+      /* Was a barrel roof drawn side-on: a curve, ribs and a shutter door. None
+         of that exists looking straight down. From above a hangar is a wide grey
+         slab with a lighter ridge along its spine, and the dark apron the
+         shuttles taxi over lying in front of the doors. */
+      const wS = 2 * Math.max(3, Math.min(6, Math.round(s * 1.3 / U)));   // 6..12 studs across
+      const hS = 2 * Math.max(2, Math.min(4, Math.round(s * 0.8 / U)));   // 4..8 studs deep
+      // the apron first, so the shed drops its shadow onto it
+      brickAt(c, x, y + (hS / 2 + 1) * U, wS, 2, BRICK.dgrey, { plate: true, tile: true });
+      brickAt(c, x, y, wS, hS, BRICK.lgrey);                 // the shed
+      brickAt(c, x, y, wS - 2, 2, BRICK.white);              // the ridge, one course up
+      // hazard tiles either side of the door mouth
+      for (const side of [-1, 1]) {
+        brickAt(c, x + side * (wS / 2 - 1) * U, y + (hS / 2 + 1) * U, 2, 2,
+          BRICK.yellow, { plate: true, tile: true });
+      }
     }
-    c.fillStyle = '#3a4450'; c.fillRect(x - w * 0.28, y - wh * 0.62, w * 0.56, wh * 0.62);
-    c.fillStyle = '#e8b93c'; c.fillRect(x - w * 0.28, y - wh * 0.66, w * 0.56, wh * 0.07);
-    c.strokeStyle = 'rgba(240,244,248,0.35)'; c.lineWidth = 1;
-    for (let i = 1; i < 4; i++) {
-      c.beginPath(); c.moveTo(x - w * 0.28, y - wh * 0.62 + i * wh * 0.15); c.lineTo(x + w * 0.28, y - wh * 0.62 + i * wh * 0.15); c.stroke();
-    }
-  }
 
   /* The town fountain. `R` is the BASIN radius, and on Fountain Square that
      is the map's pool radius — the pool IS the fountain, rather than a small
@@ -1348,115 +1341,89 @@
      as a manhole cover. Every tier here is a circle seen from overhead, and
      depth comes from the lit rim on each one. */
   function drawFountain(c, x, y, R, meta) {
-    // the stone kerb, laid over the pool's own rim
-    c.fillStyle = '#8b959f';
-    c.beginPath(); c.arc(x, y, R + 10, 0, TAU); c.fill();
-    c.fillStyle = '#a6b0ba';
-    c.beginPath(); c.arc(x, y, R + 10, Math.PI * 0.92, Math.PI * 1.92); c.fill();
-    c.fillStyle = '#5db4e4'; c.beginPath(); c.arc(x, y, R - 2, 0, TAU); c.fill();
-    c.strokeStyle = 'rgba(20,34,52,0.55)'; c.lineWidth = 2;
-    c.beginPath(); c.arc(x, y, R + 10, 0, TAU); c.stroke();
-    c.beginPath(); c.arc(x, y, R - 2, 0, TAU); c.stroke();
-    // studs around the kerb — the basin is built, not carved
-    const n = Math.max(12, Math.round(R / 9));
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * TAU;
-      const sx = x + Math.cos(a) * (R + 4), sy = y + Math.sin(a) * (R + 4);
-      c.fillStyle = '#c2ccd4';
-      c.beginPath(); c.arc(sx, sy, R * 0.045 + 1.5, 0, TAU); c.fill();
-      c.strokeStyle = 'rgba(60,70,84,0.7)'; c.lineWidth = 0.9;
-      c.beginPath(); c.arc(sx, sy, R * 0.045 + 1.5, 0, TAU); c.stroke();
+      /* The town fountain, seen from straight above: a square kerb of stone
+         brick with the water inside it and a pedestal stepping up out of the
+         middle. `R` is the pool's radius, so a bigger pool gets a LONGER kerb —
+         more pieces, never bigger ones.
+
+         It was a side-on pedestal with a spout dropped into the middle of a
+         top-down board, which is why it read as a manhole cover. */
+      const k = Math.max(2, Math.min(10, Math.round(R / U)));   // kerb, in studs from the middle
+      const n = 2 * k + 1;                                      // studs across, always odd
+      // the water the kerb holds in
+      brickAt(c, x, y, n - 2, n - 2, BRICK.blue, { plate: true });
+      // the kerb itself: four straight runs, the end ones carrying the corners
+      brickAt(c, x, y - k * U, n, 1, BRICK.lgrey);
+      brickAt(c, x, y + k * U, n, 1, BRICK.lgrey);
+      brickAt(c, x - k * U, y, 1, n - 2, BRICK.lgrey);
+      brickAt(c, x + k * U, y, 1, n - 2, BRICK.lgrey);
+      // the pedestal, one step smaller each time it goes up
+      const t = Math.min(n - 4, k >= 6 ? 5 : 3);
+      if (t >= 1) brickAt(c, x, y, t, t, BRICK.lgrey);
+      if (t >= 3) brickAt(c, x, y, 1, 1, BRICK.white);
+      if (meta) meta.fountains.push({ x, y, s: R });
     }
-    // two tiers stepping up out of the water, each a lit disc from above
-    const tier = (rr, top, lip) => {
-      c.fillStyle = 'rgba(12,32,56,0.28)';
-      c.beginPath(); c.ellipse(x + rr * 0.09, y + rr * 0.12, rr, rr, 0, 0, TAU); c.fill();
-      c.fillStyle = lip; c.beginPath(); c.arc(x, y, rr, 0, TAU); c.fill();
-      c.fillStyle = top; c.beginPath(); c.arc(x, y, rr * 0.82, 0, TAU); c.fill();
-      c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 2;
-      c.beginPath(); c.arc(x, y, rr, Math.PI * 0.95, Math.PI * 1.95); c.stroke();
-      c.strokeStyle = 'rgba(30,44,62,0.5)'; c.lineWidth = 1.4;
-      c.beginPath(); c.arc(x, y, rr, 0, TAU); c.stroke();
-    };
-    tier(R * 0.56, '#4fa8dc', '#9aa4ae');
-    tier(R * 0.3, '#63bce8', '#b4bec8');
-    // the spout the water actually comes out of
-    c.fillStyle = '#c2ccd4';
-    c.beginPath(); c.arc(x, y, R * 0.12, 0, TAU); c.fill();
-    c.strokeStyle = 'rgba(60,70,84,0.75)'; c.lineWidth = 1.2;
-    c.beginPath(); c.arc(x, y, R * 0.12, 0, TAU); c.stroke();
-    c.fillStyle = '#e8f6ff';
-    c.beginPath(); c.arc(x - R * 0.03, y - R * 0.03, R * 0.06, 0, TAU); c.fill();
-    if (meta) meta.fountains.push({ x, y, s: R });
-  }
 
   // planks out over the water, on posts, going somewhere worth going
   function drawJetty(c, x, y, s, ang) {
-    c.save();
-    c.translate(x, y); c.rotate(ang || 0);
-    const L = s * 3.4, W = s * 0.95;
-    c.fillStyle = 'rgba(10,30,52,0.28)'; c.fillRect(0, -W / 2 + 3, L, W);
-    c.fillStyle = '#a9825a'; c.fillRect(0, -W / 2, L, W);
-    c.fillStyle = 'rgba(255,240,210,0.25)'; c.fillRect(0, -W / 2, L, W * 0.24);
-    c.strokeStyle = 'rgba(70,50,30,0.55)'; c.lineWidth = 1.1;
-    for (let d = s * 0.5; d < L; d += s * 0.5) {
-      c.beginPath(); c.moveTo(d, -W / 2); c.lineTo(d, W / 2); c.stroke();
-    }
-    c.strokeRect(0, -W / 2, L, W);
-    c.fillStyle = '#6b4f35';
-    for (const px of [s * 0.3, L * 0.55, L - s * 0.25]) {
-      for (const side of [-1, 1]) {
-        c.beginPath(); c.arc(px, side * (W / 2 + 2), s * 0.13, 0, TAU); c.fill();
+      /* A jetty is a plank walk out over the water, and from above that is one
+         line of brown plates running away from the shore. It used to be drawn
+         at whatever angle the caller asked for; a plate can only lie square to
+         the plate under it, so the angle now picks which of the four ways along
+         the grid it runs. */
+      const q = ((Math.round((ang || 0) / (Math.PI / 2)) % 4) + 4) % 4;
+      const dx = [1, 0, -1, 0][q], dy = [0, 1, 0, -1][q];
+      const L = Math.max(3, Math.min(10, Math.round(s * 3.4 / U)));   // studs out over the water
+      const W = Math.max(1, Math.min(3, Math.round(s / U)));          // studs across
+      for (let i = 0; i < L; i++) {
+        // alternating shades, so the planks can be counted
+        const col = i % 2 ? BRICK.brown : lit(BRICK.brown, 0.12);
+        brickAt(c, x + dx * i * U, y + dy * i * U, dx ? 1 : W, dx ? W : 1, col, { plate: true });
       }
+      // the mooring post at the far end — the one piece that stands proud
+      brickAt(c, x + dx * (L - 1) * U, y + dy * (L - 1) * U, 1, 1, BRICK.dgrey);
     }
-    c.restore();
-  }
 
   // a tug the size of a bathtub: red hull, white deck, one blue cabin brick
   function drawBoat(c, x, y, s, rnd) {
-    c.save();
-    c.translate(x, y); c.rotate((rnd ? (rnd() - 0.5) * 0.5 : 0));
-    c.fillStyle = 'rgba(8,26,48,0.3)';
-    c.beginPath(); c.ellipse(s * 0.1, s * 0.28, s * 1.5, s * 0.5, 0, 0, TAU); c.fill();
-    c.fillStyle = '#a03830';
-    c.beginPath(); c.moveTo(-s * 1.3, 0); c.quadraticCurveTo(0, s * 0.72, s * 1.3, 0);
-    c.lineTo(s * 1.5, -s * 0.2); c.lineTo(-s * 1.3, -s * 0.2); c.closePath(); c.fill();
-    c.fillStyle = '#c8443c'; c.fillRect(-s * 1.3, -s * 0.5, s * 2.8, s * 0.34);
-    c.fillStyle = '#f2f4f6'; c.fillRect(-s * 0.9, -s * 0.72, s * 1.6, s * 0.26);
-    brickBlock(c, s * 0.05, -s * 0.7, s * 0.85, s * 0.5, '#3f7fd4', 2);
-    c.fillStyle = '#2f3b47'; c.fillRect(-s * 0.62, -s * 1.06, s * 0.2, s * 0.36);
-    c.fillStyle = '#e8b93c'; c.beginPath(); c.ellipse(-s * 0.52, -s * 1.1, s * 0.11, s * 0.05, 0, 0, TAU); c.fill();
-    c.restore();
-  }
+      /* A tug from overhead: a red hull with a white deck brick down the middle
+         and a blue cabin brick set on that. No bow curve, no mast, no funnel —
+         none of those is a shape you can see looking straight down. */
+      const L = Math.max(4, Math.min(6, Math.round(s * 4 / U)));   // hull length, in studs
+      const W = Math.max(2, Math.min(3, L - 2));                   // hull beam, in studs
+      const upright = rnd ? rnd() > 0.5 : false;                   // which way it is moored
+      brickAt(c, x, y, upright ? W : L, upright ? L : W, BRICK.red);
+      brickAt(c, x, y, upright ? 1 : L - 2, upright ? L - 2 : 1, BRICK.white);
+      brickAt(c, x + (upright ? 0 : U), y + (upright ? U : 0), 1, 1, BRICK.blue);
+    }
 
   /* Parapets where the track crosses water: two low walls of grey brick
      with studs on top, following the path itself. `broken` knocks the middle
      out and tips a few bricks into the water — a causeway that lost its
      argument with time. */
   function drawBridgeRails(c, pts, dMid, len, rnd, broken) {
-    for (const side of [-1, 1]) {
-      for (let d = dMid - len / 2; d <= dMid + len / 2; d += 13) {
-        if (broken && Math.abs(d - dMid) < len * 0.18) continue;
-        const p = pathPoint(pts, d);
-        const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
-        const bx = p.x + nx * side * (G.PATH_HALF + 9);
-        const by = p.y + ny * side * (G.PATH_HALF + 9);
-        c.save();
-        c.translate(bx, by); c.rotate(p.ang);
-        c.fillStyle = '#6b7580'; c.fillRect(-6.5, -4, 13, 9);
-        c.fillStyle = '#9aa4ae'; c.fillRect(-6.5, -6, 13, 6);
-        c.strokeStyle = 'rgba(40,50,62,0.7)'; c.lineWidth = 1; c.strokeRect(-6.5, -6, 13, 11);
-        c.fillStyle = '#b4bec8';
-        c.beginPath(); c.ellipse(0, -6, 3.4, 1.9, 0, 0, TAU); c.fill();
-        c.restore();
-      }
-      if (broken) {
-        const p = pathPoint(pts, dMid + (rnd() - 0.5) * len * 0.2);
-        const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
-        brickBit(c, p.x + nx * side * (G.PATH_HALF + 16), p.y + ny * side * (G.PATH_HALF + 16), 11, 7, '#9aa4ae');
+      /* The parapet where the track crosses water: two lines of grey brick, one
+         either side, laid a stud clear of the edge and following the path
+         itself. `broken` knocks the middle out and tips a piece into the water
+         — a causeway that lost its argument with time. */
+      const off = G.PATH_HALF + U;
+      for (const side of [-1, 1]) {
+        let i = 0;
+        for (let d = dMid - len / 2; d <= dMid + len / 2; d += U, i++) {
+          if (broken && Math.abs(d - dMid) < len * 0.18) continue;
+          const p = pathPoint(pts, d);
+          const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
+          brickAt(c, p.x + nx * side * off, p.y + ny * side * off, 1, 1,
+            i % 2 ? BRICK.lgrey : lit(BRICK.lgrey, 0.10));
+        }
+        if (broken) {
+          const p = pathPoint(pts, dMid + (rnd() - 0.5) * len * 0.2);
+          const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
+          brickAt(c, p.x + nx * side * (G.PATH_HALF + U * 2),
+            p.y + ny * side * (G.PATH_HALF + U * 2), 2, 1, BRICK.lgrey, { plate: true });
+        }
       }
     }
-  }
 
   // a smooth landing circle painted on the deck — the one place with no studs
   function drawLandingPad(c, x, y, s, meta) {
@@ -1480,368 +1447,333 @@
 
   // an industrial tank: one big cylinder, hooped, with a hazard stripe
   function drawTank(c, x, y, s, col) {
-    const w = s * 1.5, h = s * 1.9;
-    propShadow(c, x, y + 2, w * 0.62);
-    c.fillStyle = shade(col, -36); c.fillRect(x - w / 2, y - h, w, h);
-    c.fillStyle = col; c.fillRect(x - w / 2, y - h, w * 0.68, h);
-    c.fillStyle = shade(col, 30); c.fillRect(x - w * 0.34, y - h, w * 0.16, h);
-    c.fillStyle = shade(col, 14);
-    c.beginPath(); c.ellipse(x, y - h, w / 2, w * 0.2, 0, 0, TAU); c.fill();
-    c.strokeStyle = shade(col, -58); c.lineWidth = 1.3;
-    c.beginPath(); c.ellipse(x, y - h, w / 2, w * 0.2, 0, 0, TAU); c.stroke();
-    c.strokeRect(x - w / 2, y - h, w, h);
-    for (const hy of [y - h * 0.66, y - h * 0.33]) {
-      c.beginPath(); c.moveTo(x - w / 2, hy); c.lineTo(x + w / 2, hy); c.stroke();
+      /* A hooped cylinder with a stripe round its foot was the side of a tank.
+         From above it is a squat round drum on a stand: two slabs crossed so the
+         corners come off the footprint, stepping up to a hazard hatch. */
+      const bS = 2 * Math.max(2, Math.min(3, Math.round(s * 1.7 / U)));  // 4 or 6 studs across
+      brickAt(c, x, y, bS, bS, BRICK.dgrey, { plate: true });            // the stand
+      brickAt(c, x, y, bS, bS - 2, col);                                 // crossed slabs, so the
+      brickAt(c, x, y, bS - 2, bS, col);                                 // drum reads round
+      if (bS > 4) brickAt(c, x, y, bS - 2, bS - 2, lit(col, 0.12));      // the top of the drum
+      brickAt(c, x, y, 2, 2, BRICK.yellow, { plate: true });             // the hatch
     }
-    // hazard stripe at the base
-    c.save();
-    c.beginPath(); c.rect(x - w / 2, y - h * 0.16, w, h * 0.16); c.clip();
-    c.fillStyle = '#e8b93c'; c.fillRect(x - w / 2, y - h * 0.16, w, h * 0.16);
-    c.fillStyle = '#2f3b47';
-    for (let d = -w; d < w; d += w * 0.3) {
-      c.beginPath(); c.moveTo(x + d, y); c.lineTo(x + d + w * 0.15, y - h * 0.16);
-      c.lineTo(x + d + w * 0.25, y - h * 0.16); c.lineTo(x + d + w * 0.1, y); c.closePath(); c.fill();
-    }
-    c.restore();
-    c.fillStyle = shade(col, 24);
-    c.beginPath(); c.ellipse(x, y - h - w * 0.12, w * 0.14, w * 0.07, 0, 0, TAU); c.fill();
-  }
 
   // the rocket every spaceport keeps out front: white body, red nose, real fins
   function drawRocket(c, x, y, s) {
-    propShadow(c, x, y + 2, s * 0.9);
-    c.fillStyle = '#c8443c';
-    for (const side of [-1, 1]) {
-      c.beginPath();
-      c.moveTo(x + side * s * 0.34, y - s * 0.9);
-      c.lineTo(x + side * s * 0.86, y - s * 0.1);
-      c.lineTo(x + side * s * 0.86, y); c.lineTo(x + side * s * 0.34, y - s * 0.28);
-      c.closePath(); c.fill();
+      /* Nose down the camera. A standing rocket seen from directly above is a
+         cross of fins, the body inside it, and the nose as one brick in the
+         middle — not the tall white cylinder this used to draw. */
+      const a = Math.max(2, Math.min(3, Math.round(s / U)));  // how far each fin reaches
+      const fS = a * 2 + 1;                                   // 5 or 7 studs tip to tip
+      brickAt(c, x, y, fS, 3, BRICK.white);                   // the cross of fins
+      brickAt(c, x, y, 3, fS, BRICK.white);
+      for (const d of [-1, 1]) {                              // red brick on every fin tip
+        brickAt(c, x + d * a * U, y, 1, 3, BRICK.red);
+        brickAt(c, x, y + d * a * U, 3, 1, BRICK.red);
+      }
+      brickAt(c, x, y, 3, 3, BRICK.white);                    // the body, standing above the fins
+      brickAt(c, x, y, 1, 1, BRICK.red);                      // the nose
     }
-    c.fillStyle = '#5a636d';
-    c.beginPath(); c.moveTo(x - s * 0.26, y - s * 0.14); c.lineTo(x + s * 0.26, y - s * 0.14);
-    c.lineTo(x + s * 0.18, y + s * 0.08); c.lineTo(x - s * 0.18, y + s * 0.08); c.closePath(); c.fill();
-    c.fillStyle = '#d6d9dc'; c.fillRect(x - s * 0.34, y - s * 1.9, s * 0.68, s * 1.78);
-    c.fillStyle = '#f2f4f6'; c.fillRect(x - s * 0.34, y - s * 1.9, s * 0.4, s * 1.78);
-    c.strokeStyle = '#8b98a5'; c.lineWidth = 1.2;
-    c.strokeRect(x - s * 0.34, y - s * 1.9, s * 0.68, s * 1.78);
-    c.fillStyle = '#c8443c';
-    c.beginPath(); c.moveTo(x - s * 0.34, y - s * 1.9);
-    c.quadraticCurveTo(x, y - s * 2.65, x + s * 0.34, y - s * 1.9); c.closePath(); c.fill();
-    c.fillStyle = '#3f7fd4'; c.beginPath(); c.arc(x, y - s * 1.5, s * 0.17, 0, TAU); c.fill();
-    c.strokeStyle = '#f2f4f6'; c.lineWidth = 1.6;
-    c.beginPath(); c.arc(x, y - s * 1.5, s * 0.17, 0, TAU); c.stroke();
-  }
 
   // a lattice gantry leaning over whatever it services
   function drawGantry(c, x, y, s, dir) {
-    dir = dir || 1;
-    propShadow(c, x, y + 2, s * 0.7);
-    c.strokeStyle = '#8b959f'; c.lineWidth = Math.max(2, s * 0.09); c.lineCap = 'round';
-    const H = s * 2.7;
-    c.beginPath(); c.moveTo(x - s * 0.28, y); c.lineTo(x - s * 0.28, y - H); c.stroke();
-    c.beginPath(); c.moveTo(x + s * 0.28, y); c.lineTo(x + s * 0.28, y - H); c.stroke();
-    c.lineWidth = Math.max(1.2, s * 0.05);
-    for (let i = 0; i < 4; i++) {
-      const yy = y - H * (i + 0.5) / 4.5;
-      c.beginPath(); c.moveTo(x - s * 0.28, yy); c.lineTo(x + s * 0.28, yy - H * 0.09); c.stroke();
-      c.beginPath(); c.moveTo(x + s * 0.28, yy); c.lineTo(x - s * 0.28, yy - H * 0.09); c.stroke();
+      /* The lattice, the diagonals and the leaning boom were all elevation. In
+         plan a gantry is an L of grey beside the pad: a jib reaching over
+         whatever it services, a leg running alongside, and the mast standing at
+         the corner where they meet. `dir` still says which side the jib reaches. */
+      dir = dir || 1;
+      const J = 2 * Math.max(1, Math.min(3, Math.round(s * 1.3 / U)));  // jib, 2..6 studs
+      const K = Math.max(2, J - 2);                                     // the leg
+      brickAt(c, x, y, 4, 4, BRICK.lgrey, { plate: true });             // the footing
+      brickAt(c, x + dir * (2 + J / 2) * U, y, J, 2, BRICK.lgrey);      // the jib
+      brickAt(c, x, y + (2 + K / 2) * U, 2, K, BRICK.lgrey);            // the leg
+      brickAt(c, x, y, 2, 2, BRICK.dgrey);                              // the mast, a course higher
+      brickAt(c, x + dir * (J + 1) * U, y, 2, 2, BRICK.yellow, { plate: true });  // the hook
     }
-    c.lineWidth = Math.max(2, s * 0.09);
-    c.beginPath(); c.moveTo(x, y - H); c.lineTo(x + dir * s * 1.15, y - H); c.stroke();
-    c.beginPath(); c.moveTo(x + dir * s * 1.05, y - H); c.lineTo(x + dir * s * 1.05, y - H * 0.8); c.stroke();
-    c.fillStyle = '#e8b93c';
-    c.beginPath(); c.moveTo(x + dir * s * 1.05, y - H * 0.8); c.lineTo(x + dir * s * 0.95, y - H * 0.72); c.lineTo(x + dir * s * 1.15, y - H * 0.72); c.closePath(); c.fill();
-    c.fillStyle = '#c8443c'; c.beginPath(); c.arc(x, y - H, s * 0.1, 0, TAU); c.fill();
-  }
 
   /* A castle tower: round grey body, arrow slit, crenellated crown — and a
      cone roof with a pennant when it guards somewhere still lived-in.
      opts: { dark, roof: colour|false, glow } */
-  function drawCastleTower(c, x, y, s, opts) {
-    opts = opts || {};
-    /* The dark stone used to be #4a4550, which on the black-plate maps it was
-       invented for disappeared into the board — a keep nobody could see is
-       not a landmark. Lifted until it separates while still reading black. */
-    const col = opts.dark ? '#6b6478' : '#9aa4ae';
-    const w = s * 1.35, h = s * 1.9;
-    propShadow(c, x, y + 2, w * 0.6);
-    c.fillStyle = shade(col, -34); c.fillRect(x - w / 2, y - h, w, h);
-    c.fillStyle = col; c.fillRect(x - w / 2, y - h, w * 0.66, h);
-    c.fillStyle = shade(col, 22); c.fillRect(x - w * 0.34, y - h, w * 0.16, h);
-    c.strokeStyle = shade(col, -58); c.lineWidth = 1.3; c.strokeRect(x - w / 2, y - h, w, h);
-    // brick courses
-    c.strokeStyle = shade(col, -44); c.lineWidth = 0.9;
-    for (let i = 1; i < 4; i++) {
-      c.beginPath(); c.moveTo(x - w / 2, y - h * i / 4); c.lineTo(x + w / 2, y - h * i / 4); c.stroke();
+  /* A castle tower, seen from straight above. It was an elevation: a wall
+       with an arrow slit, a crenellated crown drawn edge-on and a cone roof —
+       none of which exists when you are looking down at a baseplate. From above
+       a tower is a square of stone with a smaller square set on it, merlons at
+       the four corners, and a coloured cap on the crown if the keep is still
+       lived in. opts: { dark, roof: colour|false, glow } */
+    function drawCastleTower(c, x, y, s, opts) {
+      opts = opts || {};
+      /* Dark keeps take a near-black grey rather than true black: on the black
+         plate of the late boards a black tower is a hole, not a landmark. */
+      const stone = opts.dark ? mul(BRICK.dgrey, 0.62) : BRICK.lgrey;
+      /* The footprint scales in STUDS, so a bigger tower is MORE bricks and
+         never bigger ones. Odd sizes only: every course then centres on the
+         same middle stud instead of drifting half a stud each time it stacks. */
+      let n = Math.max(3, Math.min(7, Math.round(s * 2.2 / U)));
+      if (n % 2 === 0) n += 1;
+      const r = (n - 1) / 2;                 // corner offset, in whole studs
+
+      brickAt(c, x, y, n, n, stone);         // the base course
+      const merlon = lit(stone, 0.20);       // crenellations, one per corner
+      for (const dx of [-r, r]) {
+        for (const dy of [-r, r]) brickAt(c, x + dx * U, y + dy * U, 1, 1, merlon);
+      }
+      brickAt(c, x, y, n - 2, n - 2, lit(stone, 0.08));   // the storey above
+      const crown = n >= 7 ? 3 : 1;
+      if (opts.roof) brickAt(c, x, y, crown, crown, opts.roof);
+      if (opts.glow) brickAt(c, x, y, 1, 1, opts.glow, { plate: true, tile: true });
     }
-    // arrow slit, lit from inside if the keep is dark
-    c.fillStyle = opts.glow || '#2f3b47';
-    c.fillRect(x - s * 0.06, y - h * 0.72, s * 0.12, h * 0.3);
-    // crenellated crown: merlons with a stud on each
-    const my = y - h;
-    c.fillStyle = shade(col, -10);
-    c.fillRect(x - w * 0.62, my - s * 0.34, w * 1.24, s * 0.34);
-    c.strokeStyle = shade(col, -58); c.strokeRect(x - w * 0.62, my - s * 0.34, w * 1.24, s * 0.34);
-    for (let i = -1; i <= 1; i++) {
-      const mx = x + i * w * 0.42;
-      c.fillStyle = shade(col, 6); c.fillRect(mx - s * 0.14, my - s * 0.62, s * 0.28, s * 0.3);
-      c.strokeStyle = shade(col, -58); c.strokeRect(mx - s * 0.14, my - s * 0.62, s * 0.28, s * 0.3);
-      c.fillStyle = shade(col, 28);
-      c.beginPath(); c.ellipse(mx, my - s * 0.64, s * 0.09, s * 0.05, 0, 0, TAU); c.fill();
-    }
-    if (opts.roof) {
-      c.fillStyle = opts.roof;
-      c.beginPath(); c.moveTo(x - w * 0.55, my - s * 0.6);
-      c.lineTo(x, my - s * 1.7); c.lineTo(x + w * 0.55, my - s * 0.6); c.closePath(); c.fill();
-      c.fillStyle = 'rgba(255,255,255,0.22)';
-      c.beginPath(); c.moveTo(x - w * 0.3, my - s * 0.6); c.lineTo(x, my - s * 1.7); c.lineTo(x - w * 0.02, my - s * 0.6); c.closePath(); c.fill();
-      c.strokeStyle = '#8b98a5'; c.lineWidth = 1.6;
-      c.beginPath(); c.moveTo(x, my - s * 1.7); c.lineTo(x, my - s * 2.05); c.stroke();
-      c.fillStyle = '#e8b93c';
-      c.beginPath(); c.moveTo(x, my - s * 2.05); c.lineTo(x + s * 0.42, y - h - s * 1.93); c.lineTo(x, my - s * 1.8); c.closePath(); c.fill();
-    }
-  }
 
   // a run of curtain wall between two points, courses offset like real brickwork
-  function drawCurtainWall(c, x1, y1, x2, y2, s, dark) {
-    const col = dark ? '#6b6478' : '#9aa4ae';
-    const len = Math.hypot(x2 - x1, y2 - y1), ang = Math.atan2(y2 - y1, x2 - x1);
-    c.save();
-    c.translate(x1, y1); c.rotate(ang);
-    const h = s * 1.15;
-    c.fillStyle = 'rgba(25,42,62,0.16)'; c.fillRect(3, -h + 6, len, h);
-    c.fillStyle = shade(col, -34); c.fillRect(0, -h, len, h);
-    c.fillStyle = col; c.fillRect(0, -h, len, h * 0.62);
-    c.fillStyle = shade(col, 22); c.fillRect(0, -h, len, h * 0.18);
-    c.strokeStyle = shade(col, -58); c.lineWidth = 1.2; c.strokeRect(0, -h, len, h);
-    c.strokeStyle = shade(col, -44); c.lineWidth = 0.8;
-    for (let d = s * 0.55; d < len; d += s * 0.55) {
-      c.beginPath(); c.moveTo(d, -h); c.lineTo(d, 0); c.stroke();
+  /* A curtain wall from above: 2-stud bricks laid end to end along the
+       segment, with a merlon course on alternate pieces so the parapet reads as
+       crenellated rather than as a ruled rectangle. The dominant axis decides
+       which way the pieces lie; the callers only ever build horizontal and
+       vertical runs. */
+    function drawCurtainWall(c, x1, y1, x2, y2, s, dark) {
+      const stone = dark ? mul(BRICK.dgrey, 0.62) : BRICK.lgrey;
+      const cap = lit(stone, 0.20);
+      const tS = Math.max(2, Math.min(3, Math.round(s * 1.5 / U)));     // thickness
+      const horiz = Math.abs(x2 - x1) >= Math.abs(y2 - y1);
+      const len = horiz ? Math.abs(x2 - x1) : Math.abs(y2 - y1);
+      const n = Math.max(1, Math.round(len / (U * 2)));                  // pieces
+      const x0 = snapU(Math.min(x1, x2)), y0 = snapU(Math.min(y1, y2));
+      const xc = snapU((x1 + x2) / 2), yc = snapU((y1 + y2) / 2);
+      for (let i = 0; i < n; i++) {
+        const d = (i * 2 + 1) * U;           // centre of the i-th piece, whole studs
+        const bx = horiz ? x0 + d : xc;
+        const by = horiz ? yc : y0 + d;
+        brickAt(c, bx, by, horiz ? 2 : tS, horiz ? tS : 2, stone);
+        if (i % 2 === 0) {
+          brickAt(c, bx, by, horiz ? 2 : tS - 1, horiz ? tS - 1 : 2, cap);
+        }
+      }
     }
-    // battlements
-    for (let d = s * 0.3; d < len - s * 0.2; d += s * 0.62) {
-      c.fillStyle = shade(col, 6); c.fillRect(d, -h - s * 0.26, s * 0.3, s * 0.26);
-      c.strokeStyle = shade(col, -58); c.strokeRect(d, -h - s * 0.26, s * 0.3, s * 0.26);
-    }
-    c.restore();
-  }
 
   // dais, gold seat, red velvet — the chair the whole tier is marching on
   function drawThrone(c, x, y, s) {
-    // red carpet running toward the seat, gold-edged, printed flat
-    const carpet = s * 1.7;   // stops short of the pool below the dais
-    c.fillStyle = 'rgba(160,44,40,0.55)'; c.fillRect(x - s * 0.55, y, s * 1.1, carpet);
-    c.strokeStyle = 'rgba(232,185,60,0.7)'; c.lineWidth = 2;
-    c.strokeRect(x - s * 0.55, y, s * 1.1, carpet);
-    // two stepped dais plates, studs along the leading edge
-    brickBlock(c, x, y + s * 0.4, s * 2.6, s * 0.34, '#b4bec8', 5);
-    brickBlock(c, x, y + s * 0.08, s * 2.0, s * 0.3, '#d6d9dc', 4);
-    // the throne itself
-    c.fillStyle = shade('#e8b93c', -38); c.fillRect(x - s * 0.6, y - s * 1.5, s * 1.2, s * 1.28);
-    c.fillStyle = '#e8b93c'; c.fillRect(x - s * 0.6, y - s * 1.5, s * 0.85, s * 1.28);
-    c.strokeStyle = shade('#e8b93c', -60); c.lineWidth = 1.2;
-    c.strokeRect(x - s * 0.6, y - s * 1.5, s * 1.2, s * 1.28);
-    c.fillStyle = '#c8443c'; c.fillRect(x - s * 0.42, y - s * 1.28, s * 0.84, s * 0.8);
-    c.fillStyle = shade('#c8443c', 24); c.fillRect(x - s * 0.42, y - s * 1.28, s * 0.84, s * 0.16);
-    for (const side of [-1, 1]) {
-      brickBlock(c, x + side * s * 0.72, y - s * 0.2, s * 0.3, s * 0.5, '#d4a92c', 1);
+    /* The seat, from directly above.
+
+       It was an elevation: a chair back, arm rests, a cushion, finials, all of
+       which are things you can only see from in front of a throne. From over
+       the top of it there is no chair — there is a pale dais with a gold seat
+       on it and a red carpet running away down the hall, and that is the whole
+       picture.
+
+       Height is the two dais steps: a big grey square with a smaller white one
+       set on top, then the gold 2x2 standing proud of that. The carpet is flat
+       tiles, so nothing about it reads as something you could stand on. */
+    const bx = snapU(x), by = snapU(y);
+    // the dais, in studs — even, so every piece on it centres on the same lines
+    const dS = Math.max(6, Math.min(12, Math.round(s * 2.6 / (U * 2)) * 2));
+    const uS = Math.max(4, dS - 2);                 // the step on top of it
+    const rows = Math.max(2, Math.round(s * 2 / (U * 2)));
+
+    /* Carpet first, so the dais drops its shadow onto it. Each row butts
+       against the last, starting hard against the front edge of the dais. */
+    for (let i = 0; i < rows; i++) {
+      brickAt(c, bx, by + (dS / 2 + 1 + i * 2) * U, 4, 2, BRICK.red, { plate: true, tile: true });
     }
-    c.fillStyle = '#f2d060';
-    c.beginPath(); c.ellipse(x - s * 0.38, y - s * 1.54, s * 0.1, s * 0.06, 0, 0, TAU); c.fill();
-    c.beginPath(); c.ellipse(x + s * 0.38, y - s * 1.54, s * 0.1, s * 0.06, 0, 0, TAU); c.fill();
-    c.beginPath(); c.moveTo(x - s * 0.14, y - s * 1.52); c.lineTo(x, y - s * 1.78); c.lineTo(x + s * 0.14, y - s * 1.52); c.closePath(); c.fill();
+
+    brickAt(c, bx, by, dS, dS, BRICK.lgrey);        // lower step
+    brickAt(c, bx, by, uS, uS, BRICK.white);        // upper step
+    // the carpet carries one square onto the dais, right up to the seat
+    brickAt(c, bx, by + U, 2, 2, BRICK.red, { plate: true, tile: true });
+    // and the seat itself, set at the back so it faces down the carpet
+    brickAt(c, bx, by - U, 2, 2, BRICK.yellow);
   }
 
   /* An aqueduct span: pillars under a water channel, arches between.
      `broken` ends the run mid-arch with rubble below the break. */
   function drawArches(c, x, y, s, n, broken) {
-    const aw = s * 1.25, h = s * 1.85;
-    propShadow(c, x + (n * aw) / 2, y + 2, n * aw * 0.5);
-    for (let i = 0; i <= n; i++) {
-      if (broken && i === n) {
-        for (let k = 0; k < 3; k++) {
-          brickBit(c, x + i * aw - s * 0.2 + k * s * 0.32, y - s * 0.1 - (k % 2) * s * 0.2, s * 0.34, s * 0.22, '#b9a88a');
-        }
-        continue;
-      }
-      const px = x + i * aw;
-      c.fillStyle = shade('#c9b28c', -38); c.fillRect(px - s * 0.19, y - h, s * 0.38, h);
-      c.fillStyle = '#c9b28c'; c.fillRect(px - s * 0.19, y - h, s * 0.24, h);
-      c.strokeStyle = shade('#c9b28c', -60); c.lineWidth = 1; c.strokeRect(px - s * 0.19, y - h, s * 0.38, h);
+    /* An aqueduct from above.
+
+       Everything that made the old one an aqueduct — the pillars, the arches
+       between them, the deck riding over the top — is a side-on reading. Look
+       straight down at one and you get a stone ribbon crossing the ground with
+       water running along the middle of it. The arches are underneath you and
+       you never see them.
+
+       So: n stone bricks butted end to end, alternating a shade so the spans
+       stay countable, and a blue channel tile laid down the centre of each.
+       The deck is four studs deep and the channel two, which leaves one stud
+       of stone showing either side — that is the whole silhouette. */
+    const bx = snapU(x), by = snapU(y);
+    const spanS = Math.max(3, Math.round(s * 1.5 / U));            // studs per span
+    const depthS = Math.max(4, Math.round(s * 1.6 / (U * 2)) * 2); // even, so the channel centres
+    const spans = Math.max(1, broken ? n - 1 : n);
+
+    for (let i = 0; i < spans; i++) {
+      brickAt(c, bx + i * spanS * U, by, spanS, depthS,
+        i % 2 ? mul(BRICK.tan, 0.9) : BRICK.tan);
     }
-    // arches between pillars
-    c.strokeStyle = shade('#c9b28c', -46); c.lineWidth = s * 0.14;
-    for (let i = 0; i < n - (broken ? 1 : 0); i++) {
-      c.beginPath();
-      c.arc(x + i * aw + aw / 2, y - h * 0.52, aw * 0.36, Math.PI, 0);
-      c.stroke();
+    for (let i = 0; i < spans; i++) {
+      brickAt(c, bx + i * spanS * U, by, spanS, 2, BRICK.glass, { plate: true, tile: true });
     }
-    // the channel on top, a paler stone with a blue thread of water
-    const L = (n - (broken ? 0.55 : 0)) * aw;
-    c.fillStyle = shade('#c9b28c', -30); c.fillRect(x - s * 0.3, y - h - s * 0.42, L + s * 0.4, s * 0.42);
-    c.fillStyle = '#d8c4a0'; c.fillRect(x - s * 0.3, y - h - s * 0.42, L + s * 0.4, s * 0.26);
-    c.fillStyle = '#5db4e4'; c.fillRect(x - s * 0.22, y - h - s * 0.34, L + s * 0.28, s * 0.12);
-    c.strokeStyle = shade('#c9b28c', -60); c.lineWidth = 1.1;
-    c.strokeRect(x - s * 0.3, y - h - s * 0.42, L + s * 0.4, s * 0.42);
+
+    /* The break: the last span is simply missing, and its bricks are lying
+       where it fell. Loose pieces, off the line, at real sizes. */
+    if (broken) {
+      const gx = bx + spans * spanS * U;
+      brickAt(c, gx - U, by - U, 2, 2, BRICK.tan);
+      brickAt(c, gx + 2 * U, by, 1, 2, BRICK.lgrey);
+      brickAt(c, gx, by + 2 * U, 2, 1, mul(BRICK.tan, 0.9));
+      brickAt(c, gx + U, by - 3 * U, 1, 1, BRICK.lgrey);
+    }
   }
 
   // a pennant on a pole — the cheapest way a road becomes a procession
   function drawBanner(c, x, y, s, col) {
-    propShadow(c, x, y + 2, s * 0.35);
-    c.strokeStyle = '#5a636d'; c.lineWidth = Math.max(1.6, s * 0.12); c.lineCap = 'round';
-    c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - s * 2.3); c.stroke();
-    c.fillStyle = col;
-    c.beginPath();
-    c.moveTo(x + s * 0.06, y - s * 2.25); c.lineTo(x + s * 1.15, y - s * 1.98);
-    c.lineTo(x + s * 0.72, y - s * 1.75); c.lineTo(x + s * 1.15, y - s * 1.52);
-    c.lineTo(x + s * 0.06, y - s * 1.25); c.closePath(); c.fill();
-    c.fillStyle = 'rgba(255,255,255,0.3)';
-    c.beginPath(); c.moveTo(x + s * 0.06, y - s * 2.25); c.lineTo(x + s * 1.15, y - s * 1.98);
-    c.lineTo(x + s * 0.06, y - s * 1.85); c.closePath(); c.fill();
-    c.fillStyle = '#e8b93c';
-    c.beginPath(); c.ellipse(x, y - s * 2.36, s * 0.12, s * 0.09, 0, 0, TAU); c.fill();
+    /* A pennant is a shape you read against the sky. From overhead there is no
+       sky and no pennant — there is a pole, seen end on, which is one stud.
+
+       So this is now the smallest piece in the system: a single bright brick
+       marking the spot, and nothing else. Bigger boards get a 2x2 rather than a
+       bigger 1x1, because the piece sizes are fixed and only the count moves. */
+    const wS = s >= 18 ? 2 : 1;
+    brickAt(c, snapU(x), snapU(y), wS, wS, col);
   }
 
   // corrugated freight, stacked the way freight always ends up: almost neatly
-  function drawContainers(c, x, y, s, rnd) {
-    const cols = ['#c8443c', '#3f7fd4', '#e8b93c', '#3fae6a'];
-    propShadow(c, x, y + 2, s * 1.6);
-    const box = (bx, by, col) => {
-      const w = s * 1.8, h = s * 0.8;
-      c.fillStyle = shade(col, -34); c.fillRect(bx - w / 2, by - h, w, h);
-      c.fillStyle = col; c.fillRect(bx - w / 2, by - h, w * 0.72, h);
-      c.fillStyle = shade(col, 22); c.fillRect(bx - w / 2, by - h, w, h * 0.18);
-      c.strokeStyle = shade(col, -58); c.lineWidth = 1.1; c.strokeRect(bx - w / 2, by - h, w, h);
-      c.strokeStyle = shade(col, -40); c.lineWidth = 0.8;
-      for (let d = -w * 0.32; d <= w * 0.36; d += w * 0.17) {
-        c.beginPath(); c.moveTo(bx + d, by - h * 0.82); c.lineTo(bx + d, by - h * 0.05); c.stroke();
+  // freight from above: 2x4 containers set down in a yard, some crossways
+    function drawContainers(c, x, y, s, rnd) {
+      /* Was three side-on boxes with corrugations down their faces. From
+         directly above a container IS a 2x4 brick, and a yard is several of
+         them put down in rows with the next lot turned across them. */
+      const cols = [BRICK.red, BRICK.blue, BRICK.yellow, BRICK.green];
+      /* dxU, dyU — whole studs from the centre — then the footprint in studs.
+         Every extent here is an even number of studs, so all of them snap the
+         same way and the yard packs tight however the caller places it. */
+      const slots = [
+        [-2, -1, 4, 2],
+        [-2, 1, 4, 2],
+        [1, -2, 2, 4],
+        [1, 2, 2, 4],
+        [-2, -3, 4, 2],
+      ];
+      const n = Math.max(2, Math.min(slots.length, Math.round(s / 8)));
+      /* Picking each colour independently kept dealing the same one twice, and
+         two touching containers of one colour read as a single lump. The yard
+         starts somewhere random and then steps through the four. */
+      const c0 = (rnd() * cols.length) | 0;
+      for (let i = 0; i < n; i++) {
+        const sl = slots[i];
+        brickAt(c, x + sl[0] * U, y + sl[1] * U, sl[2], sl[3], cols[(c0 + i) % cols.length]);
       }
-    };
-    box(x - s * 0.15, y, cols[(rnd() * 4) | 0]);
-    box(x + s * 1.1, y - s * 0.06, cols[(rnd() * 4) | 0]);
-    box(x + s * 0.45, y - s * 0.82, cols[(rnd() * 4) | 0]);
-  }
+      // a yard only reads as a yard once something is stacked on something else
+      if (n >= 4) {
+        brickAt(c, x + slots[0][0] * U, y + slots[0][1] * U, 2, 2, cols[(c0 + n + 1) % cols.length]);
+      }
+    }
 
   // a standing stone with a rune of light down its face
-  function drawObelisk(c, x, y, s, glow) {
-    propShadow(c, x, y + 2, s * 0.5);
-    c.fillStyle = '#3a3540';
-    c.beginPath();
-    c.moveTo(x - s * 0.42, y); c.lineTo(x - s * 0.2, y - s * 2.1);
-    c.lineTo(x + s * 0.2, y - s * 2.1); c.lineTo(x + s * 0.42, y); c.closePath(); c.fill();
-    c.fillStyle = '#524c5a';
-    c.beginPath();
-    c.moveTo(x - s * 0.42, y); c.lineTo(x - s * 0.2, y - s * 2.1);
-    c.lineTo(x - s * 0.02, y - s * 2.1); c.lineTo(x - s * 0.1, y); c.closePath(); c.fill();
-    c.strokeStyle = glow || '#8fb4ff'; c.lineWidth = 1.6; c.lineCap = 'round';
-    c.beginPath(); c.moveTo(x, y - s * 1.85); c.lineTo(x, y - s * 0.4); c.stroke();
-    c.fillStyle = glow || '#8fb4ff';
-    c.beginPath(); c.arc(x, y - s * 1.95, s * 0.09, 0, TAU); c.fill();
-  }
+  /* A standing stone from above. The rune down its face was a side view; what
+       you actually see looking down is dark stone with a lit tile on its crown. */
+    function drawObelisk(c, x, y, s, glow) {
+      const stone = mul(BRICK.dgrey, 0.72);
+      let n = Math.max(3, Math.min(5, Math.round(s * 1.8 / U)));
+      if (n % 2 === 0) n += 1;
+      brickAt(c, x, y, n, n, stone);
+      brickAt(c, x, y, n - 2, n - 2, lit(stone, 0.14));
+      brickAt(c, x, y, 1, 1, glow || '#8fb4ff', { plate: true, tile: true });
+    }
 
   // dish on a mount, listening to something the board can't see
-  function drawDish(c, x, y, s) {
-    propShadow(c, x, y + 2, s * 0.7);
-    brickBlock(c, x, y, s * 1.1, s * 0.5, '#77808a', 2);
-    c.strokeStyle = '#8b959f'; c.lineWidth = s * 0.14; c.lineCap = 'round';
-    c.beginPath(); c.moveTo(x, y - s * 0.5); c.lineTo(x + s * 0.3, y - s * 1.1); c.stroke();
-    c.save();
-    c.translate(x + s * 0.42, y - s * 1.3); c.rotate(-0.5);
-    c.fillStyle = '#e8eaec'; c.beginPath(); c.ellipse(0, 0, s * 0.85, s * 0.45, 0, 0, TAU); c.fill();
-    c.fillStyle = '#c2ccd2'; c.beginPath(); c.ellipse(-s * 0.12, 0, s * 0.6, s * 0.3, 0, 0, TAU); c.fill();
-    c.strokeStyle = '#8b98a5'; c.lineWidth = 1.2;
-    c.beginPath(); c.ellipse(0, 0, s * 0.85, s * 0.45, 0, 0, TAU); c.stroke();
-    c.fillStyle = '#c8443c'; c.beginPath(); c.arc(0, 0, s * 0.09, 0, TAU); c.fill();
-    c.restore();
-  }
+  // a satellite dish from above: a pale rim around a dark face
+    function drawDish(c, x, y, s) {
+      /* Was a tilted ellipse on a mast — a dish drawn side-on. Looking straight
+         down at one you see a circle: a ring of pale plate stepped round the
+         rim, the dark face inside it, and the feed standing up in the middle. */
+      const rS = s >= 21 ? 3 : 2;            // rim radius, in studs
+      const inner = rS * 2 - 1;              // the dark face, an odd square
+      brickAt(c, x, y, inner, inner, BRICK.dgrey, { tile: true });
+      for (let dy = -rS; dy <= rS; dy++) {
+        for (let dx = -rS; dx <= rS; dx++) {
+          // the rim is every cell whose distance from the middle rounds to rS —
+          // that is how a circle comes out of a square grid
+          if (Math.round(Math.hypot(dx, dy)) !== rS) continue;
+          brickAt(c, x + dx * U, y + dy * U, 1, 1, BRICK.white, { plate: true });
+        }
+      }
+      brickAt(c, x, y, 1, 1, BRICK.red);     // the feed, proud of the face
+    }
 
   // an observatory dome with its shutter cracked open
-  function drawDome(c, x, y, s, glow) {
-    propShadow(c, x, y + 2, s * 1.1);
-    c.fillStyle = '#5a636d'; c.fillRect(x - s * 1.05, y - s * 0.5, s * 2.1, s * 0.5);
-    c.fillStyle = '#77808a'; c.fillRect(x - s * 1.05, y - s * 0.5, s * 2.1, s * 0.16);
-    c.fillStyle = '#8b959f';
-    c.beginPath(); c.arc(x, y - s * 0.5, s * 1.0, Math.PI, 0); c.closePath(); c.fill();
-    c.fillStyle = '#a6b0ba';
-    c.beginPath(); c.arc(x - s * 0.2, y - s * 0.5, s * 0.75, Math.PI, Math.PI * 1.6); c.stroke();
-    c.fillStyle = glow || '#8fd0f0';
-    c.beginPath();
-    c.moveTo(x + s * 0.1, y - s * 1.48); c.lineTo(x + s * 0.42, y - s * 1.32);
-    c.lineTo(x + s * 0.32, y - s * 0.52); c.lineTo(x + s * 0.06, y - s * 0.52);
-    c.closePath(); c.fill();
-    c.strokeStyle = '#5a636d'; c.lineWidth = 1.2;
-    c.beginPath(); c.arc(x, y - s * 0.5, s * 1.0, Math.PI, 0); c.stroke();
-  }
+  // an observatory from above: concentric squares stepping up to a lit centre
+    function drawDome(c, x, y, s, glow) {
+      /* Was a half-circle with a shutter slot down it, which is a dome seen
+         from the side. From above a dome is a set of squares each smaller than
+         the last, and that stepping is the only thing that says "tall". */
+      let wS = Math.round(s * 2.4 / U);
+      if (wS % 2 === 0) wS += 1;             // odd, so every ring shares a centre
+      wS = Math.max(5, Math.min(9, wS));
+      for (let n = wS, ring = 0; n >= 3; n -= 2, ring++) {
+        brickAt(c, x, y, n, n, ring % 2 ? BRICK.white : BRICK.lgrey);
+      }
+      brickAt(c, x, y, 1, 1, glow || '#8FD0F0');   // the aperture
+    }
 
   // the tunnel the pack pours out of, printed flat so nothing has to duck
   function drawTunnelMouth(c, x, y, facing) {
-    c.save();
-    c.translate(x, y); c.rotate(facing || 0);
-    c.fillStyle = 'rgba(12,16,26,0.85)';
-    c.beginPath(); c.ellipse(0, 0, 30, G.PATH_HALF + 4, 0, -Math.PI / 2, Math.PI / 2); c.fill();
-    c.strokeStyle = '#8b959f'; c.lineWidth = 7;
-    c.beginPath(); c.ellipse(0, 0, 34, G.PATH_HALF + 8, 0, -Math.PI / 2, Math.PI / 2); c.stroke();
-    c.strokeStyle = 'rgba(40,50,62,0.8)'; c.lineWidth = 1.4;
-    c.beginPath(); c.ellipse(0, 0, 38, G.PATH_HALF + 12, 0, -Math.PI / 2, Math.PI / 2); c.stroke();
-    c.beginPath(); c.ellipse(0, 0, 30, G.PATH_HALF + 4, 0, -Math.PI / 2, Math.PI / 2); c.stroke();
-    // keystone
-    c.fillStyle = '#b4bec8';
-    c.fillRect(28, -7, 12, 14);
-    c.strokeStyle = 'rgba(40,50,62,0.8)'; c.strokeRect(28, -7, 12, 14);
-    c.restore();
-  }
+      /* The tunnel the pack pours out of: a black tile for the mouth, a grey
+         cheek either side of it, and a lintel across the front with a pale
+         keystone set in it. All of it lies flat, so nothing has to duck. */
+      const q = ((Math.round((facing || 0) / (Math.PI / 2)) % 4) + 4) % 4;
+      const fx = [1, 0, -1, 0][q], fy = [0, 1, 0, -1][q];   // the way out of the tunnel
+      const nx = -fy, ny = fx;                              // across it
+      // `a` is studs out along the facing, `b` studs across it — both whole
+      const put = (a, b, deep, across, col, opts) => brickAt(
+        c, x + fx * a * U + nx * b * U, y + fy * a * U + ny * b * U,
+        fx ? deep : across, fx ? across : deep, col, opts);
+      put(0, 0, 4, 4, BRICK.black, { plate: true, tile: true });   // the mouth
+      put(0, -3, 4, 2, BRICK.lgrey);                               // its cheeks
+      put(0, 3, 4, 2, BRICK.lgrey);
+      put(3, 0, 2, 8, BRICK.lgrey);                                // the lintel over the way in
+      put(3, 0, 2, 2, BRICK.white);                                // and its keystone
+    }
 
   // rooftop furniture: a humming grey box with a fan you can almost hear
-  function drawACUnit(c, x, y, s) {
-    propShadow(c, x, y + 2, s * 0.9);
-    brickBlock(c, x, y, s * 1.7, s * 0.85, '#8b959f', 0);
-    c.strokeStyle = '#5a636d'; c.lineWidth = 1.4;
-    c.beginPath(); c.arc(x - s * 0.35, y - s * 0.45, s * 0.26, 0, TAU); c.stroke();
-    c.beginPath(); c.moveTo(x - s * 0.35 - s * 0.18, y - s * 0.45); c.lineTo(x - s * 0.35 + s * 0.18, y - s * 0.45); c.stroke();
-    c.beginPath(); c.moveTo(x - s * 0.35, y - s * 0.45 - s * 0.18); c.lineTo(x - s * 0.35, y - s * 0.45 + s * 0.18); c.stroke();
-    c.lineWidth = 1;
-    for (let i = 0; i < 3; i++) {
-      c.beginPath(); c.moveTo(x + s * 0.14, y - s * 0.62 + i * s * 0.18); c.lineTo(x + s * 0.68, y - s * 0.62 + i * s * 0.18); c.stroke();
+  // rooftop plant from above: a grey housing with the fan deck raised in it
+    function drawACUnit(c, x, y, s) {
+      /* Was a box with a fan circle and louvre lines on its front face. From
+         above it is a grey footprint with a smaller square standing on it,
+         which is all a roof unit ever shows. */
+      let wS = Math.round(s * 2 / U);
+      if (wS % 2 === 0) wS += 1;
+      wS = Math.max(3, Math.min(5, wS));
+      brickAt(c, x, y, wS, wS, BRICK.dgrey, { plate: true });
+      brickAt(c, x, y, wS - 2, wS - 2, BRICK.lgrey);
+      if (wS >= 5) brickAt(c, x, y, 1, 1, BRICK.white);   // the fan hub
     }
-  }
 
   // a mast with an orange windsock that has never once hung still
-  function drawWindsock(c, x, y, s) {
-    propShadow(c, x, y + 2, s * 0.4);
-    c.strokeStyle = '#8b959f'; c.lineWidth = Math.max(1.6, s * 0.11); c.lineCap = 'round';
-    c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - s * 2.1); c.stroke();
-    c.fillStyle = '#e07020';
-    c.beginPath();
-    c.moveTo(x + s * 0.04, y - s * 2.05); c.lineTo(x + s * 1.05, y - s * 1.85);
-    c.lineTo(x + s * 1.05, y - s * 1.65); c.lineTo(x + s * 0.04, y - s * 1.6); c.closePath(); c.fill();
-    c.fillStyle = '#f2f4f6';
-    c.beginPath();
-    c.moveTo(x + s * 0.38, y - s * 1.98); c.lineTo(x + s * 0.62, y - s * 1.93);
-    c.lineTo(x + s * 0.62, y - s * 1.69); c.lineTo(x + s * 0.38, y - s * 1.66); c.closePath(); c.fill();
-  }
+  // a windsock from above: a banded streamer trailing off its mast
+    function drawWindsock(c, x, y, s) {
+      /* Was a mast with a sock hanging off it — the one view you never get on
+         this board. Looking down, the mast is a single piece and the sock is a
+         short run of red-and-white 1x1s pointing downwind. */
+      const nS = Math.max(2, Math.min(3, Math.round(s / 8)));
+      brickAt(c, x, y, 1, 1, BRICK.lgrey);
+      for (let i = 1; i <= nS; i++) {
+        brickAt(c, x + i * U, y, 1, 1, i % 2 ? BRICK.red : BRICK.white);
+      }
+    }
 
   // a pipe run with flanged joints and one valve wheel worth turning
   function drawPipeRun(c, x1, y1, x2, y2, s) {
-    const ang = Math.atan2(y2 - y1, x2 - x1), len = Math.hypot(x2 - x1, y2 - y1);
-    c.save();
-    c.translate(x1, y1); c.rotate(ang);
-    c.strokeStyle = 'rgba(20,32,48,0.25)'; c.lineWidth = s * 0.5; c.lineCap = 'round';
-    c.beginPath(); c.moveTo(2, 4); c.lineTo(len + 2, 4); c.stroke();
-    c.strokeStyle = '#77808a'; c.lineWidth = s * 0.46;
-    c.beginPath(); c.moveTo(0, 0); c.lineTo(len, 0); c.stroke();
-    c.strokeStyle = '#a6b0ba'; c.lineWidth = s * 0.16;
-    c.beginPath(); c.moveTo(0, -s * 0.1); c.lineTo(len, -s * 0.1); c.stroke();
-    c.fillStyle = '#5a636d';
-    for (let d = s * 0.8; d < len; d += s * 1.7) c.fillRect(d - s * 0.09, -s * 0.32, s * 0.18, s * 0.64);
-    // the valve
-    c.fillStyle = '#c8443c';
-    c.beginPath(); c.arc(len * 0.5, -s * 0.42, s * 0.24, 0, TAU); c.fill();
-    c.strokeStyle = shade('#c8443c', -50); c.lineWidth = 1.2;
-    c.beginPath(); c.arc(len * 0.5, -s * 0.42, s * 0.24, 0, TAU); c.stroke();
-    c.beginPath(); c.moveTo(len * 0.5, -s * 0.42); c.lineTo(len * 0.5, 0); c.stroke();
-    c.restore();
-  }
+      /* A pipe run, which from above is a line of grey brick with a paler
+         collar every few pieces and the valve sitting in the middle of it. */
+      const horiz = Math.abs(x2 - x1) >= Math.abs(y2 - y1);
+      const len = horiz ? Math.abs(x2 - x1) : Math.abs(y2 - y1);
+      const dir = (horiz ? Math.sign(x2 - x1) : Math.sign(y2 - y1)) || 1;
+      const n = Math.max(1, Math.round(len / U));
+      const W = Math.max(1, Math.min(2, Math.round(s / U)));   // studs across the pipe
+      const mid = n >= 3 ? n >> 1 : -1;        // no valve on a stub too short to have one
+      for (let i = 0; i < n; i++) {
+        const col = i === mid ? BRICK.red : (i % 4 === 0 ? BRICK.lgrey : BRICK.dgrey);
+        brickAt(c, horiz ? x1 + dir * i * U : x1, horiz ? y1 : y1 + dir * i * U,
+          horiz ? 1 : W, horiz ? W : 1, col);
+      }
+    }
 
   // a crater printed on the deck — the plate remembers every rough landing
   function drawCrater(c, x, y, s, rnd) {
@@ -1858,31 +1790,26 @@
 
   // an iron basket of fire beside the last door worth defending
   function drawBrazier(c, x, y, s, meta) {
-    propShadow(c, x, y + 3, s * 0.6);
-    c.strokeStyle = '#2f3b47'; c.lineWidth = Math.max(1.6, s * 0.12); c.lineCap = 'round';
-    for (const side of [-1, 1]) {
-      c.beginPath(); c.moveTo(x + side * s * 0.34, y + s * 0.06); c.lineTo(x + side * s * 0.16, y - s * 0.5); c.stroke();
+      /* The fire basket by the last door worth defending. From above an iron
+         brazier is a dark square with the coals glowing in the middle of it —
+         the flame itself is drawn later, over the top. */
+      const b = s > 15 ? 5 : 3;
+      brickAt(c, x, y, b, b, BRICK.dgrey);
+      brickAt(c, x, y, 1, 1, BRICK.red);
+      if (meta) meta.torches.push({ x, y });
     }
-    c.fillStyle = '#3a4450';
-    c.beginPath(); c.moveTo(x - s * 0.5, y - s * 0.9); c.lineTo(x + s * 0.5, y - s * 0.9);
-    c.lineTo(x + s * 0.32, y - s * 0.44); c.lineTo(x - s * 0.32, y - s * 0.44); c.closePath(); c.fill();
-    c.strokeStyle = '#1e2630'; c.lineWidth = 1.1;
-    c.beginPath(); c.moveTo(x - s * 0.5, y - s * 0.9); c.lineTo(x + s * 0.5, y - s * 0.9);
-    c.lineTo(x + s * 0.32, y - s * 0.44); c.lineTo(x - s * 0.32, y - s * 0.44); c.closePath(); c.stroke();
-    if (meta) meta.torches.push({ x, y: y - s * 0.75 });
-  }
 
   // a smooth marble column — dropped in a hall that lost its roof long ago
-  function drawColumn(c, x, y, s) {
-    propShadow(c, x, y + 2, s * 0.55);
-    brickBlock(c, x, y, s * 1.05, s * 0.3, '#b4bec8', 0);
-    c.fillStyle = shade('#d6d9dc', -30); c.fillRect(x - s * 0.3, y - s * 1.75, s * 0.6, s * 1.48);
-    c.fillStyle = '#d6d9dc'; c.fillRect(x - s * 0.3, y - s * 1.75, s * 0.38, s * 1.48);
-    c.fillStyle = '#f0f2f4'; c.fillRect(x - s * 0.16, y - s * 1.75, s * 0.12, s * 1.48);
-    c.strokeStyle = '#8b98a5'; c.lineWidth = 1.1;
-    c.strokeRect(x - s * 0.3, y - s * 1.75, s * 0.6, s * 1.48);
-    brickBlock(c, x, y - s * 1.72, s * 1.0, s * 0.28, '#e8eaec', 2);
-  }
+  /* A marble column from above: a grey plinth, a white drum standing on it,
+       and a smooth tile cap. Concentric squares are the whole of what a column
+       shows when you are stood directly over it. */
+    function drawColumn(c, x, y, s) {
+      let n = Math.max(3, Math.min(5, Math.round(s * 1.6 / U)));
+      if (n % 2 === 0) n += 1;
+      brickAt(c, x, y, n, n, BRICK.lgrey, { plate: true });
+      brickAt(c, x, y, n - 2, n - 2, BRICK.white);
+      brickAt(c, x, y, n - 2, n - 2, BRICK.white, { plate: true, tile: true });
+    }
 
   /* City Hall from above: the biggest civic footprint on the board. A pale
      tan slab on its own grey forecourt, a white wing at each end, a blue core
@@ -1892,28 +1819,28 @@
      side-on. From straight overhead a hall is a footprint, and the only
      height there is comes from setting one block on another. */
   function drawCityHall(c, x, y, s) {
-    /* Every piece is even-sided, so they all share the same parity and the
-       stacks land dead centre on one another. A bigger `s` buys MORE studs,
-       never bigger ones. */
-    const wS = Math.max(8, Math.round(s * 4.6 / U / 2) * 2);   // ~12 studs at s=40
-    const hS = Math.max(6, Math.round(s * 3.0 / U / 2) * 2);   // ~8 studs
-    const wingW = Math.max(2, Math.round(wS / 3 / 2) * 2);     // the block at each end
-    const coreW = Math.max(2, wS - wingW * 2);                 // what is left between them
-    const wingOff = ((wS - wingW) / 2) * U;
-    /* (x, y) is the front of the building, the way it was when this was drawn
-       in elevation — callers put it hard against the bottom of the board and
-       expect the build to run back up the plate from there. Whole studs. */
-    const cy = y - (hS / 2) * U;
+      /* Every piece is even-sided, so they all share the same parity and the
+         stacks land dead centre on one another. A bigger `s` buys MORE studs,
+         never bigger ones. */
+      const wS = Math.max(8, Math.round(s * 4.6 / U / 2) * 2);   // ~12 studs at s=40
+      const hS = Math.max(6, Math.round(s * 3.0 / U / 2) * 2);   // ~8 studs
+      const wingW = Math.max(2, Math.round(wS / 3 / 2) * 2);     // the block at each end
+      const coreW = Math.max(2, wS - wingW * 2);                 // what is left between them
+      const wingOff = ((wS - wingW) / 2) * U;
+      /* (x, y) is the front of the building, the way it was when this was drawn
+         in elevation — callers put it hard against the bottom of the board and
+         expect the build to run back up the plate from there. Whole studs. */
+      const cy = y - (hS / 2) * U;
 
-    brickAt(c, x, cy, wS + 4, hS + 4, BRICK.lgrey, { plate: true });  // the forecourt
-    brickAt(c, x, cy, wS, hS, BRICK.tan);                             // the hall itself
-    brickAt(c, x - wingOff, cy, wingW, hS - 4, BRICK.white);          // the two wings
-    brickAt(c, x + wingOff, cy, wingW, hS - 4, BRICK.white);
-    brickAt(c, x, cy, coreW, hS - 2, BRICK.blue);                     // the coloured core
-    brickAt(c, x, cy, 2, 2, BRICK.yellow);                            // the gold centre
-    // the steps, a plate on the forecourt off the front edge
-    brickAt(c, x, cy + (hS / 2 + 1) * U, coreW, 2, BRICK.white, { plate: true });
-  }
+      brickAt(c, x, cy, wS + 4, hS + 4, BRICK.lgrey, { plate: true });  // the forecourt
+      brickAt(c, x, cy, wS, hS, BRICK.tan);                             // the hall itself
+      brickAt(c, x - wingOff, cy, wingW, hS - 4, BRICK.white);          // the two wings
+      brickAt(c, x + wingOff, cy, wingW, hS - 4, BRICK.white);
+      brickAt(c, x, cy, coreW, hS - 2, BRICK.blue);                     // the coloured core
+      brickAt(c, x, cy, 2, 2, BRICK.yellow);                            // the gold centre
+      // the steps, a plate on the forecourt off the front edge
+      brickAt(c, x, cy + (hS / 2 + 1) * U, coreW, 2, BRICK.white, { plate: true });
+    }
 
   /* ---------- the dressing table ----------
      One entry per battlefield: `zones` keeps the scattered props out of the
@@ -2052,57 +1979,56 @@
   }
 
   // a brick gatehouse: two pillars and a lintel, framing where a pack comes in
-  function drawGateArch(c, x, y, s, col) {
-    col = col || '#b4bec8';
-    const gap = G.PATH_HALF + 12;
-    for (const side of [-1, 1]) {
-      const py = y + side * (gap + s * 0.5);
-      c.fillStyle = shade(col, -34); c.fillRect(x - s * 0.55, py - s * 0.62, s * 1.1, s * 1.24);
-      c.fillStyle = col; c.fillRect(x - s * 0.55, py - s * 0.62, s * 1.1, s * 0.5);
-      c.strokeStyle = shade(col, -60); c.lineWidth = 1.3;
-      c.strokeRect(x - s * 0.55, py - s * 0.62, s * 1.1, s * 1.24);
-      c.fillStyle = shade(col, 26);
-      c.beginPath(); c.ellipse(x - s * 0.22, py - s * 0.72, s * 0.2, s * 0.1, 0, 0, TAU); c.fill();
-      c.beginPath(); c.ellipse(x + s * 0.22, py - s * 0.72, s * 0.2, s * 0.1, 0, 0, TAU); c.fill();
+  /* A gatehouse from above: two pillar blocks either side of the lane, the
+       track between them left completely clear, and the threshold painted flat
+       on the road where the gate would drop. The lintel spanning the gap was an
+       elevation trick — from above it would sit on the pack's heads. */
+    function drawGateArch(c, x, y, s, col) {
+      col = col || BRICK.lgrey;
+      const gx = snapU(x), gy = snapU(y);
+      // pillar footprint in studs, kept even so every course stacks dead centre
+      const pS = Math.max(2, Math.min(3, Math.round(s * 1.2 / U))) * 2;
+      // how far the pillars stand off the centreline — clear of the track, whole studs
+      const gapS = Math.max(2, Math.ceil((G.PATH_HALF + 6) / U));
+      const off = (gapS + pS / 2) * U;
+      // the threshold: paint on the plate, so nothing has to climb it
+      c.fillStyle = 'rgba(30,42,56,0.32)';
+      c.fillRect(gx - 3, gy - gapS * U, 6, gapS * U * 2);
+      for (const side of [-1, 1]) {
+        const py = gy + side * off;
+        brickAt(c, gx, py, pS, pS, col);
+        brickAt(c, gx, py, pS - 2, pS - 2, lit(col, 0.12));
+        brickAt(c, gx, py, pS - 2, pS - 2, BRICK.yellow, { plate: true, tile: true });
+      }
     }
-    // the lintel spanning the gap, with a keystone
-    c.fillStyle = shade(col, -20);
-    c.fillRect(x - s * 0.32, y - gap, s * 0.64, gap * 2);
-    c.fillStyle = 'rgba(255,255,255,0.16)';
-    c.fillRect(x - s * 0.32, y - gap, s * 0.2, gap * 2);
-    c.strokeStyle = shade(col, -60); c.lineWidth = 1.2;
-    c.strokeRect(x - s * 0.32, y - gap, s * 0.64, gap * 2);
-    c.fillStyle = '#e8b93c';
-    c.fillRect(x - s * 0.2, y - s * 0.32, s * 0.4, s * 0.64);
-  }
 
   /* A city block from above: a rectangular footprint with a smaller, darker
      roof block set on it, and one more step again if it is big enough to
      carry it. It used to be a roof with printed window rows and a "sunward
      face" — a building drawn side-on and then laid down flat. */
   function drawTowerBlock(c, x, y, w, h, col) {
-    /* Callers hand in the muted wash the side-on drawing wanted. On a brick
-       board there are only brick colours, so the nearest real one wins. */
-    const PAL = [BRICK.red, BRICK.blue, BRICK.yellow, BRICK.white, BRICK.lgrey, BRICK.dgreen];
-    let body = BRICK.red;
-    if (col) {
-      const t = chan(col);
-      let best = Infinity;
-      for (let i = 0; i < PAL.length; i++) {
-        const p = chan(PAL[i]);
-        const d = (p[0] - t[0]) ** 2 + (p[1] - t[1]) ** 2 + (p[2] - t[2]) ** 2;
-        if (d < best) { best = d; body = PAL[i]; }
+      /* Callers hand in the muted wash the side-on drawing wanted. On a brick
+         board there are only brick colours, so the nearest real one wins. */
+      const PAL = [BRICK.red, BRICK.blue, BRICK.yellow, BRICK.white, BRICK.lgrey, BRICK.dgreen];
+      let body = BRICK.red;
+      if (col) {
+        const t = chan(col);
+        let best = Infinity;
+        for (let i = 0; i < PAL.length; i++) {
+          const p = chan(PAL[i]);
+          const d = (p[0] - t[0]) ** 2 + (p[1] - t[1]) ** 2 + (p[2] - t[2]) ** 2;
+          if (d < best) { best = d; body = PAL[i]; }
+        }
       }
+      /* Odd or even, the footprint and every block set on it lose two studs a
+         side, so they keep the same parity and stay concentric. */
+      const wS = Math.max(4, Math.round(w / U));
+      const hS = Math.max(3, Math.round(h / U));
+      brickAt(c, x, y, wS, hS, body);                          // the footprint
+      brickAt(c, x, y, wS - 2, hS - 2, mul(body, 0.72));       // the roof block
+      // a big block carries one more step, which is the only height there is
+      if (wS >= 8 && hS >= 6) brickAt(c, x, y, wS - 4, hS - 4, mul(body, 0.54));
     }
-    /* Odd or even, the footprint and every block set on it lose two studs a
-       side, so they keep the same parity and stay concentric. */
-    const wS = Math.max(4, Math.round(w / U));
-    const hS = Math.max(3, Math.round(h / U));
-    brickAt(c, x, y, wS, hS, body);                          // the footprint
-    brickAt(c, x, y, wS - 2, hS - 2, mul(body, 0.72));       // the roof block
-    // a big block carries one more step, which is the only height there is
-    if (wS >= 8 && hS >= 6) brickAt(c, x, y, wS - 4, hS - 4, mul(body, 0.54));
-  }
 
   const DECOS = {
     /* -- tier 1, Brick City -- */
@@ -2511,26 +2437,26 @@
      the one view this board never has. The animated overlay carries the
      paddle bricks round inside this rim, onto the same 2x2 hub. */
   function drawStaticWheel(c, x, y, r) {
-    const R = Math.max(2, Math.round(r * 0.92 / U));   // rim radius, in whole studs
-    /* Every piece sits on a stud, so the rim is built by walking the grid and
-       keeping the cells that fall on the circle — no arc, no stroke. */
-    for (let j = -R; j <= R; j++) {
-      for (let i = -R; i <= R; i++) {
-        const d = Math.sqrt(i * i + j * j);
-        if (d < R - 0.55 || d > R + 0.55) continue;
-        brickAt(c, x + i * U, y + j * U, 1, 1, ((i + j) & 1) ? BRICK.brown : '#8F6238');
+      const R = Math.max(2, Math.round(r * 0.92 / U));   // rim radius, in whole studs
+      /* Every piece sits on a stud, so the rim is built by walking the grid and
+         keeping the cells that fall on the circle — no arc, no stroke. */
+      for (let j = -R; j <= R; j++) {
+        for (let i = -R; i <= R; i++) {
+          const d = Math.sqrt(i * i + j * j);
+          if (d < R - 0.55 || d > R + 0.55) continue;
+          brickAt(c, x + i * U, y + j * U, 1, 1, ((i + j) & 1) ? BRICK.brown : '#8F6238');
+        }
       }
+      if (R >= 4) brickAt(c, x, y, 4, 4, BRICK.brown);   // the boss the paddles hang off
+      brickAt(c, x, y, 2, 2, BRICK.yellow);              // the hub the overlay spins on
     }
-    if (R >= 4) brickAt(c, x, y, 4, 4, BRICK.brown);   // the boss the paddles hang off
-    brickAt(c, x, y, 2, 2, BRICK.yellow);              // the hub the overlay spins on
-  }
 
   /* A chimney for the rooftops, seen from above: one red brick standing on
      the tile. The big ones are a 1x2 stack, which is all the height there is
      to read from straight overhead. */
   function drawChimneyBlock(c, x, y, s) {
-    brickAt(c, x, y, 1, s >= 20 ? 2 : 1, BRICK.red);
-  }
+      brickAt(c, x, y, 1, s >= 20 ? 2 : 1, BRICK.red);
+    }
 
   /* ---------- animated scenery ---------- */
   function drawSceneryFX(ctx, level, meta, t) {
