@@ -2815,9 +2815,17 @@
   const STUD_HW = 0.135, STUD_TOP = -0.895, STUD_BOT = -0.80, STUD_RY = 0.032;
   const HEAD_HW = 0.245, HEAD_TOP = -0.81, HEAD_BOT = -0.345, HEAD_CR = 0.055;
   const NECK_HW = 0.105, NECK_TOP = -0.37, NECK_BOT = -0.27;
-  const SHO_HW = 0.335, HIP_HW = 0.475, TORSO_TOP = -0.295, TORSO_BOT = 0.21;
-  const HIPBAR_HW = 0.455, HIPBAR_BOT = 0.345;
-  const LEG_IN = 0.035, LEG_OUT = 0.445, LEG_BOT = 0.915, FOOT_Y = 0.775;
+  /* The body narrowed here. It used to flare to 0.475 at the hips, which is
+     wider than the arms could reach — so the arms hung INSIDE the torso
+     silhouette, in the torso's own colour, and the figure read as a blob
+     with two hands stuck to it. On a real minifig the arms are the widest
+     thing about the upper body. Now they are. */
+  const SHO_HW = 0.325, HIP_HW = 0.395, TORSO_TOP = -0.295, TORSO_BOT = 0.21;
+  const HIPBAR_HW = 0.40, HIPBAR_BOT = 0.345;
+  /* LEG_IN was 0.032 — a gap of six hundredths of r between the legs, which
+     at battle size is under two pixels. The legs read as one dark block and
+     the figure lost the single clearest minifig cue there is. */
+  const LEG_IN = 0.085, LEG_OUT = 0.385, LEG_BOT = 0.915, FOOT_Y = 0.775;
   const SKIN = '#f2c033';           // the one colour every Bro shares
   const SKIN_INK = '#9a7412';
 
@@ -2825,11 +2833,18 @@
      broad sheen left, a bright core inside it, shade right. Bands, not a
      gradient, because moulded plastic catches light in hard streaks. */
   function gloss(ctx, pathFn, cx, w, yTop, yBot) {
+    /* Flat, hard-edged shading, to match a board made of flat bricks: one lit
+       edge and one shade band, both with crisp borders.
+
+       This used to paint three soft white streaks down every piece — moulded
+       plastic sheen, from the art direction the board had before it became
+       bricks seen from above. Against flat pieces they read as smudges. */
     ctx.save(); pathFn(); ctx.clip();
     const h = yBot - yTop;
-    ctx.fillStyle = 'rgba(255,255,255,0.20)'; ctx.fillRect(cx - w * 0.42, yTop, w * 0.24, h);
-    ctx.fillStyle = 'rgba(255,255,255,0.38)'; ctx.fillRect(cx - w * 0.36, yTop, w * 0.09, h);
-    ctx.fillStyle = 'rgba(10,14,30,0.15)'; ctx.fillRect(cx + w * 0.26, yTop, w * 0.24, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(cx - w * 0.5, yTop, w * 0.18, h);
+    ctx.fillStyle = 'rgba(10,16,30,0.20)';
+    ctx.fillRect(cx + w * 0.26, yTop, w * 0.24, h);
     ctx.restore();
   }
 
@@ -2869,7 +2884,10 @@
     ctx.scale(r, r);
     const inkT = shade(torso.startsWith('#') ? torso : '#2f6fb5', -45);
     const inkL = shade(legs.startsWith('#') ? legs : '#2b3a4a', -45);
-    const lw = Math.max(0.05, 0.9 / r);
+    /* The outline carries the whole silhouette at battle size, where the
+       figure is about fifty pixels tall and every internal detail is two or
+       three. Thin lines simply vanished. */
+    const lw = Math.max(0.075, 1.4 / r);
 
     /* ---- legs: straight columns with a real gap, seam where the foot starts.
        No boots — a contrasting boot band read as galoshes, not moulded legs. */
@@ -2976,27 +2994,40 @@
     const ink = shade(torso.startsWith('#') ? torso : '#2f6fb5', -45);
     ctx.save();
     ctx.scale(r * side, r);
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    const limb = () => {
+    ctx.lineJoin = 'round';
+    const lw = Math.max(0.075, 1.4 / r);
+    /* A real arm: a filled piece hanging off the shoulder and angling out,
+       with a hard outline so it separates from the torso behind it.
+
+       It used to be a stroked LINE in the torso's own colour, which meant it
+       disappeared into the torso completely — every Bro in the game looked
+       like a body with two little hands floating beside it. The hand was the
+       only part you could see, so that is exactly what it read as. */
+    const arm = () => {
       ctx.beginPath();
-      ctx.moveTo(0.30, -0.22); ctx.lineTo(0.50, -0.02); ctx.lineTo(0.60, 0.10);
+      ctx.moveTo(0.28, -0.28);
+      ctx.lineTo(0.46, -0.24);
+      ctx.lineTo(0.72, 0.10);
+      ctx.lineTo(0.56, 0.23);
+      ctx.lineTo(0.33, -0.02);
+      ctx.lineTo(0.24, -0.11);
+      ctx.closePath();
     };
-    limb(); ctx.strokeStyle = ink; ctx.lineWidth = 0.255; ctx.stroke();
-    limb(); ctx.strokeStyle = torso; ctx.lineWidth = 0.155; ctx.stroke();
+    /* Filled in the torso's own colour, exactly as a real minifig arm is,
+       and separated from it by the outline alone — which therefore has to be
+       heavy. An internal shade band was tried here first and only muddied it:
+       the arm read as a shadow on the torso rather than as a piece. */
+    arm(); ctx.fillStyle = torso; ctx.fill();
+    arm(); ctx.strokeStyle = ink; ctx.lineWidth = lw * 1.15; ctx.stroke();
 
-    // gloss streak along the upper arm
-    ctx.beginPath();
-    ctx.moveTo(0.31, -0.24); ctx.lineTo(0.47, -0.09);
-    ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 0.05; ctx.stroke();
-
-    // hand: wrist stem, then the open clamp with its gap tilted forward
-    const hx = 0.71, hy = 0.195;
-    const gapC = (270 - side * 18) * Math.PI / 180, half = 46 * Math.PI / 180;
-    for (const [col, w] of [[SKIN_INK, 0.104], [SKIN, 0.058]]) {
-      ctx.strokeStyle = col; ctx.lineWidth = w;
-      ctx.beginPath(); ctx.moveTo(0.60, 0.10); ctx.lineTo(hx - (hx - 0.60) * 0.45, hy - (hy - 0.10) * 0.45); ctx.stroke();
-      ctx.beginPath(); ctx.arc(hx, hy, 0.085, gapC + half, gapC - half + TAU); ctx.stroke();
-    }
+    // the hand: an open clamp, and the one piece that says minifig at a glance
+    const hx = 0.685, hy = 0.235, hr = 0.115;
+    const gapC = (272 - side * 16) * Math.PI / 180, half = 52 * Math.PI / 180;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = SKIN_INK; ctx.lineWidth = 0.13;
+    ctx.beginPath(); ctx.arc(hx, hy, hr, gapC + half, gapC - half + TAU); ctx.stroke();
+    ctx.strokeStyle = SKIN; ctx.lineWidth = 0.076;
+    ctx.beginPath(); ctx.arc(hx, hy, hr, gapC + half, gapC - half + TAU); ctx.stroke();
     ctx.restore();
   }
 
@@ -3121,7 +3152,10 @@
       paintBroHat(ctx, r, look, tierB);
     }
     const propS = 1 + tierA * 0.13;
-    const propR = r * 1.32 * propS;
+    /* 1.32 made every weapon taller than the Bro holding it — a slingshot the
+       size of the figure, a pickaxe you could not see past. A minifig's
+       accessory is about as long as the figure is tall, no more. */
+    const propR = r * 0.92 * propS;
     /* A maxed weapon path glows gold. This used to be a live shadowBlur, which
        is the single most expensive thing a 2D context can be asked for and
        costs in proportion to the AREA it blurs — so when the figures were drawn
