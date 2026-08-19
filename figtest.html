@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>figure test grid</title>
+<style>
+  body { background: #dfe6ec; font-family: sans-serif; margin: 12px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+  .cell { text-align: center; }
+  .cell span { display: block; font-size: 11px; color: #333; }
+  canvas { background: #cdd8e0; border-radius: 6px; }
+  h3 { margin: 6px 0; font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script src="js/data.js"></script>
+<script src="js/waves.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/render.js"></script>
+<script>
+  const grid = document.getElementById('grid');
+  const types = ['pebble', 'torpedo', 'aurora', 'vendor', 'artillery', 'sunpriest', 'shadow', 'icewall', 'hero_frost', 'slush', 'witch', 'glacier'];
+
+  function row(title, size, up) {
+    const h = document.createElement('h3');
+    h.textContent = title;
+    grid.appendChild(h);
+    const div = document.createElement('div');
+    div.className = 'row';
+    for (const id of types) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = size;
+      G.drawTowerIcon(cv, id, up);
+      const lab = document.createElement('span');
+      lab.textContent = id;
+      cell.appendChild(cv); cell.appendChild(lab);
+      div.appendChild(cell);
+    }
+    grid.appendChild(div);
+  }
+
+  row('large (icon 220px)', 220, null);
+  row('battle size (canvas 100px ≈ r 28)', 100, null);
+  row('battle size, upgraded [3,3,0]', 100, [3, 3, 0]);
+  row('small (56px ≈ r 16)', 56, null);
+</script>
+</body>
+</html>

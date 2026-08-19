@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>vacuum test grid</title>
+<style>
+  body { background: #dfe6ec; font-family: sans-serif; margin: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+  .cell { text-align: center; }
+  .cell span { display: block; font-size: 10px; color: #333; }
+  canvas { background: #6b7076; border-radius: 6px; }
+  h3 { margin: 6px 0; font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script src="js/data.js"></script>
+<script src="js/waves.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/render.js"></script>
+<script>
+  const grid = document.getElementById('grid');
+  const all = G.ENEMY_ORDER.filter((x) => !G.ENEMIES[x].heavy);
+
+  function row(title, size, types, zoom) {
+    const h = document.createElement('h3');
+    h.textContent = title;
+    grid.appendChild(h);
+    const div = document.createElement('div');
+    div.className = 'row';
+    for (const id of types) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = size;
+      G.drawVacIcon(cv, id);
+      if (zoom) { cv.style.width = cv.style.height = (size * zoom) + 'px'; cv.style.imageRendering = 'pixelated'; }
+      const lab = document.createElement('span');
+      lab.textContent = G.ENEMIES[id].name;
+      cell.appendChild(cv); cell.appendChild(lab);
+      div.appendChild(cell);
+    }
+    grid.appendChild(div);
+  }
+
+  row('battle size (64px), blown up 3x — the real pixels the board draws', 64, all, 3);
+  row('large (170px)', 170, all);
+</script>
+</body>
+</html>
