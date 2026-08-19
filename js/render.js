@@ -5373,6 +5373,18 @@
     drawOverlays(ctx, game);
   };
 
+  /* A vacuum drawn on its own, at icon size, for the test grid and anything
+     that wants one outside a battle. Same painter the board uses. */
+  G.drawVacIcon = function (canvas, typeId) {
+    const ctx = canvas.getContext('2d');
+    const s = canvas.width;
+    ctx.clearRect(0, 0, s, s);
+    ctx.save();
+    ctx.translate(s * 0.46, s * 0.58);
+    paintVac(ctx, typeId, s * 0.30, false, 0);
+    ctx.restore();
+  };
+
   /* ---------- shop icons ---------- */
   G.drawTowerIcon = function (canvas, typeId, up) {
     const ctx = canvas.getContext('2d');
