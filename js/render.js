@@ -88,22 +88,29 @@
      measurement here is derived from it, and every piece is an INTEGER number
      of studs wide and an integer number of plates tall.
 
-     Why U = 20: a Bro's footprint radius is 20px, so a Bro now stands on
-     exactly 2x2 studs — which is what a minifig stands on. That one
-     coincidence sets the scale for the whole game: at this pitch a figure is
-     about 1.3 studs across the shoulders, a tier 1 board is 64x40 studs, and
-     a four-stud cottage comes out about the size the old drawn-on one was.
-     Proportion is now a property of the system rather than of each drawing.
+     Why U = 16: the FIGURE sets the scale, and a real minifig is about 1.5
+     studs across the shoulders. A Bro is ~26px wide, which at this pitch is
+     1.6 studs — near enough. It also divides a tier 1 board exactly, at
+     80 x 50 studs.
+
+     It was 20, which made a Bro 1.3 studs wide and, more to the point, made
+     every brick a fifth too big: a loose 1x2 came out 40px across on a 1280px
+     board and the scatter read as boulders. Because every piece is an integer
+     number of studs, dropping U shrinks the whole system together — the
+     proportions are untouched, everything just stops being oversized.
 
      The real-world millimetres do not matter. The RATIOS do, and these are
      the real ones: a brick is three plates tall, a stud is 0.6 of a stud
      pitch across, and a stud stands about a fifth of a pitch proud. */
-  const U = 20;
+  const U = 16;
   const STUD_R = U * 0.30;        // stud radius — identical on every piece
   const STUD_UP = U * 0.22;       // how far a stud stands proud
   const PLATE_H = U * 0.40;       // one plate
   const BRICK_H = PLATE_H * 3;    // a brick is exactly three plates
-  const CHAMFER = U * 0.10;       // the moulded edge, same on every piece
+  /* The moulded edge. At 0.10 of a pitch this was a 2px radius on an 8px-tall
+     plate — a quarter of its height — so every piece came out a pill. A real
+     brick's chamfer is a hint that catches the light, not a curve. */
+  const CHAMFER = U * 0.045;
 
   // a piece can only ever start on the grid — this is what makes the studs of
   // a house line up with the studs of the ground it stands on
@@ -124,7 +131,7 @@
   /* One stud, standing on a top face. Same size, same shape, same shading
      everywhere in the game — a stud on a flower is the stud on a castle. */
   function studUp(c, cx, yTop, col) {
-    const r = STUD_R, ry = r * 0.40, h = STUD_UP, ty = yTop - h;
+    const r = STUD_R, ry = r * 0.34, h = STUD_UP, ty = yTop - h;
     c.fillStyle = mul(col, 0.90);
     c.fillRect(cx - r, ty, r * 2, h + 0.4);
     c.fillStyle = mul(col, 0.74);
@@ -1095,7 +1102,7 @@
        Odd widths only, so the trunk sits on a whole stud and every tier
        centres on it. */
     const g = [BRICK.green, '#3E8C3F', '#2F7A38'][(rnd() * 3) | 0];
-    const wS = studsFor(s0 * 1.7, 3, 5) | 1;
+    const wS = studsFor(s0 * 2.4, 3, 5) | 1;
     const left = snapU(x - (wS * U) / 2);
     const at = (i) => left + i * U;
     const mid = (wS - 1) / 2;
@@ -1324,7 +1331,7 @@
        house. All of them land on whole studs. */
     const roof = HOUSE_ROOFS[(rnd() * HOUSE_ROOFS.length) | 0];
     const wall = BRICK.white;
-    const wS = studsFor(s0 * 2.4, 3, 6);
+    const wS = studsFor(s0 * 2.4, 4, 7);
     const left = snapU(x - (wS * U) / 2);
     const at = (i) => left + i * U;
     const courses = wS >= 5 ? 3 : 2;
@@ -1362,13 +1369,14 @@
     /* The roof. Each course steps in one stud a side, and the shoulder it
        leaves exposed carries studs — without those the staircase reads as a
        stack of smooth shelves rather than as courses of brick. */
-    // a thin eave lip: the overhang detail, without the slab it used to be
-    piece(c, at(-1), wallTop, wS + 2, 1, mul(roof, 0.88), { tile: true });
+    /* No eave. A one-plate lip two studs wider than the wall was 6px tall and
+       100px across at this pitch, and it read as a hat brim. Small builds have
+       no overhang; the roof starts flush. */
     /* Courses a full BRICK tall, flush with the wall. Two plates and a
        two-stud overhang made the roof a stack of shelves: the rise was half
        the width, so the silhouette came out flat. A brick per course puts the
        pitch at roughly 50 degrees, which is a roof. */
-    let ry = wallTop - PLATE_H, k = 0;
+    let ry = wallTop, k = 0;
     for (let rw = wS; rw >= 1; rw -= 2, k++) {
       const off = (wS - rw) / 2;
       const col = k % 2 ? mul(roof, 0.93) : roof;
@@ -1385,8 +1393,8 @@
     /* Chimney: one stud wide, sitting ON the slope and poking two plates
        above the ridge. Sizing it off the whole roof rise, as it was, grew a
        white column taller than the house. */
-    const ridgeY = wallTop - PLATE_H - Math.ceil(wS / 2) * BRICK_H;
-    piece(c, at(wS - 1), ridgeY + BRICK_H, 1, 5, wall);
+    const ridgeY = wallTop - Math.ceil(wS / 2) * BRICK_H;
+    piece(c, at(Math.max(1, wS - 2)), ridgeY + BRICK_H, 1, 5, wall);   // inboard, not on the eave
   }
 
   // a barrel-roofed shed wide enough to park a shuttle in
@@ -2272,9 +2280,9 @@
       },
       paint(c, L, rnd, meta) {
         // a second row of houses along the top of the loop's inner ground
-        drawHouse(c, 410, 344, 34, rnd);
-        drawHouse(c, 640, 348, 34, rnd);
-        drawHouse(c, 865, 342, 34, rnd);
+        drawHouse(c, 410, 350, 40, rnd);
+        drawHouse(c, 640, 354, 40, rnd);
+        drawHouse(c, 865, 348, 40, rnd);
         drawSnowman(c, 640, 96, 15, rnd);   // the statue in the square
         drawTuft(c, 545, 344, 7, rnd); drawTuft(c, 745, 342, 7, rnd);
         drawTuft(c, 585, 108, 7, rnd); drawTuft(c, 697, 104, 7, rnd);
@@ -2556,7 +2564,7 @@
         // the mill: house on the bank, wheel turning in the race. The wheel
         // is baked stopped so thumbnails have it; in battle the animated one
         // draws over this exact spot and it turns.
-        drawHouse(c, 880, 350, 34, rnd);   // clear of the y=220 lane at the new scale
+        drawHouse(c, 880, 372, 34, rnd);   // clear of the y=220 lane at the new scale
         brickBlock(c, 790, 330, 14, 40, '#5d4a38', 0);
         drawStaticWheel(c, 748, 300, 68);
         if (meta) meta.wheels.push({ x: 748, y: 300, r: 68 });
