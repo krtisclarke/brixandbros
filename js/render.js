@@ -650,7 +650,11 @@
        which from above read as scratches and debris rather than as bricks — a
        brick lying on a baseplate is square to the grid, because that is the
        only way it can sit. */
-    const looseCols = [BRICK.red, BRICK.blue, BRICK.yellow, BRICK.green, BRICK.white];
+    /* No blue in the loose scenery. A stray blue plate on green plate is a
+       small pool — there is nothing else in the picture to say otherwise, and
+       players were reading them as water. Blue is still used where the build
+       around it explains it: doors, containers, roofs, the mage's robes. */
+    const looseCols = [BRICK.red, BRICK.yellow, BRICK.green, BRICK.white, BRICK.lgrey];
     const looseSizes = [[1, 1], [1, 2], [2, 1], [2, 2]];
     const nLoose = Math.round(14 * (G.W * G.H) / (1280 * 800));
     for (let i = 0; i < nLoose; i++) {
@@ -661,7 +665,7 @@
     }
 
     // --- water ---
-    for (const wt of level.water) drawWaterBody(c, wt, th, rnd);
+    drawWaterPlates(c, level, th, rnd);
 
     /* Flat landmark prints go down BEFORE the track: a roof, a platform, a
        pit. The track then runs visibly over them, which is the whole point on
@@ -816,71 +820,77 @@
     c.globalAlpha = 1;
   }
 
-  function drawWaterBody(c, wt, th, rnd) {
-    const deep = th.deep || '#2e6da4';
-    const shore = th.shore || '#bfe0ea';
+  function drawWaterPlates(c, level, th, rnd) {
+    /* A pool, built out of transparent plates.
 
-    if (wt.rect) {
-      const { x, y, w, h } = wt.rect;
-      /* A channel is built out of whole plates, so its banks step on the grid
-         rather than waving. Straight edges are what make it read as assembled;
-         a wobbly bank is a river, and there are no rivers on a building
-         plate. */
-      const P = U;
-      const top = Math.round(y / P) * P, bot = Math.round((y + h) / P) * P;
+       It used to be drawn as circles — a shore ring, a deep disc, a darker
+       middle — with a stud grid clipped to them. Smooth arcs on a board where
+       every other edge lands on a stud: the one shape that could not have been
+       built out of the pieces around it.
 
-      // the shallow band along each bank, one plate wide
-      c.fillStyle = shore;
-      c.fillRect(x, top - P, w, P);
-      c.fillRect(x, bot, w, P);
-      // the deep channel
-      c.fillStyle = deep;
-      c.fillRect(x, top, w, bot - top);
+       So the pool is now the set of studs it covers, and its edge steps from
+       one to the next the way an 8-bit sprite's does. G.waterCells owns that
+       set and the placement rules read the same one, so the shape you see and
+       the shape you can build on are the same shape. */
+    const deepCol = th.deep || '#2e6da4';
+    const shoreCol = th.shore || '#bfe0ea';
+    const { deep, shallow } = G.waterCells(level);
+    if (!deep.size && !shallow.size) return;
 
-      c.save();
-      c.beginPath(); c.rect(x, top - P, w, (bot - top) + P * 2); c.clip();
-      studGrid(c, x, top - P, x + w, bot + P, null, 'rgba(150,215,255,0.30)', 1);
-      c.restore();
-
-      // the raised lip where the plate steps down into the channel
-      c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 2;
-      c.beginPath(); c.moveTo(x, top + 1); c.lineTo(x + w, top + 1); c.stroke();
-      c.strokeStyle = 'rgba(8,28,54,0.45)'; c.lineWidth = 2.5;
-      c.beginPath(); c.moveTo(x, top - P + 1); c.lineTo(x + w, top - P + 1); c.stroke();
-      c.beginPath(); c.moveTo(x, bot + P - 1); c.lineTo(x + w, bot + P - 1); c.stroke();
-
-      for (let i = 0; i < Math.max(2, w / 400 | 0); i++) {
-        drawFloe(c, x + 40 + rnd() * (w - 80), top + 18 + rnd() * ((bot - top) - 36), 10 + rnd() * 14, rnd);
+    const cellsOf = (set) => {
+      c.beginPath();
+      for (const k of set) {
+        const p = k.indexOf(',');
+        c.rect(+k.slice(0, p) * U, +k.slice(p + 1) * U, U, U);
       }
-    } else {
-      /* A round pool is built the way a builder actually builds one: a ring of
-         shallow plate around a deeper middle, both stepped to the grid. */
-      const R = wt.r;
-      c.fillStyle = shore;
-      c.beginPath(); c.arc(wt.x, wt.y, R + 10, 0, TAU); c.fill();
-      c.fillStyle = deep;
-      c.beginPath(); c.arc(wt.x, wt.y, R, 0, TAU); c.fill();
-      c.fillStyle = shade(deep, -22);
-      c.beginPath(); c.arc(wt.x, wt.y, R * 0.55, 0, TAU); c.fill();
+    };
+    // the shallow margin, then the deep water laid over it
+    cellsOf(shallow); c.fillStyle = shoreCol; c.fill();
+    cellsOf(deep); c.fillStyle = deepCol; c.fill();
 
-      c.save();
-      c.beginPath(); c.arc(wt.x, wt.y, R + 10, 0, TAU); c.clip();
-      studGrid(c, wt.x - R - 12, wt.y - R - 12, wt.x + R + 12, wt.y + R + 12, null,
-        'rgba(150,215,255,0.30)', 1);
-      c.restore();
+    /* The stepped rim: only the edges where a water stud meets something that
+       is not water. Stroking every cell would draw a grid over the pool. */
+    const all = new Set(shallow); for (const k of deep) all.add(k);
+    const has = (i, j) => all.has(i + ',' + j);
+    c.beginPath();
+    for (const k of all) {
+      const p = k.indexOf(',');
+      const i = +k.slice(0, p), j = +k.slice(p + 1);
+      const x = i * U, y = j * U;
+      if (!has(i, j - 1)) { c.moveTo(x, y); c.lineTo(x + U, y); }
+      if (!has(i, j + 1)) { c.moveTo(x, y + U); c.lineTo(x + U, y + U); }
+      if (!has(i - 1, j)) { c.moveTo(x, y); c.lineTo(x, y + U); }
+      if (!has(i + 1, j)) { c.moveTo(x + U, y); c.lineTo(x + U, y + U); }
+    }
+    c.strokeStyle = 'rgba(10,30,56,0.5)'; c.lineWidth = 1.8; c.stroke();
+    // the seam between the shallow margin and the deep, one step further in
+    c.beginPath();
+    for (const k of deep) {
+      const p = k.indexOf(',');
+      const i = +k.slice(0, p), j = +k.slice(p + 1);
+      const x = i * U, y = j * U;
+      if (!deep.has(i + ',' + (j - 1))) { c.moveTo(x, y); c.lineTo(x + U, y); }
+      if (!deep.has(i + ',' + (j + 1))) { c.moveTo(x, y + U); c.lineTo(x + U, y + U); }
+      if (!deep.has((i - 1) + ',' + j)) { c.moveTo(x, y); c.lineTo(x, y + U); }
+      if (!deep.has((i + 1) + ',' + j)) { c.moveTo(x + U, y); c.lineTo(x + U, y + U); }
+    }
+    c.strokeStyle = 'rgba(255,255,255,0.28)'; c.lineWidth = 1.2; c.stroke();
 
-      // stepped rim: a bright lip on the near side, a dark one on the far
-      c.strokeStyle = 'rgba(8,28,54,0.45)'; c.lineWidth = 2.5;
-      c.beginPath(); c.arc(wt.x, wt.y, R + 10, 0, TAU); c.stroke();
-      c.strokeStyle = 'rgba(255,255,255,0.40)'; c.lineWidth = 2;
-      c.beginPath(); c.arc(wt.x, wt.y, R, Math.PI * 0.12, Math.PI * 0.88); c.stroke();
-      c.strokeStyle = 'rgba(8,28,54,0.30)'; c.lineWidth = 2;
-      c.beginPath(); c.arc(wt.x, wt.y, R, Math.PI * 1.12, Math.PI * 1.88); c.stroke();
+    // every water stud carries its stud, like any other plate on the board
+    for (const k of shallow) {
+      const p = k.indexOf(',');
+      studTop(c, +k.slice(0, p) * U + U / 2, +k.slice(p + 1) * U + U / 2, shoreCol);
+    }
+    for (const k of deep) {
+      const p = k.indexOf(',');
+      studTop(c, +k.slice(0, p) * U + U / 2, +k.slice(p + 1) * U + U / 2, deepCol);
+    }
 
-      if (R > 78) {
-        drawFloe(c, wt.x - R * 0.35, wt.y + R * 0.3, R * 0.16, rnd);
-        drawFloe(c, wt.x + R * 0.42, wt.y - R * 0.28, R * 0.13, rnd);
-      }
+    // a few pieces dropped in the bigger pools
+    for (const w of level.water) {
+      if (w.rect || w.r <= 78) continue;
+      drawFloe(c, w.x - w.r * 0.35, w.y + w.r * 0.3, w.r * 0.16, rnd);
+      drawFloe(c, w.x + w.r * 0.42, w.y - w.r * 0.28, w.r * 0.13, rnd);
     }
   }
 
@@ -894,7 +904,8 @@
     /* Pieces dropped in the pool. They used to be drawn at scattered ANGLES,
        which from above is the one thing a brick lying in water cannot do — it
        lies flat, square to the plate underneath. */
-    const cols = [BRICK.red, BRICK.blue, BRICK.yellow, BRICK.green];
+    // no blue here either: a blue piece in a blue pool is just a ripple
+    const cols = [BRICK.red, BRICK.yellow, BRICK.white, BRICK.green];
     const n = 1 + ((rnd() * 2) | 0);
     for (let i = 0; i < n; i++) {
       const flip = rnd() > 0.5;
@@ -1264,7 +1275,7 @@
      a green plate, so that is what this builds now. */
   function drawTuft(c, x, y, s0, rnd) {
     // single 1x1 pieces, the smallest thing in the system
-    const cols = [BRICK.red, BRICK.yellow, BRICK.white, '#D9629C', BRICK.blue];
+    const cols = [BRICK.red, BRICK.yellow, BRICK.white, '#D9629C'];
     const n = 1 + ((rnd() * 2) | 0);
     for (let i = 0; i < n; i++) {
       brickAt(c, x + i * U, y + (i % 2) * U, 1, 1, cols[(rnd() * cols.length) | 0], { plate: true });
@@ -1274,7 +1285,7 @@
   // a pile of loose bricks nobody put away
   function drawStone(c, x, y, s0, rnd) {
     // loose pieces dropped on the plate: real sizes, seen from above
-    const cols = [BRICK.lgrey, BRICK.red, BRICK.blue, BRICK.yellow, BRICK.white];
+    const cols = [BRICK.lgrey, BRICK.red, BRICK.yellow, BRICK.white, BRICK.dgrey];
     const sizes = [[2, 2], [1, 2], [2, 4], [1, 4], [2, 3]];
     const n = 1 + ((rnd() * 2) | 0);
     for (let i = 0; i < n; i++) {
@@ -1393,28 +1404,19 @@
      as a manhole cover. Every tier here is a circle seen from overhead, and
      depth comes from the lit rim on each one. */
   function drawFountain(c, x, y, R, meta) {
-      /* The town fountain, seen from straight above: a square kerb of stone
-         brick with the water inside it and a pedestal stepping up out of the
-         middle. `R` is the pool's radius, so a bigger pool gets a LONGER kerb —
-         more pieces, never bigger ones.
+    /* The pool is already there — it is one of the board's water plates, with
+       its own stepped edge and its own studs. All a fountain adds is what
+       stands in the MIDDLE of it: a stone plinth with a spout, and the spray,
+       which is drawn live in the FX pass.
 
-         It was a side-on pedestal with a spout dropped into the middle of a
-         top-down board, which is why it read as a manhole cover. */
-      const k = Math.max(2, Math.min(10, Math.round(R / U)));   // kerb, in studs from the middle
-      const n = 2 * k + 1;                                      // studs across, always odd
-      // the water the kerb holds in
-      brickAt(c, x, y, n - 2, n - 2, BRICK.blue, { plate: true });
-      // the kerb itself: four straight runs, the end ones carrying the corners
-      brickAt(c, x, y - k * U, n, 1, BRICK.lgrey);
-      brickAt(c, x, y + k * U, n, 1, BRICK.lgrey);
-      brickAt(c, x - k * U, y, 1, n - 2, BRICK.lgrey);
-      brickAt(c, x + k * U, y, 1, n - 2, BRICK.lgrey);
-      // the pedestal, one step smaller each time it goes up
-      const t = Math.min(n - 4, k >= 6 ? 5 : 3);
-      if (t >= 1) brickAt(c, x, y, t, t, BRICK.lgrey);
-      if (t >= 3) brickAt(c, x, y, 1, 1, BRICK.white);
-      if (meta) meta.fountains.push({ x, y, s: R });
-    }
+       The version before this built a square kerb and a square basin of its
+       own on top of the real pool. That hid the stepped edge the water had
+       just been given, and it claimed every perimeter stud — so Fountain
+       Square silently lost the ability to field a single water Bro. */
+    brickAt(c, x, y, 4, 4, BRICK.lgrey, { plate: true });
+    brickAt(c, x, y, 2, 2, BRICK.white);
+    if (meta) meta.fountains.push({ x, y, s: R });
+  }
 
   // planks out over the water, on posts, going somewhere worth going
   function drawJetty(c, x, y, s, ang) {
@@ -2182,7 +2184,12 @@
         c.restore();
       },
       paint(c, L, rnd, meta) {
-        drawFountain(c, 640, 400, 105, meta); // the pool IS the fountain here
+        /* Sized to the MIDDLE of the pool, not the whole of it. Built to the
+           full 105 radius the fountain covered every water stud on the board,
+           and Fountain Square silently lost the ability to field a single
+           water Bro — the pieces claim their studs, and there were none left
+           over. A ring of open basin stays open. */
+        drawFountain(c, 640, 400, 74, meta);
         drawTuft(c, 570, 262, 7, rnd); drawTuft(c, 712, 258, 7, rnd);
         drawTuft(c, 570, 545, 7, rnd); drawTuft(c, 712, 542, 7, rnd);
       },

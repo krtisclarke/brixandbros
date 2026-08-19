@@ -7,6 +7,49 @@
   G.PATH_HALF = 26;      // half-width of the track
   G.TOWER_R = 20;        // tower footprint radius
 
+  /* ---------------- water, in whole studs ----------------
+     A pool on a brick board is built from transparent plates, so its edge can
+     only step from stud to stud — it cannot be a smooth circle any more than
+     an 8-bit sprite can. This turns a battlefield's water into the SET OF
+     STUDS it covers.
+
+     It lives here, next to the stud pitch, because both the painter and the
+     placement rules read it. Drawing a stepped pool while `inWater` still
+     asked a circle would mean the shape you can see and the shape you can
+     build on were different shapes, and the mismatch would land exactly at
+     the edge, which is the only place anyone ever builds. */
+  G.waterCells = function (L) {
+    if (L.__waterCells) return L.__waterCells;
+    const U = G.STUD_U, W = L.w || 1280, H = L.h || 800;
+    const deep = new Set(), shallow = new Set();
+    for (let j = -1; j * U < H + U; j++) {
+      for (let i = -1; i * U < W + U; i++) {
+        const cx = U * (i + 0.5), cy = U * (j + 0.5);
+        let isDeep = false, isShallow = false;
+        for (const w of L.water) {
+          if (w.rect) {
+            const r = w.rect;
+            if (cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h) isDeep = true;
+            else if (cx >= r.x - U && cx <= r.x + r.w + U && cy >= r.y - U && cy <= r.y + r.h + U) isShallow = true;
+          } else {
+            const dd = (cx - w.x) ** 2 + (cy - w.y) ** 2;
+            if (dd <= w.r * w.r) isDeep = true;
+            else if (dd <= (w.r + U) ** 2) isShallow = true;
+          }
+        }
+        if (isDeep) deep.add(i + ',' + j);
+        else if (isShallow) shallow.add(i + ',' + j);
+      }
+    }
+    L.__waterCells = { deep, shallow };
+    return L.__waterCells;
+  };
+  // the one test for "is this water?", used by the art and the rules alike
+  G.inWaterCell = function (L, x, y) {
+    const U = G.STUD_U;
+    return G.waterCells(L).deep.has(Math.floor(x / U) + ',' + Math.floor(y / U));
+  };
+
   /* ---------------- the stud grid ----------------
      One stud pitch, in pixels. The renderer builds every piece of scenery out
      of whole multiples of it, and placement snaps to it — so it lives here,

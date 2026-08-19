@@ -189,12 +189,11 @@
 
     /* ----- placement ----- */
     inWater(x, y) {
-      for (const w of this.level.water) {
-        if (w.rect) {
-          if (x >= w.rect.x && x <= w.rect.x + w.rect.w && y >= w.rect.y && y <= w.rect.y + w.rect.h) return true;
-        } else if (dist2(x, y, w.x, w.y) <= w.r * w.r) return true;
-      }
-      return false;
+      /* The stud, not the circle. The pool is PAINTED as whole studs with a
+         stepped edge, so asking a smooth circle here would put the buildable
+         shape a few pixels off the visible one — right at the rim, which is
+         the only part of a pool anyone builds on. */
+      return G.inWaterCell(this.level, x, y);
     }
 
     canPlace(typeId, x, y) {
