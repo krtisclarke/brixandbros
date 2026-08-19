@@ -234,6 +234,34 @@
      without a single one of them having to remember to say so. */
   let occupyInto = null;
 
+  /* The track is the one thing on the board nothing may cover. Landmarks and
+     scenery are painted AFTER the road — they have to be, so their shadows
+     fall on it — which meant any build placed a little too close simply drew
+     straight over the tarmac. City Hall sat squarely across it.
+
+     Rather than hand-tune thirty sets of coordinates and hope the next one is
+     placed correctly, the painter itself refuses: a piece whose footprint
+     reaches the road is not drawn at all. Set while the terrain is baked.
+
+     Four things legitimately meet the track and opt out with `onTrack`: the
+     home base at the end of it, the parapets alongside a ford, the tunnel
+     mouths the packs come out of, and the gatehouses that flank it. */
+  let trackGuard = null;
+  function onTrack(x, y, pad) {
+    if (!trackGuard) return false;
+    for (const pl of trackGuard) {
+      for (let i = 0; i < pl.length - 1; i++) {
+        const ax = pl[i].x, ay = pl[i].y;
+        const dx = pl[i + 1].x - ax, dy = pl[i + 1].y - ay;
+        const l2 = dx * dx + dy * dy;
+        const t = l2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2)) : 0;
+        const px = ax + dx * t, py = ay + dy * t;
+        if ((x - px) ** 2 + (y - py) ** 2 < pad * pad) return true;
+      }
+    }
+    return false;
+  }
+
   function brickAt(c, cx, cy, wS, hS, col, opts) {
     opts = opts || {};
     const w = wS * U, h = hS * U;
@@ -245,6 +273,23 @@
     const y = opts.free ? cy - h / 2 : snapU(cy - h / 2);
     const lift = opts.plate ? U * 0.10 : U * 0.24;
     const rad = CHAMFER;
+
+    /* Refuse the road. Every stud the piece would cover is tested, not just
+       its centre — a build centred legally can still reach across the kerb. */
+    if (trackGuard && !opts.onTrack) {
+      for (let j = 0; j < hS; j++) {
+        for (let i = 0; i < wS; i++) {
+          if (onTrack(x + U * (i + 0.5), y + U * (j + 0.5), G.PATH_HALF + 3)) {
+            /* Recorded, because a refusal inside a LANDMARK leaves a hole in
+               it — the build comes out chewed rather than moved. Refusals in
+               the loose scatter are fine; a CLUSTER of them means a landmark
+               is sitting too close and wants relocating. */
+            if (G.__trackRefusals) G.__trackRefusals.push({ x, y, wS, hS });
+            return null;
+          }
+        }
+      }
+    }
 
     // claim the studs underneath, so nothing can be stood on top of this
     if (occupyInto && !opts.free) {
@@ -507,6 +552,12 @@
     // start claiming studs: everything drawn from here on is a piece on the plate
     const occupied = new Set();
     occupyInto = occupied;
+    /* Armed for the WHOLE bake, not just after the road is painted. The loose
+       scatter goes down first and the road then covers it, so those pieces
+       were invisible — but they still claimed studs under the tarmac, and a
+       claim there is a lie about the board. */
+    trackGuard = level.paths;
+    G.__trackRefusals = [];
 
     /* --- the baseplate ---
        The whole board is one giant building plate, and the studs are what say
@@ -710,6 +761,7 @@
     c.fillRect(0, 0, w, h);
 
     occupyInto = null;
+    trackGuard = null;
     /* Published on the level so canPlace can read it. The scenery is baked
        art, so this is the only place that knows where the pieces actually
        ended up — the scatter is seeded, so it is the same set every time. */
@@ -1414,13 +1466,13 @@
           const p = pathPoint(pts, d);
           const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
           brickAt(c, p.x + nx * side * off, p.y + ny * side * off, 1, 1,
-            i % 2 ? BRICK.lgrey : lit(BRICK.lgrey, 0.10));
+            i % 2 ? BRICK.lgrey : lit(BRICK.lgrey, 0.10), { onTrack: true });
         }
         if (broken) {
           const p = pathPoint(pts, dMid + (rnd() - 0.5) * len * 0.2);
           const nx = Math.cos(p.ang + Math.PI / 2), ny = Math.sin(p.ang + Math.PI / 2);
           brickAt(c, p.x + nx * side * (G.PATH_HALF + U * 2),
-            p.y + ny * side * (G.PATH_HALF + U * 2), 2, 1, BRICK.lgrey, { plate: true });
+            p.y + ny * side * (G.PATH_HALF + U * 2), 2, 1, BRICK.lgrey, { plate: true, onTrack: true });
         }
       }
     }
@@ -1723,7 +1775,7 @@
       // `a` is studs out along the facing, `b` studs across it — both whole
       const put = (a, b, deep, across, col, opts) => brickAt(
         c, x + fx * a * U + nx * b * U, y + fy * a * U + ny * b * U,
-        fx ? deep : across, fx ? across : deep, col, opts);
+        fx ? deep : across, fx ? across : deep, col, Object.assign({ onTrack: true }, opts));
       put(0, 0, 4, 4, BRICK.black, { plate: true, tile: true });   // the mouth
       put(0, -3, 4, 2, BRICK.lgrey);                               // its cheeks
       put(0, 3, 4, 2, BRICK.lgrey);
@@ -1996,9 +2048,9 @@
       c.fillRect(gx - 3, gy - gapS * U, 6, gapS * U * 2);
       for (const side of [-1, 1]) {
         const py = gy + side * off;
-        brickAt(c, gx, py, pS, pS, col);
-        brickAt(c, gx, py, pS - 2, pS - 2, lit(col, 0.12));
-        brickAt(c, gx, py, pS - 2, pS - 2, BRICK.yellow, { plate: true, tile: true });
+        brickAt(c, gx, py, pS, pS, col, { onTrack: true });
+        brickAt(c, gx, py, pS - 2, pS - 2, lit(col, 0.12), { onTrack: true });
+        brickAt(c, gx, py, pS - 2, pS - 2, BRICK.yellow, { plate: true, tile: true, onTrack: true });
       }
     }
 
@@ -2094,11 +2146,11 @@
       },
       paint(c, L, rnd, meta) {
         // a second row of houses along the top of the loop's inner ground
-        drawHouse(c, 410, 350, 40, rnd);
-        drawHouse(c, 640, 354, 40, rnd);
-        drawHouse(c, 865, 348, 40, rnd);
+        drawHouse(c, 410, 300, 40, rnd);
+        drawHouse(c, 640, 304, 40, rnd);
+        drawHouse(c, 865, 298, 40, rnd);
         drawSnowman(c, 640, 96, 15, rnd);   // the statue in the square
-        drawTuft(c, 545, 344, 7, rnd); drawTuft(c, 745, 342, 7, rnd);
+        drawTuft(c, 545, 300, 7, rnd); drawTuft(c, 745, 298, 7, rnd);
         drawTuft(c, 585, 108, 7, rnd); drawTuft(c, 697, 104, 7, rnd);
       },
     },
@@ -2138,8 +2190,8 @@
     bay: {
       paint(c, L, rnd, meta) {
         // real piers, long enough to read as a waterfront from across the board
-        drawJetty(c, 372, 505, 26, 0.30);     // out into the central pool
-        drawJetty(c, 812, 258, 22, 2.55);     // out into the eastern pool
+        drawJetty(c, 448, 486, 26, 0.30);     // out into the central pool
+        drawJetty(c, 884, 306, 22, 2.55);     // out into the eastern pool
         drawJetty(c, 1058, 742, 20, -0.55);
         drawBoat(c, 545, 470, 16, rnd);
         drawBoat(c, 928, 372, 13, rnd);
@@ -2158,7 +2210,7 @@
         // rooftop furniture: this board is the top of a building
         drawACUnit(c, 432, 306, 30);
         drawACUnit(c, 828, 302, 28);
-        drawACUnit(c, 430, 545, 24);
+        drawACUnit(c, 430, 492, 24);
         drawChimneyBlock(c, 620, 282, 26);
         drawChimneyBlock(c, 836, 552, 22);
         drawACUnit(c, 200, 460, 15);
@@ -2182,8 +2234,8 @@
         /* City Hall stands BEHIND the base, at the end of the last stretch —
            it is the thing the whole tier is defending, so it belongs where
            the player is looking, at the size of a civic building. */
-        drawCityHall(c, 660, 768, 40);
-        drawTuft(c, 452, 800, 8, rnd); drawTuft(c, 872, 796, 8, rnd);
+        drawCityHall(c, 1120, 528, 40);   // clears every lane, and the pool above it
+        drawTuft(c, 980, 600, 8, rnd); drawTuft(c, 1260, 596, 8, rnd);
         drawTowerBlock(c, 375, 225, 140, 74, '#4a6f9c');   // clear of the NW pool and both lanes
       },
     },
@@ -2219,10 +2271,12 @@
         /* The freight yard, in the pocket the two lanes braid around. Three
            stacks at s=16 scattered into the corners was the entire cargo on
            a board called Cargo Deck. */
-        drawContainers(c, 545, 622, 34, rnd);
-        drawContainers(c, 760, 628, 34, rnd);
-        drawContainers(c, 968, 620, 32, rnd);
-        drawGantry(c, 1006, 648, 32, -1);
+        /* In the pocket the two lanes braid around, and clear of BOTH — the
+           diagonals converging on (640,400) are easy to forget about, and a
+           yard nudged north to dodge the y=700 lane lands squarely on them. */
+        drawContainers(c, 764, 540, 34, rnd);
+        drawContainers(c, 944, 544, 32, rnd);
+        drawGantry(c, 1030, 590, 30, -1);
         drawContainers(c, 160, 620, 18, rnd);
         drawContainers(c, 1250, 700, 19, rnd);
       },
@@ -2233,15 +2287,15 @@
          thing you see. */
       skin(c, b, rnd) {
         if (b.kind !== 'fort' || b.gen) return false;
-        drawHangar(c, b.x, b.y + b.r * 0.9, b.r * 1.2, rnd);
+        drawHangar(c, b.x, b.y - b.r * 0.35, b.r * 1.2, rnd);
         return true;
       },
       paint(c, L, rnd, meta) {
         // clear of the western pool (its right edge is x=195) and of the bay row
-        drawHangar(c, 312, 342, 58, rnd);      // the big bay in the coil's eye
+        drawHangar(c, 312, 292, 58, rnd);      // the big bay in the coil's eye
         drawHangar(c, 210, 838, 46, rnd);
         drawWindsock(c, 1000, 306, 16);
-        drawWindsock(c, 424, 340, 15);
+        drawWindsock(c, 424, 292, 15);
       },
     },
     basin: {
@@ -2296,7 +2350,7 @@
         drawGantry(c, 1016, 178, 34, 1);
         drawRocket(c, 1146, 172, 40);
         drawDish(c, 320, 112, 24);
-        drawContainers(c, 250, 200, 16, rnd);
+        drawContainers(c, 250, 148, 16, rnd);
       },
     },
 
@@ -2349,8 +2403,8 @@
            promises, instead of a strip of dark-on-dark along the edge. */
         drawCurtainWall(c, 786, 40, 786, 152, 34, true);
         drawCurtainWall(c, 786, 256, 786, 400, 34, true);
-        drawCastleTower(c, 762, 176, 28, { dark: true, glow: '#8fb4ff' });
-        drawCastleTower(c, 762, 300, 28, { dark: true, glow: '#8fb4ff' });
+        drawCastleTower(c, 762, 116, 28, { dark: true, glow: '#8fb4ff' });
+        drawCastleTower(c, 762, 328, 28, { dark: true, glow: '#8fb4ff' });
         drawCastleTower(c, 762, 424, 22, { dark: true });
         // what came out of the breach, spilled across the lane
         brickBit(c, 706, 212, 17, 10, '#6b6478');
@@ -2378,7 +2432,7 @@
         // the mill: house on the bank, wheel turning in the race. The wheel
         // is baked stopped so thumbnails have it; in battle the animated one
         // draws over this exact spot and it turns.
-        drawHouse(c, 880, 372, 34, rnd);   // clear of the y=220 lane at the new scale
+        drawHouse(c, 880, 344, 34, rnd);   // clear of the y=220 lane at the new scale
         brickBlock(c, 790, 330, 14, 40, '#5d4a38', 0);
         drawStaticWheel(c, 748, 300, 68);
         if (meta) meta.wheels.push({ x: 748, y: 300, r: 68 });
@@ -2626,9 +2680,9 @@
        reads as the thing you are defending. */
     const wS = Math.max(3, Math.min(7, Math.round((r * 2) / U)));
     const inner = Math.max(2, wS - 2);
-    brickAt(ctx, x, y, wS, wS, home ? BRICK.white : BRICK.lgrey);
-    brickAt(ctx, x, y, inner, inner, home ? BRICK.red : BRICK.blue);
-    if (home && inner >= 3) brickAt(ctx, x, y, 1, 1, BRICK.yellow);
+    brickAt(ctx, x, y, wS, wS, home ? BRICK.white : BRICK.lgrey, { onTrack: true });
+    brickAt(ctx, x, y, inner, inner, home ? BRICK.red : BRICK.blue, { onTrack: true });
+    if (home && inner >= 3) brickAt(ctx, x, y, 1, 1, BRICK.yellow, { onTrack: true });
   }
 
   function drawBlocker(ctx, b) {
